@@ -1,4 +1,20 @@
-"""Input validation for polars_metrics."""
+"""Input validation for polars_metrics.
+
+This module provides validation utilities for returns data with explicit policies
+for null handling and dtype enforcement.
+
+Null Handling Policy
+--------------------
+By default, polars_metrics drops null values before calculations. This matches
+the behavior of QuantStats and pandas-based libraries where NaN values are
+typically excluded. Users can override this behavior by passing `drop_nulls=False`
+to validation functions.
+
+Dtype Enforcement
+-----------------
+All numeric types (int, float) are accepted. Integer types are automatically
+cast to Float64 during calculations via `to_float_series()` in utils.py.
+"""
 
 from __future__ import annotations
 
@@ -11,8 +27,13 @@ from polars_metrics.exceptions import (
 )
 
 
-def validate_returns(data: pl.Series, *, allow_empty: bool = False) -> None:
-    """Validate that data is a valid returns series.
+def validate_returns(
+    data: pl.Series,
+    *,
+    allow_empty: bool = False,
+    drop_nulls: bool = True,
+) -> pl.Series:
+    """Validate and optionally clean a returns series.
 
     Parameters
     ----------
@@ -20,19 +41,82 @@ def validate_returns(data: pl.Series, *, allow_empty: bool = False) -> None:
         Series to validate.
     allow_empty : bool, default False
         If True, empty series will not raise an error.
+    drop_nulls : bool, default True
+        If True, null values are dropped from the series before validation.
+        This is the default behavior to match QuantStats/pandas conventions.
+
+    Returns
+    -------
+    pl.Series
+        The validated (and optionally cleaned) series.
 
     Raises
     ------
     EmptySeriesError
-        If data is empty and allow_empty is False.
+        If data is empty (after null removal if drop_nulls=True) and allow_empty is False.
     TypeError
         If data is not a numeric type.
+
+    Notes
+    -----
+    Null Handling: Polars uses `null` instead of pandas' `NaN` for missing values.
+    By default, nulls are dropped to ensure consistent calculations. If you need
+    to preserve null positions, set `drop_nulls=False` and handle them manually.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> from polars_metrics.core.validation import validate_returns
+    >>> returns = pl.Series([0.01, None, -0.02, 0.015])
+    >>> clean = validate_returns(returns)
+    >>> len(clean)  # Null is dropped
+    3
+    >>> validate_returns(returns, drop_nulls=False)  # Keep nulls
+    shape: (4,)
+    ...
     """
+    # Drop nulls if requested (default behavior)
+    if drop_nulls:
+        data = data.drop_nulls()
+
     if data.is_empty() and not allow_empty:
         raise EmptySeriesError("Returns series is empty")
 
     if not data.dtype.is_float() and not data.dtype.is_integer():
         raise TypeError(f"Expected numeric dtype, got {data.dtype}")
+
+    return data
+
+
+def ensure_float64(data: pl.Series) -> pl.Series:
+    """Ensure series is Float64 dtype.
+
+    Parameters
+    ----------
+    data : pl.Series
+        Input series.
+
+    Returns
+    -------
+    pl.Series
+        Series with Float64 dtype.
+
+    Notes
+    -----
+    This function aggressively casts to Float64 to avoid dtype mismatch errors
+    in downstream calculations. Integer series are safely converted without
+    precision loss.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> s = pl.Series([1, 2, 3])  # Int64
+    >>> ensure_float64(s).dtype
+    Float64
+    """
+    if data.dtype == pl.Float64:
+        return data
+    return data.cast(pl.Float64)
 
 
 def validate_min_length(data: pl.Series, min_length: int, metric: str = "") -> None:

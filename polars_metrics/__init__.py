@@ -93,6 +93,13 @@ from polars_metrics.reports import (
     metrics_summary,
     save_html_report,
 )
+from polars_metrics.trades import (
+    Trade,
+    TradeConfig,
+    TradeResult,
+    calculate_single_trade_return,
+    trades_to_returns,
+)
 
 __all__ = [
     "__version__",
@@ -182,4 +189,10 @@ __all__ = [
     "metrics_summary",
     "generate_html_report",
     "save_html_report",
+    # Trade conversion
+    "trades_to_returns",
+    "calculate_single_trade_return",
+    "Trade",
+    "TradeResult",
+    "TradeConfig",
 ]

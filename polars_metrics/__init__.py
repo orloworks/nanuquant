@@ -74,6 +74,11 @@ from polars_metrics.advanced import (
     smart_sortino,
     sqn,
 )
+from polars_metrics.institutional import (
+    # Robustness metrics
+    deflated_sharpe_ratio,
+    probabilistic_sharpe_ratio,
+)
 from polars_metrics.exceptions import (
     BenchmarkMismatchError,
     EmptySeriesError,
@@ -168,6 +173,9 @@ __all__ = [
     "sqn",
     "expectancy",
     "k_ratio",
+    # Institutional / Robustness metrics
+    "probabilistic_sharpe_ratio",
+    "deflated_sharpe_ratio",
     # Reports
     "MetricsReport",
     "full_metrics",

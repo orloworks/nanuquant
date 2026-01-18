@@ -89,10 +89,14 @@ def build_equity_curve(
         # Process entries for this date
         entries = _get_entries_on_date(trades, current_date_val)
         for entry in entries:
-            # Deduct cost from cash
             cost = entry["entry_price"] * entry["quantity"]
             entry_fees = entry.get("fees", 0.0) / 2  # Split fees between entry/exit
-            cash -= cost + entry_fees
+            if entry.get("direction", "long") == "long":
+                # Long: buy shares, cash decreases
+                cash -= cost + entry_fees
+            else:
+                # Short: sell borrowed shares, cash increases (minus fees)
+                cash += cost - entry_fees
             open_positions.append(entry)
 
         # Process exits for this date
@@ -102,17 +106,15 @@ def build_equity_curve(
             pos_idx = _find_matching_position(open_positions, exit_trade)
             if pos_idx is not None:
                 pos = open_positions.pop(pos_idx)
-                # Add proceeds to cash
-                proceeds = exit_trade["exit_price"] * pos["quantity"]
                 exit_fees = pos.get("fees", 0.0) / 2
                 if pos["direction"] == "long":
+                    # Long: sell shares, cash increases
+                    proceeds = exit_trade["exit_price"] * pos["quantity"]
                     cash += proceeds - exit_fees
-                else:  # short
-                    # For short: we sold at entry, buy back at exit
-                    pnl = (pos["entry_price"] - exit_trade["exit_price"]) * pos[
-                        "quantity"
-                    ]
-                    cash += pos["entry_price"] * pos["quantity"] + pnl - exit_fees
+                else:
+                    # Short: buy back shares to cover, cash decreases
+                    cover_cost = exit_trade["exit_price"] * pos["quantity"]
+                    cash -= cover_cost + exit_fees
 
         # Mark-to-market open positions
         position_value = _calculate_position_value(
@@ -204,23 +206,30 @@ def build_equity_curve_no_mtm(
         for entry in entries:
             cost = entry["entry_price"] * entry["quantity"]
             entry_fees = entry.get("fees", 0.0) / 2
-            cash -= cost + entry_fees
-            capital_deployed += cost
+            if entry.get("direction", "long") == "long":
+                # Long: cash out, position value in
+                cash -= cost + entry_fees
+                capital_deployed += cost
+            else:
+                # Short: cash in (from sale), but we have a liability
+                cash += cost - entry_fees
+                capital_deployed -= cost  # Negative position value (liability)
 
         # Process exits - recognize full P&L
         exits = _get_exits_on_date(trades, current_date_val)
         for exit_trade in exits:
             entry_cost = exit_trade["entry_price"] * exit_trade["quantity"]
-            exit_proceeds = exit_trade["exit_price"] * exit_trade["quantity"]
+            exit_cost = exit_trade["exit_price"] * exit_trade["quantity"]
             exit_fees = exit_trade.get("fees", 0.0) / 2
 
             if exit_trade.get("direction", "long") == "long":
-                cash += exit_proceeds - exit_fees
-            else:  # short
-                pnl = (exit_trade["entry_price"] - exit_trade["exit_price"]) * exit_trade["quantity"]
-                cash += entry_cost + pnl - exit_fees
-
-            capital_deployed -= entry_cost
+                # Long: sell shares, receive proceeds
+                cash += exit_cost - exit_fees
+                capital_deployed -= entry_cost
+            else:
+                # Short: buy back shares to cover
+                cash -= exit_cost + exit_fees
+                capital_deployed += entry_cost  # Remove the liability
 
         nav = cash + capital_deployed
         nav_data.append(
@@ -341,13 +350,22 @@ def _get_exits_on_date(trades: pl.DataFrame, target_date: date) -> list[dict]:
 def _find_matching_position(
     positions: list[dict], exit_trade: dict
 ) -> int | None:
-    """Find the index of a matching open position for an exit."""
+    """Find the index of a matching open position for an exit.
+
+    Matching priority:
+    1. By trade_id if both positions have it
+    2. By entry_time and symbol (FIFO - first matching position)
+
+    Note: When multiple positions have the same entry_time and symbol,
+    the first one (FIFO) will be matched. For unambiguous matching,
+    provide unique trade_id values in your trade data.
+    """
     for i, pos in enumerate(positions):
-        # Match by trade_id if available
+        # Match by trade_id if available (most reliable)
         if pos.get("trade_id") and exit_trade.get("trade_id"):
             if pos["trade_id"] == exit_trade["trade_id"]:
                 return i
-        # Otherwise match by entry_time and symbol
+        # Otherwise match by entry_time and symbol (FIFO)
         elif (
             pos["entry_time"] == exit_trade["entry_time"]
             and pos.get("symbol") == exit_trade.get("symbol")
@@ -391,11 +409,12 @@ def _calculate_position_value(
 
         # Calculate position value
         if direction == "long":
+            # Long: we own shares worth current_price * quantity
             total_value += current_price * quantity
-        else:  # short
-            # Short position value: entry_price * qty + unrealized P&L
-            unrealized_pnl = (pos["entry_price"] - current_price) * quantity
-            total_value += pos["entry_price"] * quantity + unrealized_pnl
+        else:
+            # Short: we owe shares, this is a liability (negative value)
+            # The liability is what it would cost to cover: -current_price * quantity
+            total_value -= current_price * quantity
 
     return total_value
 

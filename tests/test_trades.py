@@ -670,6 +670,7 @@ class TestOverlappingHoldings:
 
     def test_concurrent_long_short(self) -> None:
         """Test concurrent long and short positions in same asset."""
+        # Same asset, same exit price - price goes up to 110
         trades = pl.DataFrame({
             "entry_time": [
                 datetime(2024, 1, 2),  # Long
@@ -680,7 +681,7 @@ class TestOverlappingHoldings:
                 datetime(2024, 1, 5),
             ],
             "entry_price": [100.0, 100.0],
-            "exit_price": [110.0, 90.0],  # Price goes up
+            "exit_price": [110.0, 110.0],  # Same exit price for same asset
             "quantity": [10.0, 10.0],
             "direction": ["long", "short"],
         })
@@ -688,10 +689,11 @@ class TestOverlappingHoldings:
         result = trades_to_returns(trades, aggregation="trade")
 
         # Long wins: (110-100)/100 = 10%
-        # Short wins too: (100-90)/100 = 10%
+        # Short loses: (100-110)/100 = -10%
         assert abs(result.returns[0] - 0.10) < 1e-6
-        assert abs(result.returns[1] - 0.10) < 1e-6
-        assert result.n_winning == 2
+        assert abs(result.returns[1] - (-0.10)) < 1e-6
+        assert result.n_winning == 1
+        assert result.n_losing == 1
 
     def test_multiple_entries_same_day(self) -> None:
         """Test multiple trade entries on the same day."""

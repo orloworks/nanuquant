@@ -186,10 +186,15 @@ def _aggregate_per_trade(
     total_fees = float(closed["fees"].sum()) if "fees" in closed.columns else 0.0
 
     # Determine periods_per_year
+    warnings = []
     if trades_per_year is not None:
         periods = trades_per_year
     else:
-        periods = n_trades  # Default to actual trade count for 1-year period
+        periods = 252  # Default to standard annualization
+        warnings.append(
+            "Using default periods_per_year=252 for trade-level returns. "
+            "Set trades_per_year for accurate annualized metrics based on your trading frequency."
+        )
 
     return TradeResult(
         returns=returns,
@@ -201,7 +206,7 @@ def _aggregate_per_trade(
         aggregation="trade",
         periods_per_year=periods,
         has_mtm=False,
-        warnings=[],
+        warnings=warnings,
     )
 
 
@@ -213,6 +218,13 @@ def _aggregate_equity(
 ) -> TradeResult:
     """Aggregate to daily returns from equity curve."""
     warnings = []
+
+    # Note: equity mode always returns simple returns from NAV changes
+    if method == "log":
+        warnings.append(
+            "Equity mode returns simple returns (NAV-based), not log returns. "
+            "The 'method' parameter only affects trade-level statistics."
+        )
 
     # Build equity curve
     if prices is not None:
@@ -380,10 +392,21 @@ def _aggregate_trades_by_period(
     dates = result["exit_date"]
 
     # Fill gaps if requested
-    if fill_gaps and not returns.is_empty():
-        # This would require generating the full date range and filling
-        # For simplicity, we'll note this in warnings
-        pass
+    if fill_gaps and not result.is_empty():
+        min_date = result["exit_date"].min()
+        max_date = result["exit_date"].max()
+        if min_date is not None and max_date is not None:
+            full_date_range = pl.date_range(
+                start=min_date,
+                end=max_date,
+                interval=period_str,
+                eager=True,
+            ).alias("exit_date").to_frame()
+            result = full_date_range.join(
+                result, on="exit_date", how="left"
+            ).with_columns(pl.col("return").fill_null(0.0))
+            returns = result["return"].alias("returns")
+            dates = result["exit_date"]
 
     # Trade statistics
     n_trades = closed.height

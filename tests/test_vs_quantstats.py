@@ -44,7 +44,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
-import quantstats_lumi as qs
+
+qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
 
 import polars_metrics as pm
 from polars_metrics.exceptions import EmptySeriesError

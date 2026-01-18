@@ -220,18 +220,10 @@ def _expected_max_sharpe(n_trials: int, var_sharpe: float = 1.0) -> float:
 
     # Calculate expected max using full formula
     ln_n = math.log(n_trials)
-
-    if ln_n <= 0:
-        return 0.0
-
     sqrt_2_ln_n = math.sqrt(2 * ln_n)
 
     # Inner term for correction
     inner = ln_n + math.log(4 * math.pi)
-    if inner <= 0:
-        # Use simplified approximation for edge cases
-        return std_sharpe * sqrt_2_ln_n
-
     ln_inner = math.log(inner)
     correction = (gamma + ln_inner) / (2 * sqrt_2_ln_n)
 

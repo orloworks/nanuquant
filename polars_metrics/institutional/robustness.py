@@ -106,14 +106,18 @@ def probabilistic_sharpe_ratio(
     std_ret = returns.std()
 
     if mean_ret is None or std_ret is None or std_ret == 0:
-        # Zero volatility: if mean > benchmark, we're certain it beats benchmark
-        # Otherwise we're uncertain (return 0.5)
         if std_ret == 0 and mean_ret is not None:
-            # Annualized "Sharpe" for zero vol is undefined, but we can compare means
-            if mean_ret > 0 and benchmark_sr <= 0:
+            # For zero volatility, Sharpe Ratio is effectively infinite or -infinite.
+            if mean_ret > 0:
+                return PSRResult(psr=1.0, p_value=0.0)  # Infinite SR beats any finite benchmark
+            if mean_ret < 0:
+                return PSRResult(psr=0.0, p_value=1.0)  # -Infinite SR loses to any finite benchmark
+            # mean_ret is 0, so SR is 0. Compare to benchmark.
+            if benchmark_sr < 0:
                 return PSRResult(psr=1.0, p_value=0.0)
-            elif mean_ret < 0 and benchmark_sr >= 0:
+            if benchmark_sr > 0:
                 return PSRResult(psr=0.0, p_value=1.0)
+        # Fallback for None values or if both SR and benchmark are 0
         return PSRResult(psr=0.5, p_value=0.5)
 
     # Sample Sharpe ratio (annualized)

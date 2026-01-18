@@ -1,9 +1,29 @@
 """Polars Metrics - Native Polars metrics library for quantitative finance.
 
 A complete QuantStats replacement with native Polars implementation.
+
+This package provides:
+- Core metrics: sharpe, sortino, volatility, max_drawdown, etc.
+- Advanced trading metrics: exposure, ghpr, smart_sharpe, etc.
+- Institutional metrics: deflated_sharpe_ratio, probabilistic_sharpe_ratio, etc.
+- Rolling metrics: rolling_volatility, rolling_sharpe, rolling_sortino, etc.
+- Report generation: HTML reports with metric summaries
+- Trade conversion: Convert trade data to returns series
+
+The package also registers a Polars expression namespace for idiomatic usage:
+
+    >>> import polars as pl
+    >>> import polars_metrics as pm
+    >>>
+    >>> df = pl.DataFrame({"returns": [0.01, -0.02, 0.015, -0.01, 0.02] * 50})
+    >>> df.select(pl.col("returns").metrics.sharpe())
+    >>> df.select(pl.col("returns").metrics.max_drawdown())
 """
 
 from polars_metrics._version import __version__
+
+# Import namespace to register it with Polars
+from polars_metrics.namespace import MetricsNamespace  # noqa: F401
 from polars_metrics.config import DEFAULT_CONFIG, MetricsConfig, get_config, set_config
 from polars_metrics.core import (
     # Returns
@@ -103,6 +123,8 @@ from polars_metrics.trades import (
 
 __all__ = [
     "__version__",
+    # Namespace plugin (registered automatically on import)
+    "MetricsNamespace",
     # Config
     "MetricsConfig",
     "DEFAULT_CONFIG",

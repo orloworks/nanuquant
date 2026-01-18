@@ -1,6 +1,23 @@
 """Rolling metrics for polars_metrics.
 
 This module provides rolling (window-based) metrics that match QuantStats output.
+
+Note on Annualization Periods
+-----------------------------
+Rolling metrics in this module default to 365 periods per year to match
+QuantStats' rolling function behavior. This differs from the global config
+default of 252 trading days used by core metrics like `sharpe()` and `volatility()`.
+
+The rationale:
+- QuantStats rolling functions use calendar days (365) for consistency with
+  their datetime-indexed calculations
+- Core metrics use trading days (252) as the standard for daily returns
+
+To use trading days for rolling metrics, explicitly pass `periods_per_year=252`:
+
+    >>> rolling_sharpe(returns, periods_per_year=252)
+
+Or use the global config by passing `periods_per_year=get_config().periods_per_year`.
 """
 
 from __future__ import annotations
@@ -157,6 +174,9 @@ def rolling_sortino(
 
     Matches QuantStats rolling_sortino implementation.
 
+    This implementation uses native Polars vectorized operations for optimal
+    performance on large datasets, avoiding Python loops.
+
     Parameters
     ----------
     returns : pl.Series
@@ -174,6 +194,11 @@ def rolling_sortino(
     -------
     pl.Series
         Rolling Sortino ratio series.
+
+    Notes
+    -----
+    Downside deviation is calculated as sqrt(sum(negative_returns^2) / n),
+    where n is the window size. This matches the QuantStats formula.
 
     Examples
     --------
@@ -200,30 +225,16 @@ def rolling_sortino(
     # Adjust returns for risk-free rate
     adjusted = returns - rf_per_period
 
-    # Rolling mean
+    # Rolling mean of adjusted returns
     rolling_mean = adjusted.rolling_mean(window_size=rolling_period)
 
-    # For downside deviation, we need custom rolling calculation
-    # Use map_batches with a rolling window
-    n = len(returns)
-    downside_values = []
-
-    for i in range(n):
-        if i < rolling_period - 1:
-            downside_values.append(None)
-        else:
-            window = adjusted[i - rolling_period + 1 : i + 1]
-            # Get negative returns in window
-            negative = window.filter(window < 0)
-            if negative.is_empty():
-                downside_values.append(0.0)
-            else:
-                # sqrt(sum(neg^2) / n)
-                squared_sum = (negative ** 2).sum()
-                downside = math.sqrt(squared_sum / rolling_period)
-                downside_values.append(downside)
-
-    downside_series = pl.Series("downside", downside_values)
+    # Vectorized downside deviation calculation:
+    # For each value: if negative, square it; otherwise 0
+    # Then rolling sum / n, then sqrt
+    # clip(upper_bound=0) sets positive values to 0, pow(2) squares the negatives
+    negative_squared = adjusted.clip(upper_bound=0).pow(2)
+    rolling_neg_sq_sum = negative_squared.rolling_sum(window_size=rolling_period)
+    downside_series = (rolling_neg_sq_sum / rolling_period).sqrt()
 
     # Sortino = mean / downside * sqrt(ann_factor)
     if annualize:
@@ -242,6 +253,9 @@ def rolling_beta(
 ) -> pl.Series:
     """Calculate rolling beta relative to benchmark.
 
+    This implementation uses native Polars vectorized operations for optimal
+    performance on large datasets, avoiding Python loops.
+
     Parameters
     ----------
     returns : pl.Series
@@ -255,6 +269,14 @@ def rolling_beta(
     -------
     pl.Series
         Rolling beta series.
+
+    Notes
+    -----
+    Beta is calculated as Cov(returns, benchmark) / Var(benchmark).
+
+    Using the identity:
+        Cov(X, Y) = E[XY] - E[X]E[Y]
+        Var(Y) = E[Y^2] - E[Y]^2
 
     Examples
     --------
@@ -277,31 +299,28 @@ def rolling_beta(
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
 
-    n = len(returns)
-    beta_values = []
+    # Vectorized rolling beta calculation using covariance formula:
+    # Beta = Cov(X, Y) / Var(Y)
+    # Cov(X, Y) = E[XY] - E[X]E[Y]
+    # Var(Y) = E[Y^2] - E[Y]^2
 
-    for i in range(n):
-        if i < rolling_period - 1:
-            beta_values.append(None)
-        else:
-            ret_window = returns[i - rolling_period + 1 : i + 1]
-            bench_window = benchmark[i - rolling_period + 1 : i + 1]
+    # Rolling means
+    rolling_mean_ret = returns.rolling_mean(window_size=rolling_period)
+    rolling_mean_bench = benchmark.rolling_mean(window_size=rolling_period)
 
-            mean_ret = ret_window.mean()
-            mean_bench = bench_window.mean()
+    # Rolling mean of product (for covariance)
+    rolling_mean_product = (returns * benchmark).rolling_mean(window_size=rolling_period)
 
-            if mean_ret is None or mean_bench is None:
-                beta_values.append(None)
-                continue
+    # Rolling mean of benchmark squared (for variance)
+    rolling_mean_bench_sq = (benchmark ** 2).rolling_mean(window_size=rolling_period)
 
-            # Covariance
-            cov = ((ret_window - mean_ret) * (bench_window - mean_bench)).mean()
-            # Variance of benchmark
-            var_bench = ((bench_window - mean_bench) ** 2).mean()
+    # Covariance: E[XY] - E[X]E[Y]
+    rolling_cov = rolling_mean_product - rolling_mean_ret * rolling_mean_bench
 
-            if cov is None or var_bench is None or var_bench == 0:
-                beta_values.append(None)
-            else:
-                beta_values.append(float(cov / var_bench))
+    # Variance of benchmark: E[Y^2] - E[Y]^2
+    rolling_var_bench = rolling_mean_bench_sq - rolling_mean_bench ** 2
 
-    return pl.Series("rolling_beta", beta_values)
+    # Beta = Cov / Var (will be null where var is 0 due to division)
+    result = rolling_cov / rolling_var_bench
+
+    return result.alias("rolling_beta")

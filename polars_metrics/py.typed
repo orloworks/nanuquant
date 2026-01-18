@@ -1,0 +1,2 @@
+# Marker file for PEP 561.
+# The polars_metrics package uses inline type hints.

@@ -121,11 +121,10 @@ class TestDifferentialVsQuantStats:
         """SPY CAGR should match QuantStats.
 
         Note: QuantStats uses datetime index for calendar year calculation.
-        Our periods-based approach may differ slightly (< 5% typically).
-        This is intentional - periods-based works with non-datetime data.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
         """
-        expected = qs.stats.cagr(spy_returns, periods=365)
-        actual = pm.cagr(spy_polars, periods_per_year=365)
+        expected = qs.stats.cagr(spy_returns)
+        actual = pm.cagr(spy_polars, periods_per_year=252)
         np.testing.assert_allclose(actual, expected, **self.CALENDAR_TOL)
 
     def test_spy_volatility_vs_quantstats(
@@ -147,8 +146,8 @@ class TestDifferentialVsQuantStats:
 
         Note: Calmar uses CAGR internally, so calendar-based tolerance applies.
         """
-        expected = qs.stats.calmar(spy_returns, periods=365)
-        actual = pm.calmar(spy_polars, periods_per_year=365)
+        expected = qs.stats.calmar(spy_returns)
+        actual = pm.calmar(spy_polars, periods_per_year=252)
         np.testing.assert_allclose(actual, expected, **self.CALENDAR_TOL)
 
     def test_qqq_sharpe_vs_quantstats(

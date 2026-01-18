@@ -49,3 +49,6 @@ htmlcov/
 
 # Build artifacts
 *.whl
+
+# Test data cache
+tests/.data_cache/

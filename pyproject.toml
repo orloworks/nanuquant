@@ -29,6 +29,7 @@ dev = [
     "numpy>=1.24",
     "pandas>=2.0",
     "mypy>=1.8",
+    "yfinance>=0.2.40",
 ]
 reports = [
     "msgspec>=0.18",
@@ -49,6 +50,7 @@ testpaths = ["tests"]
 addopts = "-v --tb=short"
 markers = [
     "benchmark: marks tests as benchmarks (deselect with '-m \"not benchmark\"')",
+    "integration: marks tests that use real market data (deselect with '-m \"not integration\"')",
 ]
 
 [tool.mypy]

@@ -1,6 +1,13 @@
 """Integration tests using real market data (SPY, QQQ, BND).
 
 These tests verify metrics against recognizable real-world data.
+Data is pre-cached in tests/.data_cache/ - no network required.
+
+Available data:
+- SPY: 1993-present (~8000 days, 33 years)
+- QQQ: 1999-present (~6700 days, 27 years)
+- BND: 2007-present (~4700 days, 19 years)
+
 Run with: pytest -m integration
 Skip with: pytest -m "not integration"
 """
@@ -12,12 +19,24 @@ import polars as pl
 import pytest
 import quantstats_lumi as qs
 
-# All tests in this file require network access and real data
+# Mark all tests as integration (real market data, no network needed - data is cached)
 pytestmark = pytest.mark.integration
 
 
 class TestRealDataSanityChecks:
     """Sanity checks that real data loaded correctly."""
+
+    def test_spy_full_history(self, spy_returns_full: pd.Series) -> None:
+        """SPY full history should have 30+ years of data."""
+        assert len(spy_returns_full) > 7500  # ~30 years
+
+    def test_qqq_full_history(self, qqq_returns_full: pd.Series) -> None:
+        """QQQ full history should have 25+ years of data."""
+        assert len(qqq_returns_full) > 6000  # ~25 years
+
+    def test_bnd_full_history(self, bnd_returns_full: pd.Series) -> None:
+        """BND full history should have 17+ years of data."""
+        assert len(bnd_returns_full) > 4000  # ~17 years
 
     def test_spy_has_data(self, spy_returns: pd.Series) -> None:
         """SPY should have ~1250 trading days for 5 years."""

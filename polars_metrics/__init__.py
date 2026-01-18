@@ -75,9 +75,19 @@ from polars_metrics.core import (
     skewness,
     # Rolling
     rolling_beta,
+    rolling_greeks,
     rolling_sharpe,
     rolling_sortino,
     rolling_volatility,
+    # Outlier detection
+    outliers,
+    outliers_iqr,
+    remove_outliers,
+    remove_outliers_iqr,
+    # Period analysis
+    compare,
+    distribution,
+    monthly_returns,
 )
 from polars_metrics.advanced import (
     # Trading metrics
@@ -189,6 +199,16 @@ __all__ = [
     "rolling_sharpe",
     "rolling_sortino",
     "rolling_beta",
+    "rolling_greeks",
+    # Outlier detection
+    "outliers",
+    "remove_outliers",
+    "outliers_iqr",
+    "remove_outliers_iqr",
+    # Period analysis
+    "monthly_returns",
+    "distribution",
+    "compare",
     # Trading metrics
     "exposure",
     "ghpr",

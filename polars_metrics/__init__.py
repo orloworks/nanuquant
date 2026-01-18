@@ -5,6 +5,39 @@ A complete QuantStats replacement with native Polars implementation.
 
 from polars_metrics._version import __version__
 from polars_metrics.config import DEFAULT_CONFIG, MetricsConfig, get_config, set_config
+from polars_metrics.core import (
+    # Returns
+    avg_loss,
+    avg_return,
+    avg_win,
+    best,
+    cagr,
+    comp,
+    payoff_ratio,
+    profit_factor,
+    win_rate,
+    worst,
+    # Risk
+    cvar,
+    downside_deviation,
+    max_drawdown,
+    to_drawdown_series,
+    ulcer_index,
+    var,
+    volatility,
+    # Performance
+    calmar,
+    common_sense_ratio,
+    gain_to_pain_ratio,
+    kelly_criterion,
+    omega,
+    recovery_factor,
+    risk_return_ratio,
+    sharpe,
+    sortino,
+    tail_ratio,
+    ulcer_performance_index,
+)
 from polars_metrics.exceptions import (
     BenchmarkMismatchError,
     EmptySeriesError,
@@ -26,4 +59,35 @@ __all__ = [
     "InsufficientDataError",
     "BenchmarkMismatchError",
     "InvalidFrequencyError",
+    # Returns
+    "comp",
+    "cagr",
+    "avg_return",
+    "avg_win",
+    "avg_loss",
+    "best",
+    "worst",
+    "win_rate",
+    "payoff_ratio",
+    "profit_factor",
+    # Risk
+    "volatility",
+    "var",
+    "cvar",
+    "max_drawdown",
+    "to_drawdown_series",
+    "ulcer_index",
+    "downside_deviation",
+    # Performance
+    "sharpe",
+    "sortino",
+    "calmar",
+    "omega",
+    "gain_to_pain_ratio",
+    "ulcer_performance_index",
+    "kelly_criterion",
+    "tail_ratio",
+    "common_sense_ratio",
+    "risk_return_ratio",
+    "recovery_factor",
 ]

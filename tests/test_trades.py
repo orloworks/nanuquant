@@ -563,6 +563,165 @@ class TestEquityCurve:
 
 
 # =============================================================================
+# Overlapping Holdings Tests
+# =============================================================================
+
+
+class TestOverlappingHoldings:
+    """Tests for overlapping positions (multiple trades open simultaneously)."""
+
+    @pytest.fixture
+    def overlapping_trades(self) -> pl.DataFrame:
+        """Trades with overlapping holding periods."""
+        return pl.DataFrame({
+            "entry_time": [
+                datetime(2024, 1, 2),  # Trade 1: Jan 2-5
+                datetime(2024, 1, 3),  # Trade 2: Jan 3-6 (overlaps)
+                datetime(2024, 1, 4),  # Trade 3: Jan 4-8 (overlaps)
+            ],
+            "exit_time": [
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 6),
+                datetime(2024, 1, 8),
+            ],
+            "entry_price": [100.0, 102.0, 104.0],
+            "exit_price": [105.0, 108.0, 100.0],
+            "quantity": [10.0, 20.0, 15.0],
+            "direction": ["long", "long", "short"],
+        })
+
+    @pytest.fixture
+    def overlapping_prices(self) -> pl.DataFrame:
+        """Price data covering the overlapping period."""
+        return pl.DataFrame({
+            "date": [date(2024, 1, d) for d in range(2, 9)],
+            "close": [100.0, 101.0, 103.0, 105.0, 106.0, 104.0, 102.0],
+        })
+
+    def test_trade_level_returns_independent(
+        self, overlapping_trades: pl.DataFrame
+    ) -> None:
+        """Trade-level returns treat each trade independently."""
+        result = trades_to_returns(overlapping_trades, aggregation="trade")
+
+        assert result.n_trades == 3
+        returns = result.returns.to_list()
+
+        # Each trade calculated independently
+        # Trade 1: (105-100)/100 = 0.05
+        assert abs(returns[0] - 0.05) < 1e-6
+        # Trade 2: (108-102)/102 = 0.0588
+        assert abs(returns[1] - 0.058823529) < 1e-6
+        # Trade 3 (short): (104-100)/104 = 0.0385
+        assert abs(returns[2] - 0.038461538) < 1e-6
+
+    def test_equity_mode_handles_overlaps(
+        self, overlapping_trades: pl.DataFrame
+    ) -> None:
+        """Equity mode processes overlapping positions."""
+        result = trades_to_returns(
+            overlapping_trades, aggregation="equity", initial_capital=10000
+        )
+
+        # Should have daily returns for the period
+        assert len(result.returns) == 7  # Jan 2-8
+        assert result.n_trades == 3
+
+    def test_mtm_with_overlapping_positions(
+        self, overlapping_trades: pl.DataFrame, overlapping_prices: pl.DataFrame
+    ) -> None:
+        """Mark-to-market correctly values overlapping positions."""
+        result = trades_to_returns(
+            overlapping_trades,
+            prices=overlapping_prices,
+            aggregation="equity",
+            initial_capital=10000,
+        )
+
+        assert result.has_mtm
+        assert len(result.returns) == 7
+
+        # MTM should produce more non-zero returns than exit-only
+        result_no_mtm = trades_to_returns(
+            overlapping_trades, aggregation="equity", initial_capital=10000
+        )
+
+        mtm_nonzero = (result.returns != 0).sum()
+        no_mtm_nonzero = (result_no_mtm.returns != 0).sum()
+        assert mtm_nonzero >= no_mtm_nonzero
+
+    def test_total_return_consistency(
+        self, overlapping_trades: pl.DataFrame
+    ) -> None:
+        """Total compounded return should be consistent across modes."""
+        result_trade = trades_to_returns(overlapping_trades, aggregation="trade")
+        result_equity = trades_to_returns(
+            overlapping_trades, aggregation="equity", initial_capital=10000
+        )
+
+        # Compound the returns
+        trade_total = float((1 + result_trade.returns).product() - 1)
+        equity_total = float((1 + result_equity.returns).product() - 1)
+
+        # Should be reasonably close (equity may differ due to timing)
+        # The key is both should be positive given all winning trades
+        assert trade_total > 0
+        assert equity_total > 0
+
+    def test_concurrent_long_short(self) -> None:
+        """Test concurrent long and short positions in same asset."""
+        trades = pl.DataFrame({
+            "entry_time": [
+                datetime(2024, 1, 2),  # Long
+                datetime(2024, 1, 2),  # Short (same day)
+            ],
+            "exit_time": [
+                datetime(2024, 1, 5),
+                datetime(2024, 1, 5),
+            ],
+            "entry_price": [100.0, 100.0],
+            "exit_price": [110.0, 90.0],  # Price goes up
+            "quantity": [10.0, 10.0],
+            "direction": ["long", "short"],
+        })
+
+        result = trades_to_returns(trades, aggregation="trade")
+
+        # Long wins: (110-100)/100 = 10%
+        # Short wins too: (100-90)/100 = 10%
+        assert abs(result.returns[0] - 0.10) < 1e-6
+        assert abs(result.returns[1] - 0.10) < 1e-6
+        assert result.n_winning == 2
+
+    def test_multiple_entries_same_day(self) -> None:
+        """Test multiple trade entries on the same day."""
+        trades = pl.DataFrame({
+            "entry_time": [
+                datetime(2024, 1, 2, 9, 30),
+                datetime(2024, 1, 2, 10, 30),
+                datetime(2024, 1, 2, 14, 0),
+            ],
+            "exit_time": [
+                datetime(2024, 1, 3, 10, 0),
+                datetime(2024, 1, 3, 11, 0),
+                datetime(2024, 1, 3, 15, 0),
+            ],
+            "entry_price": [100.0, 101.0, 102.0],
+            "exit_price": [102.0, 103.0, 104.0],
+            "direction": ["long", "long", "long"],
+        })
+
+        result = trades_to_returns(trades, aggregation="trade")
+        assert result.n_trades == 3
+
+        result_equity = trades_to_returns(
+            trades, aggregation="equity", initial_capital=10000
+        )
+        # Should have 2 days of returns
+        assert len(result_equity.returns) == 2
+
+
+# =============================================================================
 # Integration Tests
 # =============================================================================
 

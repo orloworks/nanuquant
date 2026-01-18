@@ -101,19 +101,37 @@ def get_annualization_factor(
 
 
 def to_float_series(data: pl.Series) -> pl.Series:
-    """Convert series to float64 if not already float.
+    """Convert series to Float64 dtype.
+
+    This function ensures consistent Float64 precision for all financial
+    calculations, avoiding potential precision issues with Float32.
 
     Parameters
     ----------
     data : pl.Series
-        Input series.
+        Input series (any numeric type).
 
     Returns
     -------
     pl.Series
-        Series with float64 dtype.
+        Series with Float64 dtype.
+
+    Notes
+    -----
+    Always returns Float64 for precision consistency in financial calculations.
+    Integer series are safely converted without precision loss.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> s = pl.Series([1, 2, 3])  # Int64
+    >>> to_float_series(s).dtype
+    Float64
+    >>> s32 = pl.Series([1.0, 2.0], dtype=pl.Float32)
+    >>> to_float_series(s32).dtype
+    Float64
     """
-    if data.dtype.is_float():
+    if data.dtype == pl.Float64:
         return data
     return data.cast(pl.Float64)
 

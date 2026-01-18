@@ -70,7 +70,6 @@ from polars_metrics.core.utils import (
     to_float_series,
 )
 from polars_metrics.core.validation import (
-    ensure_float64,
     validate_benchmark_match,
     validate_min_length,
     validate_positive,
@@ -146,5 +145,4 @@ __all__ = [
     "validate_benchmark_match",
     "validate_positive",
     "validate_probability",
-    "ensure_float64",
 ]

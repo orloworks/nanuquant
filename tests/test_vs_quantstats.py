@@ -1091,8 +1091,10 @@ class TestTradingVsQuantStats:
         regular_sharpe = pm.sharpe(spy_polars, risk_free_rate=0.0, periods_per_year=252)
         # Smart Sharpe should be close to regular but adjusted for autocorrelation
         assert np.isfinite(actual), "Smart Sharpe should be finite for SPY"
-        # With positive autocorrelation (common in markets), smart Sharpe is usually lower
-        # With negative autocorrelation, it can be higher
+        # Verify it's in a reasonable range of the regular Sharpe ratio
+        assert abs(actual - regular_sharpe) < abs(regular_sharpe), (
+            "Smart Sharpe should be in a reasonable range of regular Sharpe"
+        )
 
     def test_smart_sortino_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series

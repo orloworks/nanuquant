@@ -330,15 +330,12 @@ class MetricsNamespace:
         """
         from polars_metrics.core import rolling_volatility
 
-        def apply_rolling(s: pl.Series) -> pl.Series:
-            return rolling_volatility(
-                s,
-                rolling_period=rolling_period,
-                periods_per_year=periods_per_year,
-                annualize=annualize,
-            )
-
-        return self._expr.map_batches(apply_rolling, return_dtype=pl.Float64)
+        return self._apply_metric(
+            rolling_volatility,
+            rolling_period=rolling_period,
+            periods_per_year=periods_per_year,
+            annualize=annualize,
+        )
 
     def rolling_sharpe(
         self,
@@ -368,16 +365,13 @@ class MetricsNamespace:
         """
         from polars_metrics.core import rolling_sharpe
 
-        def apply_rolling(s: pl.Series) -> pl.Series:
-            return rolling_sharpe(
-                s,
-                risk_free_rate=risk_free_rate,
-                rolling_period=rolling_period,
-                periods_per_year=periods_per_year,
-                annualize=annualize,
-            )
-
-        return self._expr.map_batches(apply_rolling, return_dtype=pl.Float64)
+        return self._apply_metric(
+            rolling_sharpe,
+            risk_free_rate=risk_free_rate,
+            rolling_period=rolling_period,
+            periods_per_year=periods_per_year,
+            annualize=annualize,
+        )
 
     def rolling_sortino(
         self,
@@ -407,16 +401,13 @@ class MetricsNamespace:
         """
         from polars_metrics.core import rolling_sortino
 
-        def apply_rolling(s: pl.Series) -> pl.Series:
-            return rolling_sortino(
-                s,
-                risk_free_rate=risk_free_rate,
-                rolling_period=rolling_period,
-                periods_per_year=periods_per_year,
-                annualize=annualize,
-            )
-
-        return self._expr.map_batches(apply_rolling, return_dtype=pl.Float64)
+        return self._apply_metric(
+            rolling_sortino,
+            risk_free_rate=risk_free_rate,
+            rolling_period=rolling_period,
+            periods_per_year=periods_per_year,
+            annualize=annualize,
+        )
 
     # =========================================================================
     # Drawdown Series (returns Series)
@@ -432,7 +423,7 @@ class MetricsNamespace:
         """
         from polars_metrics.core import to_drawdown_series
 
-        return self._expr.map_batches(to_drawdown_series, return_dtype=pl.Float64)
+        return self._apply_metric(to_drawdown_series)
 
     # =========================================================================
     # Streak Metrics

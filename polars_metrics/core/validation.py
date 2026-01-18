@@ -88,37 +88,6 @@ def validate_returns(
     return data
 
 
-def ensure_float64(data: pl.Series) -> pl.Series:
-    """Ensure series is Float64 dtype.
-
-    Parameters
-    ----------
-    data : pl.Series
-        Input series.
-
-    Returns
-    -------
-    pl.Series
-        Series with Float64 dtype.
-
-    Notes
-    -----
-    This function aggressively casts to Float64 to avoid dtype mismatch errors
-    in downstream calculations. Integer series are safely converted without
-    precision loss.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> s = pl.Series([1, 2, 3])  # Int64
-    >>> ensure_float64(s).dtype
-    Float64
-    """
-    if data.dtype == pl.Float64:
-        return data
-    return data.cast(pl.Float64)
-
-
 def validate_min_length(data: pl.Series, min_length: int, metric: str = "") -> None:
     """Validate that data has minimum required length.
 

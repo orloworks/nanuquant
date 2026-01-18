@@ -231,14 +231,8 @@ def rolling_sortino(
     # Vectorized downside deviation calculation:
     # For each value: if negative, square it; otherwise 0
     # Then rolling sum / n, then sqrt
-    # Use DataFrame context for when/then/otherwise expressions
-    df = pl.DataFrame({"val": adjusted})
-    negative_squared = df.select(
-        pl.when(pl.col("val") < 0)
-        .then(pl.col("val") ** 2)
-        .otherwise(pl.lit(0.0))
-        .alias("neg_sq")
-    ).to_series()
+    # clip(upper_bound=0) sets positive values to 0, pow(2) squares the negatives
+    negative_squared = adjusted.clip(upper_bound=0).pow(2)
     rolling_neg_sq_sum = negative_squared.rolling_sum(window_size=rolling_period)
     downside_series = (rolling_neg_sq_sum / rolling_period).sqrt()
 

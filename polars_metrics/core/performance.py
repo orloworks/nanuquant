@@ -603,3 +603,344 @@ def recovery_factor(returns: pl.Series) -> float:
         return float("inf") if total > 0 else 0.0
 
     return float(safe_divide(abs(total), abs(mdd), default=0.0))
+
+
+# ===== BENCHMARK COMPARISON METRICS =====
+
+
+def greeks(
+    returns: pl.Series,
+    benchmark: pl.Series,
+    *,
+    periods_per_year: int | None = None,
+) -> tuple[float, float]:
+    """Calculate alpha and beta relative to a benchmark.
+
+    Matches QuantStats greeks implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Strategy period returns.
+    benchmark : pl.Series
+        Benchmark period returns (same frequency).
+    periods_per_year : int, optional
+        Periods per year for annualization.
+
+    Returns
+    -------
+    tuple[float, float]
+        (alpha, beta) where:
+        - alpha: Annualized excess return over benchmark
+        - beta: Sensitivity to benchmark movements
+
+    Notes
+    -----
+    Uses OLS regression: returns = alpha + beta * benchmark + epsilon
+    Alpha is annualized by multiplying by periods_per_year.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
+    >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
+    >>> alpha, beta = greeks(returns, benchmark)
+    """
+    from polars_metrics.core.validation import validate_benchmark_match
+
+    validate_returns(returns)
+    validate_returns(benchmark)
+    validate_benchmark_match(returns, benchmark)
+
+    if returns.is_empty() or len(returns) < 2:
+        return (0.0, 0.0)
+
+    returns = to_float_series(returns)
+    benchmark = to_float_series(benchmark)
+
+    config = get_config()
+    ann_factor = get_annualization_factor(
+        periods_per_year=periods_per_year or config.periods_per_year
+    )
+
+    # Calculate beta (covariance / variance)
+    mean_ret = returns.mean()
+    mean_bench = benchmark.mean()
+
+    if mean_ret is None or mean_bench is None:
+        return (0.0, 0.0)
+
+    # Covariance
+    cov = ((returns - mean_ret) * (benchmark - mean_bench)).mean()
+    # Variance of benchmark
+    var_bench = ((benchmark - mean_bench) ** 2).mean()
+
+    if cov is None or var_bench is None or var_bench == 0:
+        beta = 0.0
+    else:
+        beta = float(cov / var_bench)
+
+    # Alpha (annualized): alpha_period = mean_ret - beta * mean_bench
+    alpha_period = mean_ret - beta * mean_bench
+    alpha = alpha_period * ann_factor
+
+    return (float(alpha), beta)
+
+
+def information_ratio(
+    returns: pl.Series,
+    benchmark: pl.Series,
+) -> float:
+    """Calculate information ratio.
+
+    Matches QuantStats implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Strategy period returns.
+    benchmark : pl.Series
+        Benchmark period returns.
+
+    Returns
+    -------
+    float
+        Information ratio (active return / tracking error).
+
+    Notes
+    -----
+    IR = mean(returns - benchmark) / std(returns - benchmark)
+    Measures risk-adjusted excess return over benchmark.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
+    >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
+    >>> information_ratio(returns, benchmark)
+    0.25...
+    """
+    from polars_metrics.core.validation import validate_benchmark_match
+
+    validate_returns(returns)
+    validate_returns(benchmark)
+    validate_benchmark_match(returns, benchmark)
+
+    if returns.is_empty() or len(returns) < 2:
+        return 0.0
+
+    returns = to_float_series(returns)
+    benchmark = to_float_series(benchmark)
+
+    # Active returns (tracking difference)
+    active = returns - benchmark
+
+    mean_active = active.mean()
+    std_active = active.std()
+
+    if mean_active is None or std_active is None or std_active == 0:
+        return 0.0
+
+    return float(mean_active / std_active)
+
+
+def r_squared(
+    returns: pl.Series,
+    benchmark: pl.Series,
+) -> float:
+    """Calculate R-squared (coefficient of determination).
+
+    Matches QuantStats r_squared implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Strategy period returns.
+    benchmark : pl.Series
+        Benchmark period returns.
+
+    Returns
+    -------
+    float
+        R-squared value (0 to 1). Higher means more explained by benchmark.
+
+    Notes
+    -----
+    R² = correlation² between returns and benchmark.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
+    >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
+    >>> r_squared(returns, benchmark)
+    0.60...
+    """
+    from polars_metrics.core.validation import validate_benchmark_match
+
+    validate_returns(returns)
+    validate_returns(benchmark)
+    validate_benchmark_match(returns, benchmark)
+
+    if returns.is_empty() or len(returns) < 2:
+        return 0.0
+
+    returns = to_float_series(returns)
+    benchmark = to_float_series(benchmark)
+    n = len(returns)
+
+    # Calculate correlation using consistent sample formulas (ddof=1)
+    mean_ret = returns.mean()
+    mean_bench = benchmark.mean()
+
+    if mean_ret is None or mean_bench is None:
+        return 0.0
+
+    # Sample covariance (N-1 denominator)
+    cov_sum = ((returns - mean_ret) * (benchmark - mean_bench)).sum()
+    if cov_sum is None:
+        return 0.0
+    cov = cov_sum / (n - 1)
+
+    # Sample standard deviations (ddof=1, N-1 denominator)
+    std_ret = returns.std(ddof=1)
+    std_bench = benchmark.std(ddof=1)
+
+    if std_ret is None or std_bench is None:
+        return 0.0
+    if std_ret == 0 or std_bench == 0:
+        return 0.0
+
+    correlation = cov / (std_ret * std_bench)
+    return float(correlation ** 2)
+
+
+def treynor_ratio(
+    returns: pl.Series,
+    benchmark: pl.Series,
+    *,
+    risk_free_rate: float | None = None,
+    periods_per_year: int | None = None,
+) -> float:
+    """Calculate Treynor ratio.
+
+    Matches QuantStats treynor_ratio implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Strategy period returns.
+    benchmark : pl.Series
+        Benchmark period returns.
+    risk_free_rate : float, optional
+        Annualized risk-free rate.
+    periods_per_year : int, optional
+        Periods per year for annualization.
+
+    Returns
+    -------
+    float
+        Treynor ratio (excess return / beta).
+
+    Notes
+    -----
+    Measures return per unit of systematic risk (beta).
+    Treynor = (CAGR - rf) / beta
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
+    >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
+    >>> treynor_ratio(returns, benchmark)
+    0.50...
+    """
+    from polars_metrics.core.returns import cagr
+    from polars_metrics.core.validation import validate_benchmark_match
+
+    validate_returns(returns)
+    validate_returns(benchmark)
+    validate_benchmark_match(returns, benchmark)
+
+    if returns.is_empty() or len(returns) < 2:
+        return 0.0
+
+    config = get_config()
+    rf = risk_free_rate if risk_free_rate is not None else config.risk_free_rate
+    ppy = periods_per_year or config.periods_per_year
+
+    # Calculate beta
+    _, beta = greeks(returns, benchmark, periods_per_year=ppy)
+
+    if beta == 0:
+        annual_return = cagr(returns, periods_per_year=ppy)
+        return float("inf") if annual_return > rf else 0.0
+
+    annual_return = cagr(returns, periods_per_year=ppy)
+    excess_return = annual_return - rf
+
+    return float(safe_divide(excess_return, beta, default=0.0))
+
+
+def benchmark_correlation(
+    returns: pl.Series,
+    benchmark: pl.Series,
+) -> float:
+    """Calculate correlation with benchmark.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Strategy period returns.
+    benchmark : pl.Series
+        Benchmark period returns.
+
+    Returns
+    -------
+    float
+        Pearson correlation coefficient (-1 to 1).
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
+    >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
+    >>> benchmark_correlation(returns, benchmark)
+    0.77...
+    """
+    from polars_metrics.core.validation import validate_benchmark_match
+
+    validate_returns(returns)
+    validate_returns(benchmark)
+    validate_benchmark_match(returns, benchmark)
+
+    if returns.is_empty() or len(returns) < 2:
+        return 0.0
+
+    returns = to_float_series(returns)
+    benchmark = to_float_series(benchmark)
+    n = len(returns)
+
+    # Calculate correlation using consistent sample formulas (ddof=1)
+    mean_ret = returns.mean()
+    mean_bench = benchmark.mean()
+
+    if mean_ret is None or mean_bench is None:
+        return 0.0
+
+    # Sample covariance (N-1 denominator)
+    cov_sum = ((returns - mean_ret) * (benchmark - mean_bench)).sum()
+    if cov_sum is None:
+        return 0.0
+    cov = cov_sum / (n - 1)
+
+    # Sample standard deviations (ddof=1, N-1 denominator)
+    std_ret = returns.std(ddof=1)
+    std_bench = benchmark.std(ddof=1)
+
+    if std_ret is None or std_bench is None:
+        return 0.0
+    if std_ret == 0 or std_bench == 0:
+        return 0.0
+
+    return float(cov / (std_ret * std_bench))

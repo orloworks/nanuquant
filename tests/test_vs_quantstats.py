@@ -648,3 +648,174 @@ class TestUlcerMetrics:
         expected = qs.stats.ulcer_performance_index(spy_returns, rf=0.0)
         actual = pm.ulcer_performance_index(spy_polars, risk_free_rate=0.0)
         np.testing.assert_allclose(actual, expected, **TIGHT)
+
+
+class TestDistributionVsQuantStats:
+    """Test distribution metrics against QuantStats."""
+
+    def test_skewness_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test skewness on synthetic data."""
+        expected = qs.stats.skew(sample_returns)
+        actual = pm.skewness(polars_returns)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.integration
+    def test_skewness_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
+        """Test skewness on SPY data."""
+        expected = qs.stats.skew(spy_returns)
+        actual = pm.skewness(spy_polars)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    def test_kurtosis_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test kurtosis on synthetic data."""
+        expected = qs.stats.kurtosis(sample_returns)
+        actual = pm.kurtosis(polars_returns)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.integration
+    def test_kurtosis_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
+        """Test kurtosis on SPY data."""
+        expected = qs.stats.kurtosis(spy_returns)
+        actual = pm.kurtosis(spy_polars)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+
+class TestStreakVsQuantStats:
+    """Test streak metrics against QuantStats."""
+
+    def test_consecutive_wins_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test consecutive wins on synthetic data."""
+        expected = qs.stats.consecutive_wins(sample_returns)
+        actual = pm.consecutive_wins(polars_returns)
+        assert actual == expected
+
+    @pytest.mark.integration
+    def test_consecutive_wins_spy(
+        self, spy_returns: pd.Series, spy_polars: pl.Series
+    ) -> None:
+        """Test consecutive wins on SPY data."""
+        expected = qs.stats.consecutive_wins(spy_returns)
+        actual = pm.consecutive_wins(spy_polars)
+        assert actual == expected
+
+    def test_consecutive_losses_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test consecutive losses on synthetic data."""
+        expected = qs.stats.consecutive_losses(sample_returns)
+        actual = pm.consecutive_losses(polars_returns)
+        assert actual == expected
+
+    @pytest.mark.integration
+    def test_consecutive_losses_spy(
+        self, spy_returns: pd.Series, spy_polars: pl.Series
+    ) -> None:
+        """Test consecutive losses on SPY data."""
+        expected = qs.stats.consecutive_losses(spy_returns)
+        actual = pm.consecutive_losses(spy_polars)
+        assert actual == expected
+
+
+class TestBenchmarkVsQuantStats:
+    """Test benchmark metrics against QuantStats."""
+
+    def test_greeks_synthetic(
+        self,
+        sample_returns: pd.Series,
+        polars_returns: pl.Series,
+        benchmark_returns: pd.Series,
+        polars_benchmark: pl.Series,
+    ) -> None:
+        """Test greeks (alpha, beta) on synthetic data."""
+        expected = qs.stats.greeks(sample_returns, benchmark_returns, periods=252)
+        alpha, beta = pm.greeks(polars_returns, polars_benchmark, periods_per_year=252)
+        # QuantStats returns Series with beta, alpha
+        np.testing.assert_allclose(beta, expected["beta"], **LOOSE)
+        np.testing.assert_allclose(alpha, expected["alpha"], **LOOSE)
+
+    @pytest.mark.integration
+    def test_greeks_spy_vs_qqq(
+        self,
+        spy_returns: pd.Series,
+        spy_polars: pl.Series,
+        qqq_returns: pd.Series,
+        qqq_polars: pl.Series,
+    ) -> None:
+        """Test greeks on SPY vs QQQ data."""
+        expected = qs.stats.greeks(spy_returns, qqq_returns, periods=252)
+        alpha, beta = pm.greeks(spy_polars, qqq_polars, periods_per_year=252)
+        np.testing.assert_allclose(beta, expected["beta"], **LOOSE)
+        np.testing.assert_allclose(alpha, expected["alpha"], **LOOSE)
+
+    def test_information_ratio_synthetic(
+        self,
+        sample_returns: pd.Series,
+        polars_returns: pl.Series,
+        benchmark_returns: pd.Series,
+        polars_benchmark: pl.Series,
+    ) -> None:
+        """Test information ratio on synthetic data."""
+        expected = qs.stats.information_ratio(sample_returns, benchmark_returns)
+        actual = pm.information_ratio(polars_returns, polars_benchmark)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.integration
+    def test_information_ratio_spy_vs_qqq(
+        self,
+        spy_returns: pd.Series,
+        spy_polars: pl.Series,
+        qqq_returns: pd.Series,
+        qqq_polars: pl.Series,
+    ) -> None:
+        """Test information ratio on SPY vs QQQ data."""
+        expected = qs.stats.information_ratio(spy_returns, qqq_returns)
+        actual = pm.information_ratio(spy_polars, qqq_polars)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    def test_r_squared_synthetic(
+        self,
+        sample_returns: pd.Series,
+        polars_returns: pl.Series,
+        benchmark_returns: pd.Series,
+        polars_benchmark: pl.Series,
+    ) -> None:
+        """Test R-squared on synthetic data."""
+        expected = qs.stats.r_squared(sample_returns, benchmark_returns)
+        actual = pm.r_squared(polars_returns, polars_benchmark)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.integration
+    def test_r_squared_spy_vs_qqq(
+        self,
+        spy_returns: pd.Series,
+        spy_polars: pl.Series,
+        qqq_returns: pd.Series,
+        qqq_polars: pl.Series,
+    ) -> None:
+        """Test R-squared on SPY vs QQQ data."""
+        expected = qs.stats.r_squared(spy_returns, qqq_returns)
+        actual = pm.r_squared(spy_polars, qqq_polars)
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.skip(reason="QuantStats treynor uses CAGR which depends on datetime index")
+    def test_treynor_ratio_synthetic(
+        self,
+        sample_returns: pd.Series,
+        polars_returns: pl.Series,
+        benchmark_returns: pd.Series,
+        polars_benchmark: pl.Series,
+    ) -> None:
+        """Test Treynor ratio on synthetic data."""
+        expected = qs.stats.treynor_ratio(
+            sample_returns, benchmark_returns, periods=252, rf=0.0
+        )
+        actual = pm.treynor_ratio(
+            polars_returns, polars_benchmark, periods_per_year=252, risk_free_rate=0.0
+        )
+        np.testing.assert_allclose(actual, expected, **LOOSE)

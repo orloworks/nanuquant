@@ -358,3 +358,103 @@ def profit_factor(returns: pl.Series) -> float:
         return float("inf") if sum_wins > 0 else 0.0
 
     return float(safe_divide(sum_wins, sum_losses, default=0.0))
+
+
+def consecutive_wins(returns: pl.Series) -> int:
+    """Calculate maximum consecutive winning periods.
+
+    Matches QuantStats consecutive_wins implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Period returns.
+
+    Returns
+    -------
+    int
+        Maximum number of consecutive positive returns.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.01, 0.02, 0.03, -0.01, 0.02, 0.01])
+    >>> consecutive_wins(returns)
+    3
+    """
+    validate_returns(returns)
+    if returns.is_empty():
+        return 0
+
+    returns = to_float_series(returns)
+
+    # Identify wins (1 for positive, 0 otherwise)
+    is_win = (returns > 0).cast(pl.Int32)
+
+    if is_win.sum() == 0:
+        return 0
+
+    # Count consecutive wins using cumsum and reset on loss
+    # When we hit a loss, we mark a new group
+    group_id = (is_win == 0).cum_sum()
+
+    # Count wins within each group
+    df = pl.DataFrame({"is_win": is_win, "group": group_id})
+
+    # Filter only win rows and count per group
+    win_groups = df.filter(pl.col("is_win") == 1).group_by("group").len()
+
+    if win_groups.is_empty():
+        return 0
+
+    return int(win_groups["len"].max())
+
+
+def consecutive_losses(returns: pl.Series) -> int:
+    """Calculate maximum consecutive losing periods.
+
+    Matches QuantStats consecutive_losses implementation.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Period returns.
+
+    Returns
+    -------
+    int
+        Maximum number of consecutive negative returns.
+
+    Examples
+    --------
+    >>> import polars as pl
+    >>> returns = pl.Series([0.01, -0.02, -0.03, -0.01, 0.02, 0.01])
+    >>> consecutive_losses(returns)
+    3
+    """
+    validate_returns(returns)
+    if returns.is_empty():
+        return 0
+
+    returns = to_float_series(returns)
+
+    # Identify losses (1 for negative, 0 otherwise)
+    is_loss = (returns < 0).cast(pl.Int32)
+
+    if is_loss.sum() == 0:
+        return 0
+
+    # Count consecutive losses using cumsum and reset on win
+    # When we hit a win (or zero), we mark a new group
+    group_id = (is_loss == 0).cum_sum()
+
+    # Count losses within each group
+    df = pl.DataFrame({"is_loss": is_loss, "group": group_id})
+
+    # Filter only loss rows and count per group
+    loss_groups = df.filter(pl.col("is_loss") == 1).group_by("group").len()
+
+    if loss_groups.is_empty():
+        return 0
+
+    return int(loss_groups["len"].max())

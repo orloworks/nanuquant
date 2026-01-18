@@ -3,17 +3,32 @@
 This module provides the main metrics functions for quantitative finance.
 """
 
+from polars_metrics.core.distribution import (
+    expected_return,
+    geometric_mean,
+    jarque_bera,
+    kurtosis,
+    outlier_loss_ratio,
+    outlier_win_ratio,
+    shapiro_wilk,
+    skewness,
+)
 from polars_metrics.core.performance import (
+    benchmark_correlation,
     calmar,
     common_sense_ratio,
     gain_to_pain_ratio,
+    greeks,
+    information_ratio,
     kelly_criterion,
     omega,
+    r_squared,
     recovery_factor,
     risk_return_ratio,
     sharpe,
     sortino,
     tail_ratio,
+    treynor_ratio,
     ulcer_performance_index,
 )
 from polars_metrics.core.returns import (
@@ -23,6 +38,8 @@ from polars_metrics.core.returns import (
     best,
     cagr,
     comp,
+    consecutive_losses,
+    consecutive_wins,
     payoff_ratio,
     profit_factor,
     win_rate,
@@ -66,6 +83,8 @@ __all__ = [
     "win_rate",
     "payoff_ratio",
     "profit_factor",
+    "consecutive_wins",
+    "consecutive_losses",
     # Risk
     "volatility",
     "var",
@@ -86,6 +105,21 @@ __all__ = [
     "common_sense_ratio",
     "risk_return_ratio",
     "recovery_factor",
+    # Benchmark metrics
+    "greeks",
+    "information_ratio",
+    "r_squared",
+    "treynor_ratio",
+    "benchmark_correlation",
+    # Distribution metrics
+    "skewness",
+    "kurtosis",
+    "jarque_bera",
+    "shapiro_wilk",
+    "outlier_win_ratio",
+    "outlier_loss_ratio",
+    "expected_return",
+    "geometric_mean",
     # Utils
     "compound_returns",
     "get_annualization_factor",

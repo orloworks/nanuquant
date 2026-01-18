@@ -182,9 +182,8 @@ def entropic_var(
         if z <= 0:
             return float("inf")
 
-        # E[exp(-z * L)] for losses L
-        # Since we're measuring loss, this is E[exp(z * returns)]
-        exp_term = np.mean(np.exp(-z * losses))
+        # E[exp(z * L)] for losses L (larger losses increase exponential moment)
+        exp_term = np.mean(np.exp(z * losses))
 
         if exp_term <= 0 or (1 - alpha) <= 0:
             return float("inf")

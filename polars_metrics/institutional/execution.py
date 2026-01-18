@@ -17,9 +17,6 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-from polars_metrics.core.utils import to_float_series
-from polars_metrics.core.validation import validate_min_length, validate_returns
-
 
 class ImplementationShortfallResult(NamedTuple):
     """Result of implementation shortfall calculation.
@@ -201,6 +198,10 @@ def implementation_shortfall(
         opportunity_cost = side * (end_price - decision_price) * unfilled_quantity
     else:
         opportunity_cost = 0.0
+
+    # Total shortfall includes all components: executed + unfilled
+    # Per Perold (1988): IS = delay_cost + trading_cost + opportunity_cost
+    total_shortfall = float(total_shortfall) + opportunity_cost
 
     return ImplementationShortfallResult(
         total_shortfall=float(total_shortfall),

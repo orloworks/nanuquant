@@ -20,7 +20,6 @@ import polars as pl
 from polars_metrics.core.utils import to_float_series
 from polars_metrics.core.validation import (
     validate_benchmark_match,
-    validate_min_length,
     validate_returns,
 )
 
@@ -314,31 +313,15 @@ def downside_correlation(
     r1_down = returns1.filter(downside_mask)
     r2_down = returns2.filter(downside_mask)
 
-    if len(r1_down) < 3:
+    if len(r1_down) < 2:
         return float("nan")
 
-    # Calculate correlation
-    n = len(r1_down)
-    mean1 = r1_down.mean()
-    mean2 = r2_down.mean()
+    # Calculate correlation using Polars' built-in function
+    df = pl.DataFrame({"a": r1_down, "b": r2_down})
+    correlation = df.select(pl.corr("a", "b")).item()
 
-    if mean1 is None or mean2 is None:
+    if correlation is None:
         return float("nan")
-
-    # Covariance
-    cov = ((r1_down - mean1) * (r2_down - mean2)).sum()
-    if cov is None:
-        return float("nan")
-    cov = float(cov) / (n - 1)
-
-    # Standard deviations
-    std1 = r1_down.std(ddof=1)
-    std2 = r2_down.std(ddof=1)
-
-    if std1 is None or std2 is None or std1 == 0 or std2 == 0:
-        return float("nan")
-
-    correlation = cov / (float(std1) * float(std2))
 
     return float(correlation)
 
@@ -392,30 +375,14 @@ def upside_correlation(
     r1_up = returns1.filter(upside_mask)
     r2_up = returns2.filter(upside_mask)
 
-    if len(r1_up) < 3:
+    if len(r1_up) < 2:
         return float("nan")
 
-    # Calculate correlation
-    n = len(r1_up)
-    mean1 = r1_up.mean()
-    mean2 = r2_up.mean()
+    # Calculate correlation using Polars' built-in function
+    df = pl.DataFrame({"a": r1_up, "b": r2_up})
+    correlation = df.select(pl.corr("a", "b")).item()
 
-    if mean1 is None or mean2 is None:
+    if correlation is None:
         return float("nan")
-
-    # Covariance
-    cov = ((r1_up - mean1) * (r2_up - mean2)).sum()
-    if cov is None:
-        return float("nan")
-    cov = float(cov) / (n - 1)
-
-    # Standard deviations
-    std1 = r1_up.std(ddof=1)
-    std2 = r2_up.std(ddof=1)
-
-    if std1 is None or std2 is None or std1 == 0 or std2 == 0:
-        return float("nan")
-
-    correlation = cov / (float(std1) * float(std2))
 
     return float(correlation)

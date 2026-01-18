@@ -18,7 +18,6 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-from polars_metrics.core.validation import validate_returns
 
 
 class MCRResult(NamedTuple):
@@ -287,14 +286,16 @@ def _compute_shrinkage_intensity(
     # Average squared entry of sample covariance
     mu = np.trace(sample_cov) / p
 
-    # For each observation, compute outer product contribution
-    sum_sq = 0.0
-    for i in range(n):
-        x_i = X[i : i + 1].T
-        outer = x_i @ x_i.T
-        sum_sq += np.sum((outer - sample_cov) ** 2)
+    # Vectorized calculation of the sum of squared differences
+    # This replaces: sum_{i=1 to n} || x_i x_i^T - S ||_F^2
+    # where x_i is a row vector of demeaned returns
+    term1 = np.sum(np.sum(X**2, axis=1) ** 2)
+    term2 = -2 * np.sum(np.diag(X @ sample_cov @ X.T))
+    term3 = n * np.sum(sample_cov**2)
+    sum_sq = term1 + term2 + term3
 
     # Asymptotic estimate of optimal shrinkage
+    # Division by n^2: first /n for mean, second /n for proper scaling
     kappa = (sum_sq / n**2) / delta_sq
 
     # Bound between 0 and 1

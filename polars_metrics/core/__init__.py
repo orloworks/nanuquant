@@ -13,6 +13,12 @@ from polars_metrics.core.distribution import (
     shapiro_wilk,
     skewness,
 )
+from polars_metrics.core.rolling import (
+    rolling_beta,
+    rolling_sharpe,
+    rolling_sortino,
+    rolling_volatility,
+)
 from polars_metrics.core.performance import (
     benchmark_correlation,
     calmar,
@@ -120,6 +126,11 @@ __all__ = [
     "outlier_loss_ratio",
     "expected_return",
     "geometric_mean",
+    # Rolling metrics
+    "rolling_volatility",
+    "rolling_sharpe",
+    "rolling_sortino",
+    "rolling_beta",
     # Utils
     "compound_returns",
     "get_annualization_factor",

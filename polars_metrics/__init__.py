@@ -53,6 +53,11 @@ from polars_metrics.core import (
     outlier_win_ratio,
     shapiro_wilk,
     skewness,
+    # Rolling
+    rolling_beta,
+    rolling_sharpe,
+    rolling_sortino,
+    rolling_volatility,
 )
 from polars_metrics.exceptions import (
     BenchmarkMismatchError,
@@ -123,4 +128,9 @@ __all__ = [
     "outlier_loss_ratio",
     "expected_return",
     "geometric_mean",
+    # Rolling metrics
+    "rolling_volatility",
+    "rolling_sharpe",
+    "rolling_sortino",
+    "rolling_beta",
 ]

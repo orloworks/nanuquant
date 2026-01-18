@@ -819,3 +819,82 @@ class TestBenchmarkVsQuantStats:
             polars_returns, polars_benchmark, periods_per_year=252, risk_free_rate=0.0
         )
         np.testing.assert_allclose(actual, expected, **LOOSE)
+
+
+class TestRollingVsQuantStats:
+    """Test rolling metrics against QuantStats."""
+
+    def test_rolling_volatility_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test rolling volatility on synthetic data."""
+        expected = qs.stats.rolling_volatility(
+            sample_returns, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_volatility(
+            polars_returns, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    @pytest.mark.integration
+    def test_rolling_volatility_spy(
+        self, spy_returns: pd.Series, spy_polars: pl.Series
+    ) -> None:
+        """Test rolling volatility on SPY data."""
+        expected = qs.stats.rolling_volatility(
+            spy_returns, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_volatility(
+            spy_polars, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **TIGHT)
+
+    def test_rolling_sharpe_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test rolling Sharpe on synthetic data."""
+        expected = qs.stats.rolling_sharpe(
+            sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_sharpe(
+            polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **LOOSE)
+
+    @pytest.mark.integration
+    def test_rolling_sharpe_spy(
+        self, spy_returns: pd.Series, spy_polars: pl.Series
+    ) -> None:
+        """Test rolling Sharpe on SPY data."""
+        expected = qs.stats.rolling_sharpe(
+            spy_returns, rf=0.0, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_sharpe(
+            spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **LOOSE)
+
+    def test_rolling_sortino_synthetic(
+        self, sample_returns: pd.Series, polars_returns: pl.Series
+    ) -> None:
+        """Test rolling Sortino on synthetic data."""
+        expected = qs.stats.rolling_sortino(
+            sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_sortino(
+            polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **LOOSE)
+
+    @pytest.mark.integration
+    def test_rolling_sortino_spy(
+        self, spy_returns: pd.Series, spy_polars: pl.Series
+    ) -> None:
+        """Test rolling Sortino on SPY data."""
+        expected = qs.stats.rolling_sortino(
+            spy_returns, rf=0.0, rolling_period=126, periods_per_year=365
+        ).dropna().values
+        actual = pm.rolling_sortino(
+            spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+        ).drop_nulls().to_numpy()
+        np.testing.assert_allclose(actual, expected, **LOOSE)

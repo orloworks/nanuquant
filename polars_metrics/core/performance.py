@@ -442,6 +442,10 @@ def kelly_criterion(returns: pl.Series) -> float:
     # Payoff ratio (avg_loss is negative, so take abs)
     r = avg_win / abs(avg_loss)
 
+    # Handle edge case where payoff ratio is 0 (no wins)
+    if r == 0:
+        return float("-inf")  # No wins means kelly suggests full loss
+
     # Kelly formula
     kelly = w - (1 - w) / r
 

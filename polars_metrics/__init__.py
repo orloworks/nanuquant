@@ -81,6 +81,13 @@ from polars_metrics.exceptions import (
     InvalidFrequencyError,
     MetricsError,
 )
+from polars_metrics.reports import (
+    MetricsReport,
+    full_metrics,
+    generate_html_report,
+    metrics_summary,
+    save_html_report,
+)
 
 __all__ = [
     "__version__",
@@ -161,4 +168,10 @@ __all__ = [
     "sqn",
     "expectancy",
     "k_ratio",
+    # Reports
+    "MetricsReport",
+    "full_metrics",
+    "metrics_summary",
+    "generate_html_report",
+    "save_html_report",
 ]

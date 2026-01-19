@@ -90,6 +90,16 @@ from nanuquant.core import (
     compare,
     distribution,
     monthly_returns,
+    # Timeseries (array/DataFrame outputs)
+    cumulative_returns,
+    drawdown_details,
+    equity_curve,
+    histogram,
+    yearly_returns,
+    # Utils (return conversion)
+    compound_returns,
+    log_returns,
+    simple_returns,
 )
 from nanuquant.advanced import (
     # Trading metrics
@@ -211,6 +221,16 @@ __all__ = [
     "monthly_returns",
     "distribution",
     "compare",
+    # Timeseries (array/DataFrame outputs)
+    "yearly_returns",
+    "drawdown_details",
+    "histogram",
+    "cumulative_returns",
+    "equity_curve",
+    # Utils (return conversion)
+    "log_returns",
+    "simple_returns",
+    "compound_returns",
     # Trading metrics
     "exposure",
     "ghpr",

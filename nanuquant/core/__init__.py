@@ -29,6 +29,13 @@ from nanuquant.core.periods import (
     distribution,
     monthly_returns,
 )
+from nanuquant.core.timeseries import (
+    cumulative_returns,
+    drawdown_details,
+    equity_curve,
+    histogram,
+    yearly_returns,
+)
 from nanuquant.core.performance import (
     benchmark_correlation,
     calmar,
@@ -151,6 +158,12 @@ __all__ = [
     "monthly_returns",
     "distribution",
     "compare",
+    # Timeseries (array/DataFrame outputs)
+    "yearly_returns",
+    "drawdown_details",
+    "histogram",
+    "cumulative_returns",
+    "equity_curve",
     # Utils
     "compound_returns",
     "get_annualization_factor",

@@ -485,42 +485,92 @@ Module: `nanuquant.institutional.execution`
 
 ### implementation_shortfall
 
-Measures the gap between paper performance and actual execution.
+Measures the gap between paper performance and actual execution across multiple tranches.
 
 ```python
 result = institutional.implementation_shortfall(
     decision_price: float,
-    execution_price: float,
-    benchmark_price: float,
-    quantity: float,
-    direction: str  # "buy" or "sell"
+    execution_prices: pl.Series | list[float],
+    quantities: pl.Series | list[float],
+    side: int = 1,  # 1 for buy, -1 for sell
+    *,
+    arrival_price: float | None = None,
+    end_price: float | None = None,
+    unfilled_quantity: float = 0.0,
 ) -> ImplementationShortfallResult
 ```
 
-**Returns:** `ImplementationShortfallResult` NamedTuple containing:
-- `total_is`: Total implementation shortfall
-- `delay_cost`: Cost from decision to execution start
-- `market_impact`: Estimated market impact
-- `timing_cost`: Residual timing costs
+**Parameters:**
+- `decision_price`: Price at the time of investment decision
+- `execution_prices`: Prices at which each tranche was executed
+- `quantities`: Quantity executed at each price (must match length of execution_prices)
+- `side`: Trade direction: 1 for buy, -1 for sell
+- `arrival_price`: Price at start of execution (defaults to first execution price)
+- `end_price`: Price at end of trading (defaults to last execution price)
+- `unfilled_quantity`: Quantity that was not filled
 
-**Use Case:** Analyze trading costs and execution quality.
+**Returns:** `ImplementationShortfallResult` NamedTuple containing:
+- `total_shortfall`: Total implementation shortfall in price units
+- `delay_cost`: Cost from decision to execution start
+- `trading_cost`: Cost during execution (market impact)
+- `opportunity_cost`: Cost from unfilled orders
+- `shortfall_bps`: Total shortfall in basis points
+- `realized_pnl`: Actual P&L achieved
+- `paper_pnl`: P&L at decision price
+
+**Example:**
+```python
+# Buy 1000 shares in two tranches
+result = institutional.implementation_shortfall(
+    decision_price=100.0,
+    execution_prices=[100.5, 101.0],
+    quantities=[500, 500],
+    side=1  # buy
+)
+print(f"Shortfall: {result.shortfall_bps:.2f} bps")
+print(f"Trading Cost: ${result.trading_cost:.2f}")
+```
+
+**Use Case:** Analyze trading costs and execution quality for multi-tranche orders.
 
 ---
 
 ### market_impact_estimate
 
-Estimate market impact using square-root model.
+Estimate market impact using the square-root law.
 
 ```python
 impact = institutional.market_impact_estimate(
-    volume: float,
-    adv: float,  # Average Daily Volume
+    trade_volume: float,
+    avg_daily_volume: float,
     volatility: float,
-    participation_rate: float = 0.1
+    *,
+    impact_coefficient: float = 0.1,
+    exponent: float = 0.5,
 ) -> float
 ```
 
-**Formula:** Impact = k × σ × √(V / ADV)
+**Parameters:**
+- `trade_volume`: Volume of the trade in shares/contracts
+- `avg_daily_volume`: Average daily trading volume
+- `volatility`: Annualized volatility (as decimal, e.g., 0.20 for 20%)
+- `impact_coefficient`: Market impact coefficient eta (typical: 0.05-0.15)
+- `exponent`: Power law exponent (0.5 for square-root law)
+
+**Returns:** Estimated price impact as a fraction (e.g., 0.005 = 0.5%)
+
+**Formula:** Impact = η × σ_daily × (Q / V)^0.5
+
+**Example:**
+```python
+# Trade 100,000 shares when ADV is 1 million
+impact = institutional.market_impact_estimate(
+    trade_volume=100_000,
+    avg_daily_volume=1_000_000,
+    volatility=0.20,  # 20% annual vol
+)
+print(f"Estimated impact: {impact:.4%}")
+```
 
 **Use Case:** Pre-trade estimation of execution costs.
 
@@ -528,17 +578,35 @@ impact = institutional.market_impact_estimate(
 
 ### vwap_slippage
 
-Calculate slippage versus Volume-Weighted Average Price.
+Calculate slippage versus a benchmark VWAP.
 
 ```python
 slippage = institutional.vwap_slippage(
-    execution_price: float,
-    vwap: float,
-    direction: str  # "buy" or "sell"
+    execution_prices: pl.Series | list[float],
+    quantities: pl.Series | list[float],
+    benchmark_vwap: float,
+    side: int = 1,  # 1 for buy, -1 for sell
 ) -> float
 ```
 
-**Returns:** Slippage as percentage (positive = worse than VWAP)
+**Parameters:**
+- `execution_prices`: Prices at which each tranche was executed
+- `quantities`: Quantity executed at each price
+- `benchmark_vwap`: Benchmark VWAP (e.g., market VWAP for the period)
+- `side`: Trade direction: 1 for buy, -1 for sell
+
+**Returns:** Slippage in basis points. Positive = worse than benchmark.
+
+**Example:**
+```python
+slippage = institutional.vwap_slippage(
+    execution_prices=[100.5, 101.0, 100.8],
+    quantities=[300, 400, 300],
+    benchmark_vwap=100.6,
+    side=1
+)
+print(f"Slippage vs VWAP: {slippage:.2f} bps")
+```
 
 ---
 
@@ -548,24 +616,51 @@ Calculate the cost of bid-ask spread.
 
 ```python
 cost = institutional.spread_cost(
-    bid: float,
-    ask: float,
-    quantity: float,
-    direction: str
+    bid: float | pl.Series,
+    ask: float | pl.Series,
+    mid: float | pl.Series | None = None,
 ) -> float
+```
+
+**Parameters:**
+- `bid`: Bid price(s)
+- `ask`: Ask price(s)
+- `mid`: Mid price(s). If None, calculated as (bid + ask) / 2
+
+**Returns:** Average spread cost in basis points.
+
+**Example:**
+```python
+cost = institutional.spread_cost(bid=99.95, ask=100.05)
+print(f"Spread cost: {cost:.1f} bps")  # 10.0 bps
 ```
 
 ---
 
 ### execution_vwap
 
-Calculate VWAP from execution data.
+Calculate volume-weighted average price of execution.
 
 ```python
 vwap = institutional.execution_vwap(
-    prices: pl.Series,
-    volumes: pl.Series
+    execution_prices: pl.Series | list[float],
+    quantities: pl.Series | list[float],
 ) -> float
+```
+
+**Parameters:**
+- `execution_prices`: Prices at which each tranche was executed
+- `quantities`: Quantity executed at each price
+
+**Returns:** VWAP of the execution.
+
+**Example:**
+```python
+vwap = institutional.execution_vwap(
+    execution_prices=[100, 101, 102],
+    quantities=[100, 200, 100]
+)
+print(f"Execution VWAP: ${vwap:.2f}")  # $100.75
 ```
 
 ---

@@ -14,10 +14,14 @@ Skip with: pytest -m "not integration"
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
-import quantstats_lumi as qs
+
+qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
+
+import polars_metrics as pm
 
 # Mark all tests as integration (real market data, no network needed - data is cached)
 pytestmark = pytest.mark.integration
@@ -71,9 +75,13 @@ class TestRealDataSanityChecks:
 class TestDifferentialVsQuantStats:
     """Compare our metrics against QuantStats using real market data."""
 
-    # Tolerance for floating point comparison
-    RTOL = 1e-8
-    ATOL = 1e-12
+    # Tolerances for floating point comparison
+    # TIGHT: For metrics with identical formulas
+    TIGHT = {"rtol": 1e-8, "atol": 1e-12}
+    # LOOSE: For metrics with slight implementation differences
+    LOOSE = {"rtol": 1e-6, "atol": 1e-10}
+    # CALENDAR_TOL: For metrics that depend on datetime index vs period count
+    CALENDAR_TOL = {"rtol": 0.05, "atol": 1e-6}
 
     def test_spy_sharpe_vs_quantstats(
         self,
@@ -81,11 +89,9 @@ class TestDifferentialVsQuantStats:
         spy_polars: pl.Series,
     ) -> None:
         """SPY Sharpe ratio should match QuantStats."""
-        # TODO: Implement pm.sharpe and uncomment
-        # expected = qs.stats.sharpe(spy_returns)
-        # actual = pm.sharpe(spy_polars)
-        # assert abs(actual - expected) < self.ATOL
-        pass  # Placeholder until metrics implemented
+        expected = qs.stats.sharpe(spy_returns, periods=252, rf=0.0)
+        actual = pm.sharpe(spy_polars, periods_per_year=252, risk_free_rate=0.0)
+        np.testing.assert_allclose(actual, expected, **self.TIGHT)
 
     def test_spy_sortino_vs_quantstats(
         self,
@@ -93,8 +99,9 @@ class TestDifferentialVsQuantStats:
         spy_polars: pl.Series,
     ) -> None:
         """SPY Sortino ratio should match QuantStats."""
-        # TODO: Implement pm.sortino and uncomment
-        pass
+        expected = qs.stats.sortino(spy_returns, periods=252, rf=0.0)
+        actual = pm.sortino(spy_polars, periods_per_year=252, risk_free_rate=0.0)
+        np.testing.assert_allclose(actual, expected, **self.LOOSE)
 
     def test_spy_max_drawdown_vs_quantstats(
         self,
@@ -102,17 +109,66 @@ class TestDifferentialVsQuantStats:
         spy_polars: pl.Series,
     ) -> None:
         """SPY max drawdown should match QuantStats."""
-        # TODO: Implement pm.max_drawdown and uncomment
-        pass
+        expected = qs.stats.max_drawdown(spy_returns)
+        actual = pm.max_drawdown(spy_polars)
+        np.testing.assert_allclose(actual, expected, **self.TIGHT)
 
     def test_spy_cagr_vs_quantstats(
         self,
         spy_returns: pd.Series,
         spy_polars: pl.Series,
     ) -> None:
-        """SPY CAGR should match QuantStats."""
-        # TODO: Implement pm.cagr and uncomment
-        pass
+        """SPY CAGR should match QuantStats.
+
+        Note: QuantStats uses datetime index for calendar year calculation.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
+        """
+        expected = qs.stats.cagr(spy_returns)
+        actual = pm.cagr(spy_polars, periods_per_year=252)
+        np.testing.assert_allclose(actual, expected, **self.CALENDAR_TOL)
+
+    def test_spy_volatility_vs_quantstats(
+        self,
+        spy_returns: pd.Series,
+        spy_polars: pl.Series,
+    ) -> None:
+        """SPY volatility should match QuantStats."""
+        expected = qs.stats.volatility(spy_returns, periods=252)
+        actual = pm.volatility(spy_polars, periods_per_year=252)
+        np.testing.assert_allclose(actual, expected, **self.TIGHT)
+
+    def test_spy_calmar_vs_quantstats(
+        self,
+        spy_returns: pd.Series,
+        spy_polars: pl.Series,
+    ) -> None:
+        """SPY Calmar ratio should match QuantStats.
+
+        Note: Calmar uses CAGR internally, so calendar-based tolerance applies.
+        """
+        expected = qs.stats.calmar(spy_returns)
+        actual = pm.calmar(spy_polars, periods_per_year=252)
+        np.testing.assert_allclose(actual, expected, **self.CALENDAR_TOL)
+
+    def test_qqq_sharpe_vs_quantstats(
+        self,
+        qqq_returns: pd.Series,
+        qqq_polars: pl.Series,
+    ) -> None:
+        """QQQ Sharpe ratio should match QuantStats."""
+        expected = qs.stats.sharpe(qqq_returns, periods=252, rf=0.0)
+        actual = pm.sharpe(qqq_polars, periods_per_year=252, risk_free_rate=0.0)
+        np.testing.assert_allclose(actual, expected, **self.TIGHT)
+
+    def test_bnd_sharpe_vs_quantstats(
+        self,
+        bnd_returns: pd.Series,
+        bnd_polars: pl.Series,
+    ) -> None:
+        """BND Sharpe ratio should match QuantStats."""
+        expected = qs.stats.sharpe(bnd_returns, periods=252, rf=0.0)
+        actual = pm.sharpe(bnd_polars, periods_per_year=252, risk_free_rate=0.0)
+        np.testing.assert_allclose(actual, expected, **self.TIGHT)
 
 
 class TestExpectedMarketBehavior:

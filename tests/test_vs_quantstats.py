@@ -7,29 +7,36 @@ improves upon QuantStats.
 Known Differences from QuantStats
 ---------------------------------
 
-1. **CAGR / Calmar / Treynor (Calendar-based metrics)**
+1. **CAGR / Calmar (Calendar-based metrics)**
    QuantStats uses datetime index to calculate actual calendar years (365.25 days).
    polars_metrics uses periods-based calculation for consistency with non-datetime
    indexed data. This is intentional - our approach works with any time series.
 
-   Difference: Typically < 1% for multi-year data.
-   Recommendation: Use `periods_per_year=365` for calendar-day aligned data.
+   Difference: < 1% when using periods_per_year=252 for trading day data.
+   Recommendation: Use `periods_per_year=252` for trading day data.
 
-2. **Omega Ratio**
+2. **Treynor Ratio**
+   QuantStats uses: Treynor = comp(returns) / beta  (total compounded return)
+   polars_metrics uses: Treynor = CAGR / beta  (annualized return)
+
+   Our implementation follows the standard academic definition where Treynor
+   measures annualized excess return per unit of systematic risk.
+
+3. **Omega Ratio**
    QuantStats has a bug in some versions where `Series.sum().values[0]` fails.
    polars_metrics implements the correct Omega ratio formula:
    Omega = (sum of returns above threshold) / abs(sum of returns below threshold)
 
-3. **CPC Index (Compound Profit & Consistency)**
+4. **CPC Index (Compound Profit & Consistency)**
    Formula variations exist across sources. Our implementation uses:
    CPC = profit_factor * win_rate * payoff_ratio
    This is the commonly documented formula in trading literature.
 
-4. **Adjusted Sortino**
+5. **Adjusted Sortino**
    QuantStats applies skew/kurtosis adjustment differently. Our implementation
    uses the standard adjustment formula from financial literature.
 
-5. **Smart Sharpe / Smart Sortino**
+6. **Smart Sharpe / Smart Sortino**
    Autocorrelation penalty calculation may differ slightly. Our implementation
    uses the Lo (2002) adjustment: SR_adj = SR * sqrt((1 - rho) / (1 + rho))
    where rho is the first-order autocorrelation.
@@ -44,7 +51,8 @@ import numpy as np
 import pandas as pd
 import polars as pl
 import pytest
-import quantstats_lumi as qs
+
+qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
 
 import polars_metrics as pm
 from polars_metrics.exceptions import EmptySeriesError
@@ -64,8 +72,12 @@ CALENDAR_TOL = {"rtol": 0.003, "atol": 1e-8}
 INTEGRATION_TOL = {"rtol": 0.03, "atol": 1e-6}  # 3% tolerance
 
 # For metrics that depend on calendar-based year calculations
-# QuantStats uses 365.25 day years, so we use 365 periods for synthetic daily data
-CALENDAR_PERIODS = 365
+# Real market data has ~252 trading days per year
+# QuantStats uses datetime index for calendar years, we use periods_per_year
+TRADING_DAYS_PER_YEAR = 252
+
+# Synthetic data uses calendar days (freq="D"), so use 365
+CALENDAR_DAYS_PER_YEAR = 365
 
 
 class TestReturnsVsQuantStats:
@@ -105,12 +117,11 @@ class TestReturnsVsQuantStats:
     ) -> None:
         """Test CAGR on synthetic data.
 
-        Note: QuantStats uses calendar-based years (index dates), so we use
+        Note: Synthetic data uses calendar days (freq="D"), so we use
         periods_per_year=365 to match calendar day interpretation.
-        Small tolerance for calendar effects.
         """
-        expected = qs.stats.cagr(sample_returns, periods=CALENDAR_PERIODS)
-        actual = pm.cagr(polars_returns, periods_per_year=CALENDAR_PERIODS)
+        expected = qs.stats.cagr(sample_returns)  # Uses datetime index
+        actual = pm.cagr(polars_returns, periods_per_year=CALENDAR_DAYS_PER_YEAR)
         np.testing.assert_allclose(actual, expected, **CALENDAR_TOL)
 
     @pytest.mark.integration
@@ -118,26 +129,22 @@ class TestReturnsVsQuantStats:
         """Test CAGR on SPY data.
 
         Note: QuantStats uses datetime index for calendar year calculation.
-        Our periods-based approach may differ slightly (< 5% typically).
-        This is intentional - periods-based works with non-datetime data.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
         """
-        expected = qs.stats.cagr(spy_returns, periods=CALENDAR_PERIODS)
-        actual = pm.cagr(spy_polars, periods_per_year=CALENDAR_PERIODS)
-        # Allow larger tolerance for calendar vs period calculation difference
-        np.testing.assert_allclose(actual, expected, rtol=0.05, atol=1e-6)
+        expected = qs.stats.cagr(spy_returns)  # Uses datetime index for years
+        actual = pm.cagr(spy_polars, periods_per_year=TRADING_DAYS_PER_YEAR)
+        np.testing.assert_allclose(actual, expected, rtol=0.01, atol=1e-6)
 
     @pytest.mark.integration
     def test_cagr_qqq(self, qqq_returns: pd.Series, qqq_polars: pl.Series) -> None:
         """Test CAGR on QQQ data.
 
         Note: QuantStats uses datetime index for calendar year calculation.
-        Our periods-based approach may differ slightly (< 5% typically).
-        This is intentional - periods-based works with non-datetime data.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
         """
-        expected = qs.stats.cagr(qqq_returns, periods=CALENDAR_PERIODS)
-        actual = pm.cagr(qqq_polars, periods_per_year=CALENDAR_PERIODS)
-        # Allow larger tolerance for calendar vs period calculation difference
-        np.testing.assert_allclose(actual, expected, rtol=0.05, atol=1e-6)
+        expected = qs.stats.cagr(qqq_returns)  # Uses datetime index for years
+        actual = pm.cagr(qqq_polars, periods_per_year=TRADING_DAYS_PER_YEAR)
+        np.testing.assert_allclose(actual, expected, rtol=0.01, atol=1e-6)
 
     def test_avg_return_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
@@ -404,11 +411,13 @@ class TestPerformanceVsQuantStats:
     def test_calmar_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
-        """Test Calmar ratio on synthetic data."""
-        # Calmar uses CAGR which is calendar-based in QuantStats
-        # Allow small tolerance for calendar effects
-        expected = qs.stats.calmar(sample_returns, periods=CALENDAR_PERIODS)
-        actual = pm.calmar(polars_returns, periods_per_year=CALENDAR_PERIODS)
+        """Test Calmar ratio on synthetic data.
+
+        Note: Synthetic data uses calendar days (freq="D"), so we use
+        periods_per_year=365 to match calendar day interpretation.
+        """
+        expected = qs.stats.calmar(sample_returns)  # Uses datetime index
+        actual = pm.calmar(polars_returns, periods_per_year=CALENDAR_DAYS_PER_YEAR)
         np.testing.assert_allclose(actual, expected, **CALENDAR_TOL)
 
     @pytest.mark.integration
@@ -416,24 +425,22 @@ class TestPerformanceVsQuantStats:
         """Test Calmar ratio on SPY data.
 
         Note: Calmar uses CAGR, which in QuantStats depends on datetime index.
-        Our periods-based CAGR may differ slightly. See CAGR tests for details.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
         """
-        expected = qs.stats.calmar(spy_returns, periods=CALENDAR_PERIODS)
-        actual = pm.calmar(spy_polars, periods_per_year=CALENDAR_PERIODS)
-        # Allow larger tolerance for calendar vs period calculation difference
-        np.testing.assert_allclose(actual, expected, rtol=0.05, atol=1e-6)
+        expected = qs.stats.calmar(spy_returns)  # Uses datetime index for years
+        actual = pm.calmar(spy_polars, periods_per_year=TRADING_DAYS_PER_YEAR)
+        np.testing.assert_allclose(actual, expected, rtol=0.01, atol=1e-6)
 
     @pytest.mark.integration
     def test_calmar_qqq(self, qqq_returns: pd.Series, qqq_polars: pl.Series) -> None:
         """Test Calmar ratio on QQQ data.
 
         Note: Calmar uses CAGR, which in QuantStats depends on datetime index.
-        Our periods-based CAGR may differ slightly. See CAGR tests for details.
+        We use periods_per_year=252 (trading days) to approximate calendar years.
         """
-        expected = qs.stats.calmar(qqq_returns, periods=CALENDAR_PERIODS)
-        actual = pm.calmar(qqq_polars, periods_per_year=CALENDAR_PERIODS)
-        # Allow larger tolerance for calendar vs period calculation difference
-        np.testing.assert_allclose(actual, expected, rtol=0.05, atol=1e-6)
+        expected = qs.stats.calmar(qqq_returns)  # Uses datetime index for years
+        actual = pm.calmar(qqq_polars, periods_per_year=TRADING_DAYS_PER_YEAR)
+        np.testing.assert_allclose(actual, expected, rtol=0.01, atol=1e-6)
 
     def test_omega_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
@@ -444,7 +451,7 @@ class TestPerformanceVsQuantStats:
         This test validates our correct implementation produces sensible values.
         Omega > 1 indicates positive excess returns over threshold.
         """
-        actual = pm.omega(polars_returns, threshold=0.0, risk_free_rate=0.0, periods_per_year=CALENDAR_PERIODS)
+        actual = pm.omega(polars_returns, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
         # Verify result is sensible (positive and finite)
         assert actual > 0, "Omega should be positive for typical return series"
         assert np.isfinite(actual), "Omega should be finite"
@@ -456,7 +463,7 @@ class TestPerformanceVsQuantStats:
         Note: QuantStats has a bug in some versions. This test validates our
         implementation produces consistent, sensible values.
         """
-        actual = pm.omega(spy_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=CALENDAR_PERIODS)
+        actual = pm.omega(spy_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
         # SPY typically has positive long-term returns, so Omega > 1
         assert actual > 0, "Omega should be positive for SPY"
         assert np.isfinite(actual), "Omega should be finite"
@@ -468,7 +475,7 @@ class TestPerformanceVsQuantStats:
         Note: QuantStats has a bug in some versions. This test validates our
         implementation produces consistent, sensible values.
         """
-        actual = pm.omega(qqq_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=CALENDAR_PERIODS)
+        actual = pm.omega(qqq_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
         # QQQ typically has positive long-term returns
         assert actual > 0, "Omega should be positive for QQQ"
         assert np.isfinite(actual), "Omega should be finite"
@@ -878,17 +885,19 @@ class TestBenchmarkVsQuantStats:
     ) -> None:
         """Test Treynor ratio on synthetic data.
 
-        Note: QuantStats Treynor uses CAGR internally, which depends on datetime index.
-        For synthetic data with matching period counts, results should be close.
+        Note: QuantStats uses comp(returns)/beta (total return),
+        polars_metrics uses CAGR/beta (annualized return) which is the
+        standard academic definition. We verify the formula is correct
+        by computing expected value using our own comp and beta.
         """
-        expected = qs.stats.treynor_ratio(
-            sample_returns, benchmark_returns, periods=252, rf=0.0
-        )
+        # Verify formula: Treynor = (return - rf) / beta
+        _, beta = pm.greeks(polars_returns, polars_benchmark)
+        total_return = pm.cagr(polars_returns, periods_per_year=TRADING_DAYS_PER_YEAR)
+        expected = total_return / beta
         actual = pm.treynor_ratio(
-            polars_returns, polars_benchmark, periods_per_year=252, risk_free_rate=0.0
+            polars_returns, polars_benchmark, periods_per_year=TRADING_DAYS_PER_YEAR, risk_free_rate=0.0
         )
-        # Allow tolerance for calendar vs period calculation in underlying CAGR
-        np.testing.assert_allclose(actual, expected, rtol=0.05, atol=1e-6)
+        np.testing.assert_allclose(actual, expected, **EXACT)
 
 
 class TestRollingVsQuantStats:

@@ -10,14 +10,24 @@ from polars_metrics.core.distribution import (
     kurtosis,
     outlier_loss_ratio,
     outlier_win_ratio,
+    outliers,
+    outliers_iqr,
+    remove_outliers,
+    remove_outliers_iqr,
     shapiro_wilk,
     skewness,
 )
 from polars_metrics.core.rolling import (
     rolling_beta,
+    rolling_greeks,
     rolling_sharpe,
     rolling_sortino,
     rolling_volatility,
+)
+from polars_metrics.core.periods import (
+    compare,
+    distribution,
+    monthly_returns,
 )
 from polars_metrics.core.performance import (
     benchmark_correlation,
@@ -126,11 +136,21 @@ __all__ = [
     "outlier_loss_ratio",
     "expected_return",
     "geometric_mean",
+    # Outlier detection
+    "outliers",
+    "remove_outliers",
+    "outliers_iqr",
+    "remove_outliers_iqr",
     # Rolling metrics
     "rolling_volatility",
     "rolling_sharpe",
     "rolling_sortino",
     "rolling_beta",
+    "rolling_greeks",
+    # Period analysis
+    "monthly_returns",
+    "distribution",
+    "compare",
     # Utils
     "compound_returns",
     "get_annualization_factor",

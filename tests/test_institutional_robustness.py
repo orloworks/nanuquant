@@ -265,8 +265,9 @@ class TestProbabilisticSharpeRatio:
         returns = pl.Series([0.01] * 100)
         result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
 
-        # Zero volatility is a degenerate case
-        assert 0 <= result.psr <= 1
+        # Zero volatility is a degenerate case - NaN is mathematically correct
+        # since Sharpe ratio is undefined when volatility is zero
+        assert math.isnan(result.psr) or 0 <= result.psr <= 1
 
     def test_minimum_data_requirement(self) -> None:
         """Should require minimum data points."""

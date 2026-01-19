@@ -4,16 +4,50 @@
 
 [![PyPI](https://img.shields.io/pypi/v/nanuquant)](https://pypi.org/project/nanuquant/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+
+---
+
+> **DISCLAIMER**: NanuQuant is for **educational and research purposes only**. Nothing in this library constitutes financial advice. Past performance does not guarantee future results. See [DISCLAIMER.md](DISCLAIMER.md) for full legal notices.
+
+---
+
+## About the Name
+
+In Inuktitut, the language of the Inuit people, **"nanuq"** means **polar bear**. Since NanuQuant is built entirely on [Polars](https://pola.rs/) for maximum speed and efficiency, we chose this name to honor the Inuit people while celebrating our foundation on the Polars ecosystem.
+
+---
+
+## Overview
 
 **NanuQuant** is a high-performance, native Polars library for quantitative finance. It replaces legacy Pandas-based tools with a vectorized engine capable of handling tick-level data and large-scale backtests without memory overhead.
 
 It goes beyond standard metrics to provide institutional-grade robustness testing, volatility modeling, and execution analysis.
 
-## Why NanuQuant?
+### Why NanuQuant?
 
-- **Zero Pandas Dependency:** Built purely on Polars for maximum speed and stability in production containers.
-- **Institutional Rigor:** Includes advanced metrics like Cornish-Fisher VaR, Ledoit-Wolf Shrinkage, and Deflated Sharpe Ratios.
-- **Production Ready:** Fully typed, rigorously tested against industry standards (QuantStats), and designed for high-frequency workflows.
+- **Zero Pandas Dependency:** Built purely on Polars for maximum speed and stability in production containers
+- **Institutional Rigor:** Includes advanced metrics like Cornish-Fisher VaR, Ledoit-Wolf Shrinkage, and Deflated Sharpe Ratios
+- **Production Ready:** Fully typed, rigorously tested against industry standards (QuantStats), and designed for high-frequency workflows
+- **Educational Focus:** Comprehensive documentation explaining the mathematics behind every metric
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Installation Guide](docs/installation.md) | Setup and configuration |
+| [Quick Start](docs/quickstart.md) | Get started in minutes |
+| [Core API Reference](docs/api/core.md) | Returns, risk, performance metrics |
+| [Advanced API Reference](docs/api/advanced.md) | Trading system metrics |
+| [Institutional API Reference](docs/api/institutional.md) | PSR, DSR, GARCH, VaR extensions |
+| [Mathematical Foundations](docs/mathematics.md) | Formulas and theory |
+| [Testing Methodology](docs/testing.md) | How NanuQuant is validated |
+| [Use Cases](docs/use-cases.md) | Practical examples with caveats |
+| [Full Disclaimer](DISCLAIMER.md) | Important legal notices |
+
+---
 
 ## Installation
 
@@ -21,40 +55,98 @@ It goes beyond standard metrics to provide institutional-grade robustness testin
 pip install nanuquant
 ```
 
+For additional features:
+
+```bash
+# With HTML report generation
+pip install nanuquant[reports]
+
+# For development/testing
+pip install nanuquant[dev]
+
+# Everything
+pip install nanuquant[all]
+```
+
+---
+
 ## Quick Start
 
 ```python
 import polars as pl
 import nanuquant as nq
 
-# 1. Load market data (lazy or eager)
+# Load or create return data
 returns = pl.Series("returns", [0.01, -0.02, 0.03, 0.01, -0.01, 0.02])
 
-# 2. Calculate core metrics
+# Calculate core metrics
 sharpe = nq.sharpe(returns, risk_free_rate=0.04)
 sortino = nq.sortino(returns)
 max_dd = nq.max_drawdown(returns)
 
-print(f"Sharpe: {sharpe:.2f} | Max Drawdown: {max_dd:.2%}")
+print(f"Sharpe: {sharpe:.2f}")
+print(f"Sortino: {sortino:.2f}")
+print(f"Max Drawdown: {max_dd:.2%}")
 ```
 
-## Institutional Analysis
+> **Note**: These metrics are for educational analysis only. See [Use Cases](docs/use-cases.md) for proper interpretation.
 
-NanuQuant shines where other libraries stop. Validate your strategies with statistical rigor:
+---
+
+## Features at a Glance
+
+### Core Metrics (60+)
+
+| Category | Metrics |
+|----------|---------|
+| **Returns** | CAGR, total return, avg win/loss, win rate, profit factor, payoff ratio |
+| **Risk** | Volatility, VaR, CVaR, max drawdown, Ulcer Index, downside deviation |
+| **Performance** | Sharpe, Sortino, Calmar, Omega, Information Ratio, Treynor, Alpha/Beta |
+| **Distribution** | Skewness, kurtosis, Jarque-Bera test, outlier detection |
+| **Rolling** | Rolling Sharpe, rolling volatility, rolling beta |
+
+### Advanced Trading Metrics
+
+- **System Quality Number (SQN)** - Trading system quality assessment
+- **Expectancy** - Expected value per trade
+- **K-Ratio** - Equity curve consistency
+- **Smart Sharpe/Sortino** - Autocorrelation-adjusted ratios
+- **Risk of Ruin** - Account depletion probability
+
+### Institutional-Grade Analytics
+
+- **Probabilistic Sharpe Ratio (PSR)** - Statistical significance of Sharpe
+- **Deflated Sharpe Ratio (DSR)** - Multiple testing adjustment
+- **GARCH Volatility** - Conditional volatility modeling
+- **Cornish-Fisher VaR** - Skewness/kurtosis-adjusted VaR
+- **Ledoit-Wolf Covariance** - Shrinkage estimator for portfolios
+- **Absorption Ratio** - Systemic risk measurement
+
+---
+
+## Institutional Analysis Examples
 
 ### Robustness Testing
 
-Don't be fooled by random luck. Use the **Probabilistic Sharpe Ratio (PSR)** and **Deflated Sharpe Ratio (DSR)** to adjust for non-normality and multiple testing overfitting.
+Don't be fooled by random luck. Validate your strategies with statistical rigor:
 
 ```python
+from nanuquant import institutional
+
 # Did you test 100 variations of your strategy? Adjust for selection bias.
-dsr = nq.deflated_sharpe_ratio(returns, n_trials=100)
+dsr = institutional.deflated_sharpe_ratio(returns, n_trials=100)
 print(f"Deflated Sharpe Probability: {dsr:.4f}")
+
+# Check if Sharpe is statistically significant
+psr = institutional.probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
+print(f"Probability SR > 0: {psr.psr:.2%}")
 ```
+
+> **Warning**: Even statistically significant backtests can fail in live trading due to regime changes and overfitting.
 
 ### Volatility Modeling
 
-Detect volatility clustering and regime changes using GARCH(1,1) estimates.
+Detect volatility clustering and regime changes:
 
 ```python
 from nanuquant import institutional
@@ -62,28 +154,15 @@ from nanuquant import institutional
 # Test for ARCH effects (volatility clustering)
 arch_test = institutional.arch_effect_test(returns)
 if arch_test.has_arch_effects:
-    print("Regime: Volatility Clustering Detected")
+    print("Volatility Clustering Detected")
+
+    # Fit GARCH model
+    garch = institutional.garch_volatility(returns)
+    print(f"Persistence: {garch.persistence:.4f}")
+    print(f"Current Vol Forecast: {garch.forecast:.2%}")
 ```
 
-## Features
-
-### Core Metrics
-
-* **Returns:** CAGR, Compounded Growth, Log Returns, Greeks (Alpha/Beta)
-* **Risk:** Volatility, VaR (Parametric, Historical, Cornish-Fisher), CVaR, Ulcer Index
-* **Performance:** Sharpe, Sortino, Calmar, Omega, Kelly Criterion
-* **Drawdowns:** Max Drawdown, Drawdown Duration, Underwater Curves
-
-### Advanced Trading
-
-* **System Quality:** SQN, Expectancy, K-Ratio
-* **Trade Analysis:** Win Rate, Profit Factor, Payoff Ratio, Exposure
-
-### Institutional & Systemic
-
-* **Execution:** Implementation Shortfall, Market Impact (Square-root law)
-* **Portfolio:** Ledoit-Wolf Covariance, Marginal Contribution to Risk (MCR)
-* **Systemic:** Absorption Ratio, Tail Dependence
+---
 
 ## DataFrame Namespace
 
@@ -100,47 +179,47 @@ df = pl.DataFrame({
 # Single metric
 result = df.select(pl.col("returns").metrics.sharpe())
 
-# Multiple metrics in one select
+# Multiple metrics in one pass
 metrics_df = df.select([
     pl.col("returns").metrics.sharpe().alias("sharpe"),
     pl.col("returns").metrics.sortino().alias("sortino"),
     pl.col("returns").metrics.max_drawdown().alias("max_dd"),
-    pl.col("returns").metrics.volatility().alias("volatility"),
 ])
 
-# Rolling metrics with with_columns
-df_with_rolling = df.with_columns([
+# Rolling metrics
+df_rolling = df.with_columns([
     pl.col("returns").metrics.rolling_volatility().alias("rolling_vol"),
     pl.col("returns").metrics.rolling_sharpe().alias("rolling_sharpe"),
 ])
 ```
 
+---
+
 ## Null Handling
 
-NanuQuant follows QuantStats/pandas conventions by dropping null values before calculations by default. This ensures consistent results across different data sources:
+NanuQuant follows QuantStats/pandas conventions by dropping null values before calculations:
 
 ```python
-import polars as pl
-import nanuquant as nq
-
-# Nulls are dropped by default
+# Nulls are dropped automatically
 returns_with_nulls = pl.Series([0.01, None, -0.02, None, 0.015])
 sharpe = nq.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
 ```
 
+---
+
 ## Available Metrics
 
-### Returns (11)
+### Returns (12)
 `comp`, `cagr`, `avg_return`, `avg_win`, `avg_loss`, `best`, `worst`, `win_rate`, `payoff_ratio`, `profit_factor`, `consecutive_wins`, `consecutive_losses`
 
 ### Risk (7)
 `volatility`, `var`, `cvar`, `max_drawdown`, `to_drawdown_series`, `ulcer_index`, `downside_deviation`
 
-### Performance (14)
+### Performance (16)
 `sharpe`, `sortino`, `calmar`, `omega`, `gain_to_pain_ratio`, `ulcer_performance_index`, `kelly_criterion`, `tail_ratio`, `common_sense_ratio`, `risk_return_ratio`, `recovery_factor`, `greeks`, `information_ratio`, `r_squared`, `treynor_ratio`, `benchmark_correlation`
 
-### Distribution (8)
-`skewness`, `kurtosis`, `jarque_bera`, `shapiro_wilk`, `outlier_win_ratio`, `outlier_loss_ratio`, `expected_return`, `geometric_mean`
+### Distribution (12)
+`skewness`, `kurtosis`, `jarque_bera`, `shapiro_wilk`, `outlier_win_ratio`, `outlier_loss_ratio`, `expected_return`, `geometric_mean`, `outliers`, `outliers_iqr`, `remove_outliers`, `remove_outliers_iqr`
 
 ### Rolling (5)
 `rolling_volatility`, `rolling_sharpe`, `rolling_sortino`, `rolling_beta`, `rolling_greeks`
@@ -148,31 +227,42 @@ sharpe = nq.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
 ### Trading (12)
 `exposure`, `ghpr`, `rar`, `cpc_index`, `serenity_index`, `risk_of_ruin`, `adjusted_sortino`, `smart_sharpe`, `smart_sortino`, `sqn`, `expectancy`, `k_ratio`
 
-### Institutional (2)
-`deflated_sharpe_ratio`, `probabilistic_sharpe_ratio`
+### Institutional (15+)
+`probabilistic_sharpe_ratio`, `deflated_sharpe_ratio`, `minimum_track_record_length`, `arch_effect_test`, `garch_volatility`, `cornish_fisher_var`, `modified_var`, `entropic_var`, `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `absorption_ratio`, `lower_tail_dependence`, `implementation_shortfall`, `market_impact_estimate`
+
+---
 
 ## Known Differences from QuantStats
 
-This library intentionally differs from QuantStats in some areas for improved consistency:
+NanuQuant intentionally differs from QuantStats in some areas for improved consistency:
 
-1. **CAGR / Calmar / Treynor**: Uses periods-based calculation instead of datetime index, working with any time series (not just datetime-indexed).
+| Aspect | NanuQuant | Rationale |
+|--------|-----------|-----------|
+| **CAGR/Calmar** | Periods-based calculation | Works with any time series, not just datetime-indexed |
+| **Treynor Ratio** | CAGR / Beta | Standard academic definition |
+| **Omega Ratio** | Correct implementation | Fixes bug in some QuantStats versions |
+| **CPC Index** | PF x WR x PR | Standard trading literature formula |
+| **Smart Sharpe** | Lo (2002) adjustment | Established academic reference |
 
-2. **Omega Ratio**: Fixes a bug in some QuantStats versions where `Series.sum().values[0]` fails.
+See [Mathematics](docs/mathematics.md) for detailed formula explanations.
 
-3. **CPC Index**: Uses the standard formula from trading literature: `profit_factor * win_rate * payoff_ratio`.
+---
 
-4. **Smart Sharpe/Sortino**: Uses Lo (2002) autocorrelation adjustment formula.
+## Testing and Validation
 
-## Development
+NanuQuant is rigorously tested:
+
+- **Differential tests** against QuantStats for consistency
+- **Real market data** fixtures (SPY, QQQ, BND)
+- **Edge case coverage** (empty data, nulls, all positive/negative)
+- **Statistical tests** validation
+- **Type checking** with strict mypy
 
 ```bash
-# Install with dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
+# Run all tests
 pytest
 
-# Run differential tests against QuantStats
+# Run differential tests
 pytest tests/test_vs_quantstats.py -v
 
 # Run integration tests with real market data
@@ -182,6 +272,61 @@ pytest -m integration
 mypy nanuquant
 ```
 
+See [Testing Methodology](docs/testing.md) for details.
+
+---
+
+## Development
+
+```bash
+# Clone and install
+git clone https://github.com/launchstack-dev/nanuquant.git
+cd nanuquant
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Type check
+mypy nanuquant
+```
+
+---
+
+## Important Notices
+
+### Not Financial Advice
+
+NanuQuant is designed for:
+- **Educational purposes** - Learning about quantitative finance
+- **Research** - Academic and professional analysis
+- **Strategy development** - Initial screening of trading ideas
+
+NanuQuant is **NOT** designed for:
+- Automated trading without human oversight
+- Sole basis for investment decisions
+- Regulatory compliance calculations
+
+### Limitations
+
+- **Past performance** does not predict future results
+- **Backtests** suffer from survivorship bias, look-ahead bias, and overfitting
+- **Statistical models** assume conditions that may not hold in real markets
+- **Transaction costs** and market impact are not automatically included
+
+Always consult a qualified financial professional before making investment decisions.
+
+---
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## Links
+
+- [GitHub Repository](https://github.com/launchstack-dev/nanuquant)
+- [PyPI Package](https://pypi.org/project/nanuquant/)
+- [Issue Tracker](https://github.com/launchstack-dev/nanuquant/issues)
+- [Changelog](CHANGELOG.md)

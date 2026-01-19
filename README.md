@@ -115,6 +115,19 @@ df_with_rolling = df.with_columns([
 ])
 ```
 
+## Null Handling
+
+NanuQuant follows QuantStats/pandas conventions by dropping null values before calculations by default. This ensures consistent results across different data sources:
+
+```python
+import polars as pl
+import nanuquant as nq
+
+# Nulls are dropped by default
+returns_with_nulls = pl.Series([0.01, None, -0.02, None, 0.015])
+sharpe = nq.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
+```
+
 ## Available Metrics
 
 ### Returns (11)

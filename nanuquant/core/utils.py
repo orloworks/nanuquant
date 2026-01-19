@@ -48,8 +48,9 @@ def infer_frequency(dates: pl.Series) -> FrequencyType:
     if isinstance(median_diff, timedelta):
         td = median_diff
     else:
-        # Handle polars duration
-        td = timedelta(microseconds=median_diff / 1000)
+        # Handle polars duration (nanoseconds to microseconds)
+        # Polars median() returns broad union type, but for numeric data it's always numeric
+        td = timedelta(microseconds=float(median_diff) / 1000)  # type: ignore[arg-type]
 
     # Map to frequency type based on median difference
     seconds = td.total_seconds()
@@ -140,7 +141,7 @@ def safe_divide(
     numerator: float | pl.Series,
     denominator: float | pl.Series,
     default: float = 0.0,
-) -> float | pl.Series:
+) -> float | pl.Series | pl.Expr:
     """Safely divide, returning default for zero denominator.
 
     Parameters
@@ -154,7 +155,7 @@ def safe_divide(
 
     Returns
     -------
-    float or pl.Series
+    float, pl.Series, or pl.Expr
         Division result or default.
     """
     if isinstance(denominator, pl.Series):

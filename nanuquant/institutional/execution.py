@@ -294,7 +294,7 @@ def market_impact_estimate(
     participation = trade_volume / avg_daily_volume
 
     # Square-root market impact
-    impact = impact_coefficient * daily_vol * (participation ** exponent)
+    impact = impact_coefficient * daily_vol * (participation**exponent)
 
     return float(impact)
 

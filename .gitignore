@@ -52,3 +52,6 @@ htmlcov/
 
 # Test data cache (commented out - we commit cached data for CI)
 # tests/.data_cache/
+
+# Auto-generated version file (created by hatch-vcs during build)
+nanuquant/_version.py

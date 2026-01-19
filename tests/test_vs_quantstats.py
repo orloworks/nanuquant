@@ -52,7 +52,9 @@ import pandas as pd
 import polars as pl
 import pytest
 
-qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
+qs = pytest.importorskip(
+    "quantstats_lumi", reason="quantstats_lumi required for differential tests"
+)
 
 import nanuquant as pm
 from nanuquant.exceptions import EmptySeriesError
@@ -83,9 +85,7 @@ CALENDAR_DAYS_PER_YEAR = 365
 class TestReturnsVsQuantStats:
     """Test return metrics against QuantStats."""
 
-    def test_comp_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_comp_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test total compounded return on synthetic data."""
         expected = qs.stats.comp(sample_returns)
         actual = pm.comp(polars_returns)
@@ -112,9 +112,7 @@ class TestReturnsVsQuantStats:
         actual = pm.comp(bnd_polars)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
-    def test_cagr_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_cagr_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test CAGR on synthetic data.
 
         Note: Synthetic data uses calendar days (freq="D"), so we use
@@ -155,17 +153,13 @@ class TestReturnsVsQuantStats:
         np.testing.assert_allclose(actual, expected, **EXACT)
 
     @pytest.mark.integration
-    def test_avg_return_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_avg_return_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test average return on SPY data."""
         expected = qs.stats.avg_return(spy_returns)
         actual = pm.avg_return(spy_polars)
         np.testing.assert_allclose(actual, expected, **INTEGRATION_TOL)
 
-    def test_avg_win_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_avg_win_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test average win on synthetic data."""
         expected = qs.stats.avg_win(sample_returns)
         actual = pm.avg_win(polars_returns)
@@ -178,9 +172,7 @@ class TestReturnsVsQuantStats:
         actual = pm.avg_win(spy_polars)
         np.testing.assert_allclose(actual, expected, **EXACT)
 
-    def test_avg_loss_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_avg_loss_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test average loss on synthetic data."""
         expected = qs.stats.avg_loss(sample_returns)
         actual = pm.avg_loss(polars_returns)
@@ -193,9 +185,7 @@ class TestReturnsVsQuantStats:
         actual = pm.avg_loss(spy_polars)
         np.testing.assert_allclose(actual, expected, **EXACT)
 
-    def test_best_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_best_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test best return on synthetic data."""
         expected = qs.stats.best(sample_returns)
         actual = pm.best(polars_returns)
@@ -208,9 +198,7 @@ class TestReturnsVsQuantStats:
         actual = pm.best(spy_polars)
         np.testing.assert_allclose(actual, expected, **EXACT)
 
-    def test_worst_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_worst_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test worst return on synthetic data."""
         expected = qs.stats.worst(sample_returns)
         actual = pm.worst(polars_returns)
@@ -236,35 +224,27 @@ class TestRiskVsQuantStats:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_volatility_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_volatility_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test volatility on SPY data."""
         expected = qs.stats.volatility(spy_returns, periods=252)
         actual = pm.volatility(spy_polars, periods_per_year=252)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_volatility_qqq(
-        self, qqq_returns: pd.Series, qqq_polars: pl.Series
-    ) -> None:
+    def test_volatility_qqq(self, qqq_returns: pd.Series, qqq_polars: pl.Series) -> None:
         """Test volatility on QQQ data."""
         expected = qs.stats.volatility(qqq_returns, periods=252)
         actual = pm.volatility(qqq_polars, periods_per_year=252)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_volatility_bnd(
-        self, bnd_returns: pd.Series, bnd_polars: pl.Series
-    ) -> None:
+    def test_volatility_bnd(self, bnd_returns: pd.Series, bnd_polars: pl.Series) -> None:
         """Test volatility on BND data."""
         expected = qs.stats.volatility(bnd_returns, periods=252)
         actual = pm.volatility(bnd_polars, periods_per_year=252)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
-    def test_var_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_var_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test VaR on synthetic data."""
         expected = qs.stats.var(sample_returns, confidence=0.95)
         actual = pm.var(polars_returns, confidence=0.95)
@@ -277,9 +257,7 @@ class TestRiskVsQuantStats:
         actual = pm.var(spy_polars, confidence=0.95)
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
-    def test_cvar_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_cvar_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test CVaR on synthetic data."""
         expected = qs.stats.cvar(sample_returns, confidence=0.95)
         actual = pm.cvar(polars_returns, confidence=0.95)
@@ -301,27 +279,21 @@ class TestRiskVsQuantStats:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_max_drawdown_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_max_drawdown_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test max drawdown on SPY data."""
         expected = qs.stats.max_drawdown(spy_returns)
         actual = pm.max_drawdown(spy_polars)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_max_drawdown_qqq(
-        self, qqq_returns: pd.Series, qqq_polars: pl.Series
-    ) -> None:
+    def test_max_drawdown_qqq(self, qqq_returns: pd.Series, qqq_polars: pl.Series) -> None:
         """Test max drawdown on QQQ data."""
         expected = qs.stats.max_drawdown(qqq_returns)
         actual = pm.max_drawdown(qqq_polars)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_max_drawdown_bnd(
-        self, bnd_returns: pd.Series, bnd_polars: pl.Series
-    ) -> None:
+    def test_max_drawdown_bnd(self, bnd_returns: pd.Series, bnd_polars: pl.Series) -> None:
         """Test max drawdown on BND data."""
         expected = qs.stats.max_drawdown(bnd_returns)
         actual = pm.max_drawdown(bnd_polars)
@@ -336,9 +308,7 @@ class TestRiskVsQuantStats:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_to_drawdown_series_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_to_drawdown_series_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test drawdown series on SPY data."""
         expected = qs.stats.to_drawdown_series(spy_returns).values
         actual = pm.to_drawdown_series(spy_polars).to_numpy()
@@ -348,9 +318,7 @@ class TestRiskVsQuantStats:
 class TestPerformanceVsQuantStats:
     """Test performance metrics against QuantStats."""
 
-    def test_sharpe_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_sharpe_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test Sharpe ratio on synthetic data."""
         expected = qs.stats.sharpe(sample_returns, periods=252, rf=0.0)
         actual = pm.sharpe(polars_returns, periods_per_year=252, risk_free_rate=0.0)
@@ -378,17 +346,13 @@ class TestPerformanceVsQuantStats:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_sharpe_with_rf(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_sharpe_with_rf(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test Sharpe ratio with non-zero risk-free rate."""
         expected = qs.stats.sharpe(spy_returns, periods=252, rf=0.04)
         actual = pm.sharpe(spy_polars, periods_per_year=252, risk_free_rate=0.04)
         np.testing.assert_allclose(actual, expected, **INTEGRATION_TOL)
 
-    def test_sortino_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_sortino_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test Sortino ratio on synthetic data."""
         expected = qs.stats.sortino(sample_returns, periods=252, rf=0.0)
         actual = pm.sortino(polars_returns, periods_per_year=252, risk_free_rate=0.0)
@@ -408,9 +372,7 @@ class TestPerformanceVsQuantStats:
         actual = pm.sortino(qqq_polars, periods_per_year=252, risk_free_rate=0.0)
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
-    def test_calmar_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_calmar_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test Calmar ratio on synthetic data.
 
         Note: Synthetic data uses calendar days (freq="D"), so we use
@@ -442,16 +404,19 @@ class TestPerformanceVsQuantStats:
         actual = pm.calmar(qqq_polars, periods_per_year=TRADING_DAYS_PER_YEAR)
         np.testing.assert_allclose(actual, expected, rtol=0.01, atol=1e-6)
 
-    def test_omega_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_omega_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test Omega ratio on synthetic data.
 
         Note: QuantStats has a bug in some versions with Series.sum().values[0].
         This test validates our correct implementation produces sensible values.
         Omega > 1 indicates positive excess returns over threshold.
         """
-        actual = pm.omega(polars_returns, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
+        actual = pm.omega(
+            polars_returns,
+            threshold=0.0,
+            risk_free_rate=0.0,
+            periods_per_year=TRADING_DAYS_PER_YEAR,
+        )
         # Verify result is sensible (positive and finite)
         assert actual > 0, "Omega should be positive for typical return series"
         assert np.isfinite(actual), "Omega should be finite"
@@ -463,7 +428,9 @@ class TestPerformanceVsQuantStats:
         Note: QuantStats has a bug in some versions. This test validates our
         implementation produces consistent, sensible values.
         """
-        actual = pm.omega(spy_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
+        actual = pm.omega(
+            spy_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR
+        )
         # SPY typically has positive long-term returns, so Omega > 1
         assert actual > 0, "Omega should be positive for SPY"
         assert np.isfinite(actual), "Omega should be finite"
@@ -475,7 +442,9 @@ class TestPerformanceVsQuantStats:
         Note: QuantStats has a bug in some versions. This test validates our
         implementation produces consistent, sensible values.
         """
-        actual = pm.omega(qqq_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR)
+        actual = pm.omega(
+            qqq_polars, threshold=0.0, risk_free_rate=0.0, periods_per_year=TRADING_DAYS_PER_YEAR
+        )
         # QQQ typically has positive long-term returns
         assert actual > 0, "Omega should be positive for QQQ"
         assert np.isfinite(actual), "Omega should be finite"
@@ -528,9 +497,7 @@ class TestEdgeCases:
 class TestWinLossMetrics:
     """Test win/loss related metrics."""
 
-    def test_win_rate_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_win_rate_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test win rate on synthetic data."""
         expected = qs.stats.win_rate(sample_returns)
         actual = pm.win_rate(polars_returns)
@@ -552,9 +519,7 @@ class TestWinLossMetrics:
         np.testing.assert_allclose(actual, expected, **EXACT)
 
     @pytest.mark.integration
-    def test_payoff_ratio_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_payoff_ratio_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test payoff ratio on SPY data."""
         expected = qs.stats.payoff_ratio(spy_returns)
         actual = pm.payoff_ratio(spy_polars)
@@ -569,9 +534,7 @@ class TestWinLossMetrics:
         np.testing.assert_allclose(actual, expected, **EXACT)
 
     @pytest.mark.integration
-    def test_profit_factor_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_profit_factor_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test profit factor on SPY data."""
         expected = qs.stats.profit_factor(spy_returns)
         actual = pm.profit_factor(spy_polars)
@@ -590,9 +553,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_gain_to_pain_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_gain_to_pain_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test gain to pain ratio on SPY data."""
         expected = qs.stats.gain_to_pain_ratio(spy_returns)
         actual = pm.gain_to_pain_ratio(spy_polars)
@@ -607,9 +568,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_tail_ratio_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_tail_ratio_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test tail ratio on SPY data."""
         expected = qs.stats.tail_ratio(spy_returns)
         actual = pm.tail_ratio(spy_polars)
@@ -624,9 +583,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_kelly_criterion_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_kelly_criterion_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test Kelly criterion on SPY data."""
         expected = qs.stats.kelly_criterion(spy_returns)
         actual = pm.kelly_criterion(spy_polars)
@@ -641,9 +598,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_recovery_factor_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_recovery_factor_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test recovery factor on SPY data."""
         expected = qs.stats.recovery_factor(spy_returns)
         actual = pm.recovery_factor(spy_polars)
@@ -659,9 +614,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_risk_return_ratio_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_risk_return_ratio_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test risk return ratio on SPY data."""
         expected = qs.stats.risk_return_ratio(spy_returns)
         actual = pm.risk_return_ratio(spy_polars)
@@ -676,9 +629,7 @@ class TestAdditionalPerformanceMetrics:
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_common_sense_ratio_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_common_sense_ratio_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test common sense ratio on SPY data."""
         expected = qs.stats.common_sense_ratio(spy_returns)
         actual = pm.common_sense_ratio(spy_polars)
@@ -697,9 +648,7 @@ class TestUlcerMetrics:
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_ulcer_index_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_ulcer_index_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test ulcer index on SPY data."""
         expected = qs.stats.ulcer_index(spy_returns)
         actual = pm.ulcer_index(spy_polars)
@@ -726,9 +675,7 @@ class TestUlcerMetrics:
 class TestDistributionVsQuantStats:
     """Test distribution metrics against QuantStats."""
 
-    def test_skewness_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_skewness_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test skewness on synthetic data."""
         expected = qs.stats.skew(sample_returns)
         actual = pm.skewness(polars_returns)
@@ -741,9 +688,7 @@ class TestDistributionVsQuantStats:
         actual = pm.skewness(spy_polars)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
-    def test_kurtosis_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_kurtosis_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test kurtosis on synthetic data."""
         expected = qs.stats.kurtosis(sample_returns)
         actual = pm.kurtosis(polars_returns)
@@ -769,9 +714,7 @@ class TestStreakVsQuantStats:
         assert actual == expected
 
     @pytest.mark.integration
-    def test_consecutive_wins_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_consecutive_wins_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test consecutive wins on SPY data."""
         expected = qs.stats.consecutive_wins(spy_returns)
         actual = pm.consecutive_wins(spy_polars)
@@ -786,9 +729,7 @@ class TestStreakVsQuantStats:
         assert actual == expected
 
     @pytest.mark.integration
-    def test_consecutive_losses_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_consecutive_losses_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test consecutive losses on SPY data."""
         expected = qs.stats.consecutive_losses(spy_returns)
         actual = pm.consecutive_losses(spy_polars)
@@ -895,7 +836,10 @@ class TestBenchmarkVsQuantStats:
         total_return = pm.cagr(polars_returns, periods_per_year=TRADING_DAYS_PER_YEAR)
         expected = total_return / beta
         actual = pm.treynor_ratio(
-            polars_returns, polars_benchmark, periods_per_year=TRADING_DAYS_PER_YEAR, risk_free_rate=0.0
+            polars_returns,
+            polars_benchmark,
+            periods_per_year=TRADING_DAYS_PER_YEAR,
+            risk_free_rate=0.0,
         )
         np.testing.assert_allclose(actual, expected, **EXACT)
 
@@ -907,84 +851,112 @@ class TestRollingVsQuantStats:
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test rolling volatility on synthetic data."""
-        expected = qs.stats.rolling_volatility(
-            sample_returns, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_volatility(
-            polars_returns, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_volatility(sample_returns, rolling_period=126, periods_per_year=365)
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_volatility(polars_returns, rolling_period=126, periods_per_year=365)
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
-    def test_rolling_volatility_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_rolling_volatility_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test rolling volatility on SPY data."""
-        expected = qs.stats.rolling_volatility(
-            spy_returns, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_volatility(
-            spy_polars, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_volatility(spy_returns, rolling_period=126, periods_per_year=365)
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_volatility(spy_polars, rolling_period=126, periods_per_year=365)
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     def test_rolling_sharpe_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test rolling Sharpe on synthetic data."""
-        expected = qs.stats.rolling_sharpe(
-            sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_sharpe(
-            polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_sharpe(
+                sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
+            )
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_sharpe(
+                polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+            )
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_rolling_sharpe_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_rolling_sharpe_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test rolling Sharpe on SPY data."""
-        expected = qs.stats.rolling_sharpe(
-            spy_returns, rf=0.0, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_sharpe(
-            spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_sharpe(spy_returns, rf=0.0, rolling_period=126, periods_per_year=365)
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_sharpe(
+                spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+            )
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     def test_rolling_sortino_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test rolling Sortino on synthetic data."""
-        expected = qs.stats.rolling_sortino(
-            sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_sortino(
-            polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_sortino(
+                sample_returns, rf=0.0, rolling_period=126, periods_per_year=365
+            )
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_sortino(
+                polars_returns, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+            )
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
     @pytest.mark.integration
-    def test_rolling_sortino_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_rolling_sortino_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test rolling Sortino on SPY data."""
-        expected = qs.stats.rolling_sortino(
-            spy_returns, rf=0.0, rolling_period=126, periods_per_year=365
-        ).dropna().values
-        actual = pm.rolling_sortino(
-            spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
-        ).drop_nulls().to_numpy()
+        expected = (
+            qs.stats.rolling_sortino(spy_returns, rf=0.0, rolling_period=126, periods_per_year=365)
+            .dropna()
+            .values
+        )
+        actual = (
+            pm.rolling_sortino(
+                spy_polars, risk_free_rate=0.0, rolling_period=126, periods_per_year=365
+            )
+            .drop_nulls()
+            .to_numpy()
+        )
         np.testing.assert_allclose(actual, expected, **LOOSE)
 
 
 class TestTradingVsQuantStats:
     """Test trading metrics against QuantStats."""
 
-    def test_exposure_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_exposure_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test exposure on synthetic data."""
         expected = qs.stats.exposure(sample_returns)
         actual = pm.exposure(polars_returns)
@@ -998,9 +970,7 @@ class TestTradingVsQuantStats:
         # QuantStats returns 1.0 for nearly full exposure, we return actual fraction
         np.testing.assert_allclose(actual, expected, **INTEGRATION_TOL)
 
-    def test_ghpr_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
+    def test_ghpr_synthetic(self, sample_returns: pd.Series, polars_returns: pl.Series) -> None:
         """Test GHPR on synthetic data."""
         expected = qs.stats.ghpr(sample_returns)
         actual = pm.ghpr(polars_returns)
@@ -1060,9 +1030,7 @@ class TestTradingVsQuantStats:
         )
 
     @pytest.mark.integration
-    def test_adjusted_sortino_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_adjusted_sortino_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test adjusted Sortino on SPY data.
 
         Note: Adjusted Sortino formula differs from QuantStats. Our implementation
@@ -1087,9 +1055,7 @@ class TestTradingVsQuantStats:
         np.testing.assert_allclose(actual, expected, **STAT)
 
     @pytest.mark.integration
-    def test_smart_sharpe_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_smart_sharpe_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test smart Sharpe on SPY data.
 
         Note: Autocorrelation penalty formula may differ slightly between
@@ -1115,9 +1081,7 @@ class TestTradingVsQuantStats:
         np.testing.assert_allclose(actual, expected, **STAT)
 
     @pytest.mark.integration
-    def test_smart_sortino_spy(
-        self, spy_returns: pd.Series, spy_polars: pl.Series
-    ) -> None:
+    def test_smart_sortino_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
         """Test smart Sortino on SPY data.
 
         Note: Autocorrelation penalty formula may differ slightly between

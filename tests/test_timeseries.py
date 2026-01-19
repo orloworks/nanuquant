@@ -14,7 +14,6 @@ from datetime import date, timedelta
 
 import numpy as np
 import polars as pl
-import pytest
 
 import nanuquant as pm
 from nanuquant.core.timeseries import (
@@ -108,10 +107,17 @@ class TestDrawdownDetails:
     def test_multiple_drawdowns(self):
         """Test detection of multiple drawdown periods."""
         # Create returns with two distinct drawdowns
-        returns = pl.Series([
-            0.10, -0.20, 0.25,  # First drawdown and recovery
-            0.05, -0.15, -0.05, 0.30,  # Second drawdown and recovery
-        ])
+        returns = pl.Series(
+            [
+                0.10,
+                -0.20,
+                0.25,  # First drawdown and recovery
+                0.05,
+                -0.15,
+                -0.05,
+                0.30,  # Second drawdown and recovery
+            ]
+        )
 
         result = drawdown_details(returns, top_n=5)
         assert len(result) >= 1  # At least one drawdown detected
@@ -389,7 +395,6 @@ class TestIntegrationWithMarketData:
 
     def test_yearly_returns_with_spy(self, spy_returns, spy_polars):
         """Test yearly returns with SPY data."""
-        import pandas as pd
 
         # Get dates from spy_returns
         dates = pl.Series("date", spy_returns.index.to_list())

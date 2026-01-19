@@ -36,13 +36,15 @@ class TestAbsorptionRatio:
     def test_ar_range(self) -> None:
         """Absorption ratio must be in [0, 1]."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.02, 200),
-            "C": np.random.normal(0, 0.02, 200),
-            "D": np.random.normal(0, 0.02, 200),
-            "E": np.random.normal(0, 0.02, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.02, 200),
+                "C": np.random.normal(0, 0.02, 200),
+                "D": np.random.normal(0, 0.02, 200),
+                "E": np.random.normal(0, 0.02, 200),
+            }
+        )
         result = absorption_ratio(returns)
         assert 0 <= result.absorption_ratio <= 1
 
@@ -53,13 +55,15 @@ class TestAbsorptionRatio:
         common_factor = np.random.normal(0, 0.02, n)
 
         # Create highly correlated assets
-        returns = pl.DataFrame({
-            "A": common_factor + np.random.normal(0, 0.002, n),
-            "B": common_factor + np.random.normal(0, 0.002, n),
-            "C": common_factor + np.random.normal(0, 0.002, n),
-            "D": common_factor + np.random.normal(0, 0.002, n),
-            "E": common_factor + np.random.normal(0, 0.002, n),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": common_factor + np.random.normal(0, 0.002, n),
+                "B": common_factor + np.random.normal(0, 0.002, n),
+                "C": common_factor + np.random.normal(0, 0.002, n),
+                "D": common_factor + np.random.normal(0, 0.002, n),
+                "E": common_factor + np.random.normal(0, 0.002, n),
+            }
+        )
 
         result = absorption_ratio(returns, n_components=1)
 
@@ -72,13 +76,15 @@ class TestAbsorptionRatio:
         n = 500
 
         # Create independent assets
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, n),
-            "B": np.random.normal(0, 0.02, n),
-            "C": np.random.normal(0, 0.02, n),
-            "D": np.random.normal(0, 0.02, n),
-            "E": np.random.normal(0, 0.02, n),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, n),
+                "B": np.random.normal(0, 0.02, n),
+                "C": np.random.normal(0, 0.02, n),
+                "D": np.random.normal(0, 0.02, n),
+                "E": np.random.normal(0, 0.02, n),
+            }
+        )
 
         result = absorption_ratio(returns, n_components=1)
 
@@ -88,11 +94,13 @@ class TestAbsorptionRatio:
     def test_n_components_parameter(self) -> None:
         """Test explicit n_components setting."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.02, 200),
-            "C": np.random.normal(0, 0.02, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.02, 200),
+                "C": np.random.normal(0, 0.02, 200),
+            }
+        )
 
         result1 = absorption_ratio(returns, n_components=1)
         result2 = absorption_ratio(returns, n_components=2)
@@ -105,9 +113,9 @@ class TestAbsorptionRatio:
         """Eigenvalues should sum to number of assets (for correlation matrix)."""
         np.random.seed(42)
         n_assets = 5
-        returns = pl.DataFrame({
-            f"Asset_{i}": np.random.normal(0, 0.02, 200) for i in range(n_assets)
-        })
+        returns = pl.DataFrame(
+            {f"Asset_{i}": np.random.normal(0, 0.02, 200) for i in range(n_assets)}
+        )
 
         result = absorption_ratio(returns)
 
@@ -153,7 +161,9 @@ class TestLowerTailDependence:
         # Perfect correlation should give tail dependence ≈ 1
         assert ltd > 0.8
 
-    def test_threshold_quantile_effect(self, polars_returns: pl.Series, polars_benchmark: pl.Series) -> None:
+    def test_threshold_quantile_effect(
+        self, polars_returns: pl.Series, polars_benchmark: pl.Series
+    ) -> None:
         """Different thresholds should give different results."""
         ltd_5 = lower_tail_dependence(polars_returns, polars_benchmark, threshold_quantile=0.05)
         ltd_10 = lower_tail_dependence(polars_returns, polars_benchmark, threshold_quantile=0.10)
@@ -162,7 +172,9 @@ class TestLowerTailDependence:
         assert 0 <= ltd_5 <= 1
         assert 0 <= ltd_10 <= 1
 
-    def test_invalid_threshold(self, polars_returns: pl.Series, polars_benchmark: pl.Series) -> None:
+    def test_invalid_threshold(
+        self, polars_returns: pl.Series, polars_benchmark: pl.Series
+    ) -> None:
         """Should raise error for invalid threshold."""
         with pytest.raises(ValueError):
             lower_tail_dependence(polars_returns, polars_benchmark, threshold_quantile=0.6)

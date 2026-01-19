@@ -17,25 +17,6 @@ from nanuquant.core.distribution import (
     shapiro_wilk,
     skewness,
 )
-from nanuquant.core.rolling import (
-    rolling_beta,
-    rolling_greeks,
-    rolling_sharpe,
-    rolling_sortino,
-    rolling_volatility,
-)
-from nanuquant.core.periods import (
-    compare,
-    distribution,
-    monthly_returns,
-)
-from nanuquant.core.timeseries import (
-    cumulative_returns,
-    drawdown_details,
-    equity_curve,
-    histogram,
-    yearly_returns,
-)
 from nanuquant.core.performance import (
     benchmark_correlation,
     calmar,
@@ -53,6 +34,11 @@ from nanuquant.core.performance import (
     tail_ratio,
     treynor_ratio,
     ulcer_performance_index,
+)
+from nanuquant.core.periods import (
+    compare,
+    distribution,
+    monthly_returns,
 )
 from nanuquant.core.returns import (
     avg_loss,
@@ -76,6 +62,20 @@ from nanuquant.core.risk import (
     ulcer_index,
     var,
     volatility,
+)
+from nanuquant.core.rolling import (
+    rolling_beta,
+    rolling_greeks,
+    rolling_sharpe,
+    rolling_sortino,
+    rolling_volatility,
+)
+from nanuquant.core.timeseries import (
+    cumulative_returns,
+    drawdown_details,
+    equity_curve,
+    histogram,
+    yearly_returns,
 )
 from nanuquant.core.utils import (
     compound_returns,

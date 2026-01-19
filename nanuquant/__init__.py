@@ -22,85 +22,12 @@ The package also registers a Polars expression namespace for idiomatic usage:
     >>> df.select(pl.col("returns").metrics.max_drawdown())
 """
 
-from nanuquant._version import __version__
+try:
+    from nanuquant._version import __version__
+except ImportError:
+    __version__ = "0.0.0.dev0"
 
 # Import namespace to register it with Polars
-from nanuquant.namespace import MetricsNamespace  # noqa: F401
-from nanuquant.config import DEFAULT_CONFIG, MetricsConfig, get_config, set_config
-from nanuquant.core import (
-    # Returns
-    avg_loss,
-    avg_return,
-    avg_win,
-    best,
-    cagr,
-    comp,
-    consecutive_losses,
-    consecutive_wins,
-    payoff_ratio,
-    profit_factor,
-    win_rate,
-    worst,
-    # Risk
-    cvar,
-    downside_deviation,
-    max_drawdown,
-    to_drawdown_series,
-    ulcer_index,
-    var,
-    volatility,
-    # Performance
-    benchmark_correlation,
-    calmar,
-    common_sense_ratio,
-    gain_to_pain_ratio,
-    greeks,
-    information_ratio,
-    kelly_criterion,
-    omega,
-    r_squared,
-    recovery_factor,
-    risk_return_ratio,
-    sharpe,
-    sortino,
-    tail_ratio,
-    treynor_ratio,
-    ulcer_performance_index,
-    # Distribution
-    expected_return,
-    geometric_mean,
-    jarque_bera,
-    kurtosis,
-    outlier_loss_ratio,
-    outlier_win_ratio,
-    shapiro_wilk,
-    skewness,
-    # Rolling
-    rolling_beta,
-    rolling_greeks,
-    rolling_sharpe,
-    rolling_sortino,
-    rolling_volatility,
-    # Outlier detection
-    outliers,
-    outliers_iqr,
-    remove_outliers,
-    remove_outliers_iqr,
-    # Period analysis
-    compare,
-    distribution,
-    monthly_returns,
-    # Timeseries (array/DataFrame outputs)
-    cumulative_returns,
-    drawdown_details,
-    equity_curve,
-    histogram,
-    yearly_returns,
-    # Utils (return conversion)
-    compound_returns,
-    log_returns,
-    simple_returns,
-)
 from nanuquant.advanced import (
     # Trading metrics
     adjusted_sortino,
@@ -116,10 +43,80 @@ from nanuquant.advanced import (
     smart_sortino,
     sqn,
 )
-from nanuquant.institutional import (
-    # Robustness metrics
-    deflated_sharpe_ratio,
-    probabilistic_sharpe_ratio,
+from nanuquant.config import DEFAULT_CONFIG, MetricsConfig, get_config, set_config
+from nanuquant.core import (
+    # Returns
+    avg_loss,
+    avg_return,
+    avg_win,
+    # Performance
+    benchmark_correlation,
+    best,
+    cagr,
+    calmar,
+    common_sense_ratio,
+    comp,
+    # Period analysis
+    compare,
+    # Utils (return conversion)
+    compound_returns,
+    consecutive_losses,
+    consecutive_wins,
+    # Timeseries (array/DataFrame outputs)
+    cumulative_returns,
+    # Risk
+    cvar,
+    distribution,
+    downside_deviation,
+    drawdown_details,
+    equity_curve,
+    # Distribution
+    expected_return,
+    gain_to_pain_ratio,
+    geometric_mean,
+    greeks,
+    histogram,
+    information_ratio,
+    jarque_bera,
+    kelly_criterion,
+    kurtosis,
+    log_returns,
+    max_drawdown,
+    monthly_returns,
+    omega,
+    outlier_loss_ratio,
+    outlier_win_ratio,
+    # Outlier detection
+    outliers,
+    outliers_iqr,
+    payoff_ratio,
+    profit_factor,
+    r_squared,
+    recovery_factor,
+    remove_outliers,
+    remove_outliers_iqr,
+    risk_return_ratio,
+    # Rolling
+    rolling_beta,
+    rolling_greeks,
+    rolling_sharpe,
+    rolling_sortino,
+    rolling_volatility,
+    shapiro_wilk,
+    sharpe,
+    simple_returns,
+    skewness,
+    sortino,
+    tail_ratio,
+    to_drawdown_series,
+    treynor_ratio,
+    ulcer_index,
+    ulcer_performance_index,
+    var,
+    volatility,
+    win_rate,
+    worst,
+    yearly_returns,
 )
 from nanuquant.exceptions import (
     BenchmarkMismatchError,
@@ -128,6 +125,12 @@ from nanuquant.exceptions import (
     InvalidFrequencyError,
     MetricsError,
 )
+from nanuquant.institutional import (
+    # Robustness metrics
+    deflated_sharpe_ratio,
+    probabilistic_sharpe_ratio,
+)
+from nanuquant.namespace import MetricsNamespace  # noqa: F401
 from nanuquant.reports import (
     MetricsReport,
     full_metrics,

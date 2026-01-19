@@ -59,7 +59,8 @@ def yearly_returns(
     """
     validate_returns(returns, allow_empty=True)
     if returns.is_empty():
-        return pl.DataFrame({"year": [], "return": []}).cast({"year": pl.Int32, "return": pl.Float64})
+        empty_df = pl.DataFrame({"year": [], "return": []})
+        return empty_df.cast({"year": pl.Int32, "return": pl.Float64})
 
     returns = to_float_series(returns)
 
@@ -73,23 +74,21 @@ def yearly_returns(
             eager=True,
         ).alias("date")
 
-    df = pl.DataFrame({
-        "date": dates,
-        "returns": returns,
-    })
+    df = pl.DataFrame(
+        {
+            "date": dates,
+            "returns": returns,
+        }
+    )
 
     # Extract year
     df = df.with_columns(pl.col("date").dt.year().alias("year"))
 
     # Aggregate returns by year
     if compounded:
-        yearly = df.group_by("year").agg(
-            ((pl.col("returns") + 1).product() - 1).alias("return")
-        )
+        yearly = df.group_by("year").agg(((pl.col("returns") + 1).product() - 1).alias("return"))
     else:
-        yearly = df.group_by("year").agg(
-            pl.col("returns").sum().alias("return")
-        )
+        yearly = df.group_by("year").agg(pl.col("returns").sum().alias("return"))
 
     return yearly.sort("year")
 
@@ -144,22 +143,26 @@ def drawdown_details(
     validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         if dates is not None:
-            return pl.DataFrame({
-                "start": pl.Series([], dtype=dates.dtype),
-                "valley": pl.Series([], dtype=dates.dtype),
-                "end": pl.Series([], dtype=dates.dtype),
+            return pl.DataFrame(
+                {
+                    "start": pl.Series([], dtype=dates.dtype),
+                    "valley": pl.Series([], dtype=dates.dtype),
+                    "end": pl.Series([], dtype=dates.dtype),
+                    "depth": pl.Series([], dtype=pl.Float64),
+                    "length": pl.Series([], dtype=pl.Int64),
+                    "recovery": pl.Series([], dtype=pl.Int64),
+                }
+            )
+        return pl.DataFrame(
+            {
+                "start": pl.Series([], dtype=pl.Int64),
+                "valley": pl.Series([], dtype=pl.Int64),
+                "end": pl.Series([], dtype=pl.Int64),
                 "depth": pl.Series([], dtype=pl.Float64),
                 "length": pl.Series([], dtype=pl.Int64),
                 "recovery": pl.Series([], dtype=pl.Int64),
-            })
-        return pl.DataFrame({
-            "start": pl.Series([], dtype=pl.Int64),
-            "valley": pl.Series([], dtype=pl.Int64),
-            "end": pl.Series([], dtype=pl.Int64),
-            "depth": pl.Series([], dtype=pl.Float64),
-            "length": pl.Series([], dtype=pl.Int64),
-            "recovery": pl.Series([], dtype=pl.Int64),
-        })
+            }
+        )
 
     returns = to_float_series(returns)
     n = len(returns)
@@ -170,10 +173,12 @@ def drawdown_details(
     drawdown = (cumulative - running_max) / running_max
 
     # Build a DataFrame for vectorized processing
-    df = pl.DataFrame({
-        "idx": pl.arange(0, n, eager=True),
-        "dd": drawdown,
-    })
+    df = pl.DataFrame(
+        {
+            "idx": pl.arange(0, n, eager=True),
+            "dd": drawdown,
+        }
+    )
 
     # Add date column if provided
     if dates is not None:
@@ -181,14 +186,21 @@ def drawdown_details(
 
     # Identify drawdown periods using run-length encoding
     # A new drawdown period starts when we transition from dd >= 0 to dd < 0
-    df = df.with_columns([
-        (pl.col("dd") < 0).alias("in_dd"),
-    ])
+    df = df.with_columns(
+        [
+            (pl.col("dd") < 0).alias("in_dd"),
+        ]
+    )
 
     # Create group IDs for consecutive drawdown/non-drawdown periods
-    df = df.with_columns([
-        (pl.col("in_dd") != pl.col("in_dd").shift(1)).fill_null(True).cum_sum().alias("period_id"),
-    ])
+    df = df.with_columns(
+        [
+            (pl.col("in_dd") != pl.col("in_dd").shift(1))
+            .fill_null(True)
+            .cum_sum()
+            .alias("period_id"),
+        ]
+    )
 
     # Filter to only drawdown periods (dd < 0)
     dd_periods = df.filter(pl.col("in_dd"))
@@ -196,57 +208,66 @@ def drawdown_details(
     if dd_periods.is_empty():
         # No drawdowns found
         if dates is not None:
-            return pl.DataFrame({
-                "start": pl.Series([], dtype=dates.dtype),
-                "valley": pl.Series([], dtype=dates.dtype),
-                "end": pl.Series([], dtype=dates.dtype),
+            return pl.DataFrame(
+                {
+                    "start": pl.Series([], dtype=dates.dtype),
+                    "valley": pl.Series([], dtype=dates.dtype),
+                    "end": pl.Series([], dtype=dates.dtype),
+                    "depth": pl.Series([], dtype=pl.Float64),
+                    "length": pl.Series([], dtype=pl.Int64),
+                    "recovery": pl.Series([], dtype=pl.Int64),
+                }
+            )
+        return pl.DataFrame(
+            {
+                "start": pl.Series([], dtype=pl.Int64),
+                "valley": pl.Series([], dtype=pl.Int64),
+                "end": pl.Series([], dtype=pl.Int64),
                 "depth": pl.Series([], dtype=pl.Float64),
                 "length": pl.Series([], dtype=pl.Int64),
                 "recovery": pl.Series([], dtype=pl.Int64),
-            })
-        return pl.DataFrame({
-            "start": pl.Series([], dtype=pl.Int64),
-            "valley": pl.Series([], dtype=pl.Int64),
-            "end": pl.Series([], dtype=pl.Int64),
-            "depth": pl.Series([], dtype=pl.Float64),
-            "length": pl.Series([], dtype=pl.Int64),
-            "recovery": pl.Series([], dtype=pl.Int64),
-        })
+            }
+        )
 
     # Aggregate each drawdown period to find start, valley, end, depth
-    period_stats = dd_periods.group_by("period_id").agg([
-        pl.col("idx").min().alias("first_dd_idx"),
-        pl.col("idx").max().alias("last_dd_idx"),
-        pl.col("dd").min().alias("depth"),
-        # Find the index where minimum drawdown occurred
-        pl.col("idx").filter(pl.col("dd") == pl.col("dd").min()).first().alias("valley_idx"),
-    ])
+    period_stats = dd_periods.group_by("period_id").agg(
+        [
+            pl.col("idx").min().alias("first_dd_idx"),
+            pl.col("idx").max().alias("last_dd_idx"),
+            pl.col("dd").min().alias("depth"),
+            # Find the index where minimum drawdown occurred
+            pl.col("idx").filter(pl.col("dd") == pl.col("dd").min()).first().alias("valley_idx"),
+        ]
+    )
 
     # Start is one index before first_dd_idx (the peak), clamped to 0
-    period_stats = period_stats.with_columns([
-        (pl.col("first_dd_idx") - 1).clip(lower_bound=0).alias("start_idx"),
-    ])
+    period_stats = period_stats.with_columns(
+        [
+            (pl.col("first_dd_idx") - 1).clip(lower_bound=0).alias("start_idx"),
+        ]
+    )
 
     # End is one index after last_dd_idx if recovered, otherwise last_dd_idx
-    period_stats = period_stats.with_columns([
-        pl.when(pl.col("last_dd_idx") < n - 1)
-        .then(pl.col("last_dd_idx") + 1)
-        .otherwise(pl.col("last_dd_idx"))
-        .alias("end_idx"),
-        pl.when(pl.col("last_dd_idx") < n - 1)
-        .then(True)
-        .otherwise(False)
-        .alias("recovered"),
-    ])
+    period_stats = period_stats.with_columns(
+        [
+            pl.when(pl.col("last_dd_idx") < n - 1)
+            .then(pl.col("last_dd_idx") + 1)
+            .otherwise(pl.col("last_dd_idx"))
+            .alias("end_idx"),
+            pl.when(pl.col("last_dd_idx") < n - 1).then(True).otherwise(False).alias("recovered"),
+        ]
+    )
 
     # Calculate length and recovery
-    period_stats = period_stats.with_columns([
-        (pl.col("end_idx") - pl.col("start_idx") + 1).alias("length"),
-        pl.when(pl.col("recovered"))
-        .then(pl.col("end_idx") - pl.col("valley_idx"))
-        .otherwise(None)
-        .alias("recovery"),
-    ])
+    period_stats = period_stats.with_columns(
+        [
+            (pl.col("end_idx") - pl.col("start_idx") + 1).alias("length"),
+            pl.when(pl.col("recovered"))
+            .then(pl.col("end_idx") - pl.col("valley_idx"))
+            .otherwise(None)
+            .alias("recovery"),
+        ]
+    )
 
     # Sort by depth (most negative first) and take top N
     period_stats = period_stats.sort("depth").head(top_n)
@@ -254,23 +275,27 @@ def drawdown_details(
     # Map indices to dates if provided
     if dates is not None:
         dates_list = dates.to_list()
-        result = pl.DataFrame({
-            "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
-            "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
-            "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
-            "depth": period_stats["depth"].to_list(),
-            "length": period_stats["length"].to_list(),
-            "recovery": period_stats["recovery"].to_list(),
-        })
+        result = pl.DataFrame(
+            {
+                "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
+                "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
+                "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
+                "depth": period_stats["depth"].to_list(),
+                "length": period_stats["length"].to_list(),
+                "recovery": period_stats["recovery"].to_list(),
+            }
+        )
     else:
-        result = period_stats.select([
-            pl.col("start_idx").alias("start"),
-            pl.col("valley_idx").alias("valley"),
-            pl.col("end_idx").alias("end"),
-            pl.col("depth"),
-            pl.col("length"),
-            pl.col("recovery"),
-        ])
+        result = period_stats.select(
+            [
+                pl.col("start_idx").alias("start"),
+                pl.col("valley_idx").alias("valley"),
+                pl.col("end_idx").alias("end"),
+                pl.col("depth"),
+                pl.col("length"),
+                pl.col("recovery"),
+            ]
+        )
 
     return result
 
@@ -316,13 +341,15 @@ def histogram(
     """
     validate_returns(returns, allow_empty=True)
     if returns.is_empty():
-        return pl.DataFrame({
-            "bin_start": pl.Series([], dtype=pl.Float64),
-            "bin_end": pl.Series([], dtype=pl.Float64),
-            "bin_center": pl.Series([], dtype=pl.Float64),
-            "count": pl.Series([], dtype=pl.UInt32),
-            "frequency": pl.Series([], dtype=pl.Float64),
-        })
+        return pl.DataFrame(
+            {
+                "bin_start": pl.Series([], dtype=pl.Float64),
+                "bin_end": pl.Series([], dtype=pl.Float64),
+                "bin_center": pl.Series([], dtype=pl.Float64),
+                "count": pl.Series([], dtype=pl.UInt32),
+                "frequency": pl.Series([], dtype=pl.Float64),
+            }
+        )
 
     returns = to_float_series(returns)
 
@@ -331,23 +358,27 @@ def histogram(
     max_val = returns.max()
 
     if min_val is None or max_val is None:
-        return pl.DataFrame({
-            "bin_start": pl.Series([], dtype=pl.Float64),
-            "bin_end": pl.Series([], dtype=pl.Float64),
-            "bin_center": pl.Series([], dtype=pl.Float64),
-            "count": pl.Series([], dtype=pl.UInt32),
-            "frequency": pl.Series([], dtype=pl.Float64),
-        })
+        return pl.DataFrame(
+            {
+                "bin_start": pl.Series([], dtype=pl.Float64),
+                "bin_end": pl.Series([], dtype=pl.Float64),
+                "bin_center": pl.Series([], dtype=pl.Float64),
+                "count": pl.Series([], dtype=pl.UInt32),
+                "frequency": pl.Series([], dtype=pl.Float64),
+            }
+        )
 
     # Handle edge case where all values are the same
     if min_val == max_val:
-        return pl.DataFrame({
-            "bin_start": [min_val - 0.5],
-            "bin_end": [max_val + 0.5],
-            "bin_center": [min_val],
-            "count": [len(returns)],
-            "frequency": [1.0],
-        }).cast({"count": pl.UInt32})
+        return pl.DataFrame(
+            {
+                "bin_start": [min_val - 0.5],
+                "bin_end": [max_val + 0.5],
+                "bin_center": [min_val],
+                "count": [len(returns)],
+                "frequency": [1.0],
+            }
+        ).cast({"count": pl.UInt32})
 
     # Use Polars native hist() for optimal performance
     # hist() returns columns: breakpoint (right edge), category, count
@@ -358,19 +389,19 @@ def histogram(
 
     # Build result with proper column names
     # breakpoint is the right edge of each bin
-    result = hist_df.select([
-        (pl.col("breakpoint") - bin_width).alias("bin_start"),
-        pl.col("breakpoint").alias("bin_end"),
-        (pl.col("breakpoint") - bin_width / 2).alias("bin_center"),
-        pl.col("count").cast(pl.UInt32),
-        (pl.col("count") / total).alias("frequency"),
-    ])
+    result = hist_df.select(
+        [
+            (pl.col("breakpoint") - bin_width).alias("bin_start"),
+            pl.col("breakpoint").alias("bin_end"),
+            (pl.col("breakpoint") - bin_width / 2).alias("bin_center"),
+            pl.col("count").cast(pl.UInt32),
+            (pl.col("count") / total).alias("frequency"),
+        ]
+    )
 
     if density:
         # Density = frequency / bin_width (so area sums to 1)
-        result = result.with_columns(
-            (pl.col("frequency") / bin_width).alias("density")
-        )
+        result = result.with_columns((pl.col("frequency") / bin_width).alias("density"))
 
     return result
 

@@ -227,9 +227,7 @@ def filter_closed_trades(df: pl.DataFrame) -> pl.DataFrame:
     pl.DataFrame
         Only trades with exit_time and exit_price.
     """
-    return df.filter(
-        pl.col("exit_time").is_not_null() & pl.col("exit_price").is_not_null()
-    )
+    return df.filter(pl.col("exit_time").is_not_null() & pl.col("exit_price").is_not_null())
 
 
 def calculate_trade_returns_series(
@@ -262,12 +260,8 @@ def calculate_trade_returns_series(
     if method == "simple":
         return_expr = (
             pl.when(pl.col("direction") == "long")
-            .then(
-                (pl.col("exit_price") - pl.col("entry_price")) / pl.col("entry_price")
-            )
-            .otherwise(
-                (pl.col("entry_price") - pl.col("exit_price")) / pl.col("entry_price")
-            )
+            .then((pl.col("exit_price") - pl.col("entry_price")) / pl.col("entry_price"))
+            .otherwise((pl.col("entry_price") - pl.col("exit_price")) / pl.col("entry_price"))
         )
     else:  # log returns
         return_expr = (

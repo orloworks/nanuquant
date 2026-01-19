@@ -13,16 +13,14 @@ from nanuquant.config import get_config
 from nanuquant.core.returns import cagr, comp
 from nanuquant.core.risk import (
     max_drawdown,
-    to_drawdown_series,
     ulcer_index,
-    volatility,
 )
 from nanuquant.core.utils import (
     get_annualization_factor,
     safe_divide,
     to_float_series,
 )
-from nanuquant.core.validation import validate_min_length, validate_returns
+from nanuquant.core.validation import validate_returns
 
 
 def sharpe(
@@ -152,7 +150,7 @@ def sortino(
         mean_ret = adjusted_returns.mean()
         return float("inf") if mean_ret is not None and mean_ret > 0 else 0.0
 
-    squared_sum = (negative_returns ** 2).sum()
+    squared_sum = (negative_returns**2).sum()
     if squared_sum is None:
         return 0.0
 
@@ -423,7 +421,6 @@ def kelly_criterion(returns: pl.Series) -> float:
 
     n_trades = len(returns)
     n_wins = len(wins)
-    n_losses = len(losses)
 
     if n_trades == 0:
         return 0.0
@@ -816,7 +813,7 @@ def r_squared(
         return 0.0
 
     correlation = cov / (std_ret * std_bench)
-    return float(correlation ** 2)
+    return float(correlation**2)
 
 
 def treynor_ratio(

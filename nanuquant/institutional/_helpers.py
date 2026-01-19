@@ -45,7 +45,6 @@ def _autocorrelation(returns: pl.Series, lag: int = 1) -> float:
         return 0.0
 
     returns = to_float_series(returns)
-    n = len(returns)
 
     mean = returns.mean()
     if mean is None:

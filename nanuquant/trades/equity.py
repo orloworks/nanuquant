@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 import polars as pl
 
-from nanuquant.trades.utils import datetime_to_date, get_date_range
+from nanuquant.trades.utils import get_date_range
 
 
 def build_equity_curve(
@@ -79,7 +80,7 @@ def build_equity_curve(
     # Calculate daily NAV
     nav_data = []
     cash = initial_capital
-    open_positions: list[dict] = []
+    open_positions: list[dict[str, Any]] = []
 
     for current_date in all_dates:
         current_date_val = (
@@ -135,9 +136,7 @@ def build_equity_curve(
     result = pl.DataFrame(nav_data)
 
     # Calculate daily returns
-    result = result.with_columns(
-        (pl.col("nav") / pl.col("nav").shift(1) - 1).alias("daily_return")
-    )
+    result = result.with_columns((pl.col("nav") / pl.col("nav").shift(1) - 1).alias("daily_return"))
 
     # First day return is 0 (or based on initial capital)
     result = result.with_columns(pl.col("daily_return").fill_null(0.0))
@@ -243,12 +242,19 @@ def build_equity_curve_no_mtm(
 
     result = pl.DataFrame(nav_data)
     result = result.with_columns(
-        (pl.col("nav") / pl.col("nav").shift(1) - 1)
-        .fill_null(0.0)
-        .alias("daily_return")
+        (pl.col("nav") / pl.col("nav").shift(1) - 1).fill_null(0.0).alias("daily_return")
     )
 
     return result
+
+
+def _to_date_or_none(value: object) -> date | None:
+    """Safely convert Polars aggregation result to date or None.
+
+    Polars aggregations return broad union types, but for Date columns
+    they always return date objects. This helper provides type-safe conversion.
+    """
+    return value if isinstance(value, date) else None
 
 
 def _get_trade_date_range(
@@ -258,20 +264,26 @@ def _get_trade_date_range(
     if trades.is_empty():
         return None, None
 
-    # Get min entry date and max exit date
+    # Get min entry date
     entry_dates = trades["entry_time"].cast(pl.Date)
-    min_date = entry_dates.min()
+    min_date = _to_date_or_none(entry_dates.min())
 
+    # Get max date from entries and exits
+    entry_max = _to_date_or_none(entry_dates.max())
+
+    exit_max: date | None = None
     if "exit_time" in trades.columns:
-        exit_dates = trades.filter(pl.col("exit_time").is_not_null())["exit_time"].cast(
-            pl.Date
-        )
+        exit_dates = trades.filter(pl.col("exit_time").is_not_null())["exit_time"].cast(pl.Date)
         if not exit_dates.is_empty():
-            max_date = max(entry_dates.max(), exit_dates.max())
-        else:
-            max_date = entry_dates.max()
+            exit_max = _to_date_or_none(exit_dates.max())
+
+    # Return the later of entry_max and exit_max
+    if entry_max is None:
+        max_date = exit_max
+    elif exit_max is None:
+        max_date = entry_max
     else:
-        max_date = entry_dates.max()
+        max_date = max(entry_max, exit_max)
 
     return min_date, max_date
 
@@ -297,7 +309,7 @@ def _build_price_lookup(
     return lookup
 
 
-def _get_entries_on_date(trades: pl.DataFrame, target_date: date) -> list[dict]:
+def _get_entries_on_date(trades: pl.DataFrame, target_date: date) -> list[dict[str, Any]]:
     """Get all trade entries on a specific date."""
     entries = trades.filter(pl.col("entry_time").cast(pl.Date) == target_date)
 
@@ -318,14 +330,13 @@ def _get_entries_on_date(trades: pl.DataFrame, target_date: date) -> list[dict]:
     return result
 
 
-def _get_exits_on_date(trades: pl.DataFrame, target_date: date) -> list[dict]:
+def _get_exits_on_date(trades: pl.DataFrame, target_date: date) -> list[dict[str, Any]]:
     """Get all trade exits on a specific date."""
     if "exit_time" not in trades.columns:
         return []
 
     exits = trades.filter(
-        pl.col("exit_time").is_not_null()
-        & (pl.col("exit_time").cast(pl.Date) == target_date)
+        pl.col("exit_time").is_not_null() & (pl.col("exit_time").cast(pl.Date) == target_date)
     )
 
     result = []
@@ -348,7 +359,7 @@ def _get_exits_on_date(trades: pl.DataFrame, target_date: date) -> list[dict]:
 
 
 def _find_matching_position(
-    positions: list[dict], exit_trade: dict
+    positions: list[dict[str, Any]], exit_trade: dict[str, Any]
 ) -> int | None:
     """Find the index of a matching open position for an exit.
 
@@ -366,9 +377,8 @@ def _find_matching_position(
             if pos["trade_id"] == exit_trade["trade_id"]:
                 return i
         # Otherwise match by entry_time and symbol (FIFO)
-        elif (
-            pos["entry_time"] == exit_trade["entry_time"]
-            and pos.get("symbol") == exit_trade.get("symbol")
+        elif pos["entry_time"] == exit_trade["entry_time"] and pos.get("symbol") == exit_trade.get(
+            "symbol"
         ):
             return i
 
@@ -376,9 +386,9 @@ def _find_matching_position(
 
 
 def _calculate_position_value(
-    positions: list[dict],
+    positions: list[dict[str, Any]],
     current_date: date,
-    price_lookup: dict | None,
+    price_lookup: dict[tuple[date, str | None], float] | None,
     has_symbol: bool,
 ) -> float:
     """Calculate total mark-to-market value of open positions."""
@@ -396,9 +406,7 @@ def _calculate_position_value(
 
             if current_price is None:
                 # Try to find most recent price
-                current_price = _get_most_recent_price(
-                    price_lookup, current_date, symbol
-                )
+                current_price = _get_most_recent_price(price_lookup, current_date, symbol)
 
             if current_price is None:
                 # Fall back to entry price
@@ -420,7 +428,7 @@ def _calculate_position_value(
 
 
 def _get_most_recent_price(
-    price_lookup: dict,
+    price_lookup: dict[tuple[date, str | None], float],
     target_date: date,
     symbol: str | None,
 ) -> float | None:

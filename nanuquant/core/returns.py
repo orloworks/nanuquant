@@ -9,12 +9,11 @@ import polars as pl
 
 from nanuquant.config import get_config
 from nanuquant.core.utils import (
-    compound_returns,
     get_annualization_factor,
     safe_divide,
     to_float_series,
 )
-from nanuquant.core.validation import validate_min_length, validate_returns
+from nanuquant.core.validation import validate_returns
 
 
 def comp(returns: pl.Series) -> float:

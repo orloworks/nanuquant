@@ -207,6 +207,10 @@ hourly_config = MetricsConfig(periods_per_year=252 * 6.5, frequency="H")  # 6.5 
 ```python
 from nanuquant.reports import full_metrics
 
+# Define your returns and an optional benchmark
+returns = pl.Series("returns", [0.01, -0.02, 0.03, 0.01, -0.01, 0.02, -0.005, 0.015])
+benchmark = pl.Series("benchmark", [0.008, -0.015, 0.02, 0.008, -0.008, 0.015, -0.004, 0.01])
+
 # Get comprehensive metrics report
 report = full_metrics(
     returns,
@@ -227,7 +231,7 @@ print("Benchmark Metrics:", report.benchmark)
 ```python
 from nanuquant.reports import generate_html_report, save_html_report
 
-# Generate HTML content
+# Generate HTML content (using returns and benchmark from above)
 html = generate_html_report(returns, benchmark=benchmark, title="My Strategy Analysis")
 
 # Save to file

@@ -410,28 +410,30 @@ Analyze execution quality and trading costs.
 ```python
 from nanuquant import institutional
 
-# Execution analysis
+# Execution analysis for a multi-tranche order
 is_result = institutional.implementation_shortfall(
     decision_price=100.00,
-    execution_price=100.25,
-    benchmark_price=100.10,
-    quantity=1000,
-    direction="buy"
+    execution_prices=[100.25, 100.30],  # Two fills
+    quantities=[500, 500],
+    side=1,  # 1 for buy, -1 for sell
+    arrival_price=100.10,
+    end_price=101.00
 )
 
 print("=== Execution Analysis ===")
-print(f"Total Implementation Shortfall: ${is_result.total_is:.2f}")
+print(f"Total Implementation Shortfall: ${is_result.total_shortfall:.2f}")
+print(f"Shortfall: {is_result.shortfall_bps:.2f} bps")
 print(f"Delay Cost: ${is_result.delay_cost:.2f}")
-print(f"Market Impact: ${is_result.market_impact:.2f}")
+print(f"Trading Cost: ${is_result.trading_cost:.2f}")
 
 # Pre-trade impact estimate
 impact_est = institutional.market_impact_estimate(
-    volume=10000,
-    adv=1000000,  # 1M average daily volume
-    volatility=0.02,  # 2% daily vol
-    participation_rate=0.1
+    trade_volume=10000,
+    avg_daily_volume=1000000,  # 1M average daily volume
+    volatility=0.20,  # 20% annualized vol
+    impact_coefficient=0.1
 )
-print(f"\nEstimated Market Impact: {impact_est:.2%}")
+print(f"\nEstimated Market Impact: {impact_est:.4%}")
 ```
 
 **Relevant Metrics:**

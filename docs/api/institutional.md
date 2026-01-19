@@ -45,17 +45,14 @@ psr = institutional.probabilistic_sharpe_ratio(
 - `periods_per_year`: Annualization factor
 
 **Returns:** `PSRResult` NamedTuple containing:
-- `psr`: Probabilistic Sharpe Ratio (probability 0-1)
-- `observed_sr`: The observed Sharpe ratio
-- `sr_std_error`: Standard error of the Sharpe estimate
-- `skewness`: Return distribution skewness
-- `kurtosis`: Return distribution excess kurtosis
+- `psr`: The probability that the true Sharpe ratio exceeds the benchmark (0 to 1)
+- `p_value`: The p-value for the one-sided hypothesis test that the true Sharpe ratio is less than or equal to the benchmark
 
 **Example:**
 ```python
 result = institutional.probabilistic_sharpe_ratio(returns, benchmark_sr=0.5)
 print(f"Probability SR > 0.5: {result.psr:.2%}")
-print(f"Observed SR: {result.observed_sr:.4f}")
+print(f"P-value: {result.p_value:.4f}")
 ```
 
 **Interpretation:**
@@ -323,9 +320,10 @@ result = institutional.marginal_contribution_to_risk(
 - `weights`: Portfolio weights (must sum to 1)
 
 **Returns:** `MCRResult` NamedTuple containing:
-- `mcr`: Marginal contribution to risk per asset
-- `pcr`: Percentage contribution to risk per asset
-- `portfolio_volatility`: Total portfolio volatility
+- `mcr`: Marginal contribution to risk for each asset
+- `pcr`: Percentage contribution to risk for each asset (sums to 1)
+- `total_risk`: Total portfolio volatility
+- `asset_names`: Names of the assets (column names from input)
 
 **Example:**
 ```python
@@ -337,8 +335,9 @@ returns_df = pl.DataFrame({
 weights = [0.4, 0.35, 0.25]
 
 result = institutional.marginal_contribution_to_risk(returns_df, weights)
-for asset, pcr in zip(returns_df.columns, result.pcr):
+for asset, pcr in zip(result.asset_names, result.pcr):
     print(f"{asset}: {pcr:.1%} of total risk")
+print(f"Total portfolio risk: {result.total_risk:.2%}")
 ```
 
 **Use Case:** Identify which assets contribute most to portfolio risk for potential rebalancing.

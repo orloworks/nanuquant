@@ -58,8 +58,8 @@ nq.cagr(returns: pl.Series, periods_per_year: int = 252) -> float
 
 **Example:**
 ```python
-returns = pl.Series([0.01] * 252)  # 252 daily returns of 1%
-annual_return = nq.cagr(returns)  # ~11.35% annualized
+returns = pl.Series([0.0004] * 252)  # 252 daily returns of 0.04%
+annual_return = nq.cagr(returns)  # ~10.6% annualized
 ```
 
 ---
@@ -244,7 +244,7 @@ nq.var(
 - `returns`: Series of period returns
 - `confidence`: Confidence level (0.90, 0.95, or 0.99)
 
-**Returns:** VaR as a positive decimal (expected loss at given confidence)
+**Returns:** VaR as a negative decimal representing the return at the given confidence level (e.g., -0.02 means 2% loss)
 
 **Note:** Parametric VaR assumes normally distributed returns. Real market returns often exhibit fat tails, making this a potentially optimistic estimate.
 

@@ -248,6 +248,15 @@ def build_equity_curve_no_mtm(
     return result
 
 
+def _to_date_or_none(value: object) -> date | None:
+    """Safely convert Polars aggregation result to date or None.
+
+    Polars aggregations return broad union types, but for Date columns
+    they always return date objects. This helper provides type-safe conversion.
+    """
+    return value if isinstance(value, date) else None
+
+
 def _get_trade_date_range(
     trades: pl.DataFrame,
 ) -> tuple[date | None, date | None]:
@@ -255,27 +264,26 @@ def _get_trade_date_range(
     if trades.is_empty():
         return None, None
 
-    # Get min entry date and max exit date
+    # Get min entry date
     entry_dates = trades["entry_time"].cast(pl.Date)
-    min_date_val = entry_dates.min()
-    min_date: date | None = min_date_val if isinstance(min_date_val, date) else None  # type: ignore[redundant-expr]
+    min_date = _to_date_or_none(entry_dates.min())
 
+    # Get max date from entries and exits
+    entry_max = _to_date_or_none(entry_dates.max())
+
+    exit_max: date | None = None
     if "exit_time" in trades.columns:
         exit_dates = trades.filter(pl.col("exit_time").is_not_null())["exit_time"].cast(pl.Date)
         if not exit_dates.is_empty():
-            entry_max = entry_dates.max()
-            exit_max = exit_dates.max()
-            # Cast to date for comparison (Polars returns date for Date column max)
-            if isinstance(entry_max, date) and isinstance(exit_max, date):
-                max_date: date | None = entry_max if entry_max > exit_max else exit_max
-            else:
-                max_date = entry_max if isinstance(entry_max, date) else None  # type: ignore[assignment]
-        else:
-            max_date_val = entry_dates.max()
-            max_date = max_date_val if isinstance(max_date_val, date) else None  # type: ignore[assignment,redundant-expr]
+            exit_max = _to_date_or_none(exit_dates.max())
+
+    # Return the later of entry_max and exit_max
+    if entry_max is None:
+        max_date = exit_max
+    elif exit_max is None:
+        max_date = entry_max
     else:
-        max_date_val = entry_dates.max()
-        max_date = max_date_val if isinstance(max_date_val, date) else None  # type: ignore[redundant-expr]
+        max_date = max(entry_max, exit_max)
 
     return min_date, max_date
 

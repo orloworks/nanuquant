@@ -16,16 +16,16 @@ import numpy as np
 import polars as pl
 import pytest
 
-from polars_metrics.institutional import (
+from nanuquant.institutional import (
     deflated_sharpe_ratio,
     probabilistic_sharpe_ratio,
 )
-from polars_metrics.institutional._helpers import (
+from nanuquant.institutional._helpers import (
     _autocorrelation,
     _expected_max_sharpe,
     newey_west_se,
 )
-from polars_metrics.institutional.robustness import minimum_track_record_length
+from nanuquant.institutional.robustness import minimum_track_record_length
 
 
 # =============================================================================

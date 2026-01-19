@@ -12,7 +12,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from polars_metrics.institutional import (
+from nanuquant.institutional import (
     ARCHTestResult,
     GARCHResult,
     arch_effect_test,

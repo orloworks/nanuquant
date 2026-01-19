@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from polars_metrics.institutional import (
+from nanuquant.institutional import (
     cornish_fisher_var,
     entropic_var,
     historical_var,

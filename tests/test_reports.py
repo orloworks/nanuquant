@@ -9,7 +9,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from polars_metrics.reports import (
+from nanuquant.reports import (
     MetricsReport,
     compute_benchmark_metrics,
     compute_distribution_metrics,

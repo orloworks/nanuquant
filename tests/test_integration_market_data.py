@@ -21,7 +21,7 @@ import pytest
 
 qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
 
-import polars_metrics as pm
+import nanuquant as pm
 
 # Mark all tests as integration (real market data, no network needed - data is cached)
 pytestmark = pytest.mark.integration

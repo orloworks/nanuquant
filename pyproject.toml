@@ -1,22 +1,23 @@
 [project]
-name = "polars-metrics"
+name = "nanuquant"
 version = "0.1.0"
-description = "Native Polars metrics library for quantitative finance - QuantStats replacement"
+description = "Institutional quantitative analytics at Polars speed."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [{ name = "Trade Conductor" }]
-keywords = ["polars", "quantitative-finance", "metrics", "quantstats", "trading", "finance", "backtesting", "sharpe-ratio"]
+keywords = [
+    "polars",
+    "quantitative-finance",
+    "institutional-metrics",
+    "backtesting",
+    "trading",
+    "garch",
+    "risk-management"
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Financial and Insurance Industry",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
@@ -28,10 +29,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/launchstack-dev/quantpolars"
-Repository = "https://github.com/launchstack-dev/quantpolars"
-Changelog = "https://github.com/launchstack-dev/quantpolars/blob/main/CHANGELOG.md"
-Issues = "https://github.com/launchstack-dev/quantpolars/issues"
+Homepage = "https://github.com/launchstack-dev/nanuquant"
+Repository = "https://github.com/launchstack-dev/nanuquant"
+Issues = "https://github.com/launchstack-dev/nanuquant/issues"
 
 [project.optional-dependencies]
 dev = [
@@ -47,7 +47,7 @@ reports = [
     "msgspec>=0.18",
 ]
 all = [
-    "polars-metrics[dev,reports]",
+    "nanuquant[dev,reports]",
 ]
 
 [build-system]
@@ -55,11 +55,11 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["polars_metrics"]
+packages = ["nanuquant"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "polars_metrics/",
+    "nanuquant/",
     "tests/",
     "LICENSE",
     "README.md",

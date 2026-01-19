@@ -2,12 +2,13 @@
 
 This module provides functions that return Series or DataFrames rather than scalars,
 designed for tearsheet generation, visualization, and multi-period analysis.
+
+All implementations use native Polars operations for optimal performance.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Literal
+from datetime import date, timedelta
 
 import polars as pl
 
@@ -62,15 +63,15 @@ def yearly_returns(
 
     returns = to_float_series(returns)
 
-    # Generate dates if not provided
+    # Generate dates if not provided using Polars date_range
     if dates is None:
-        from datetime import date, timedelta
-
         start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
+        dates = pl.date_range(
+            start=start,
+            end=start + timedelta(days=len(returns) - 1),
+            interval="1d",
+            eager=True,
+        ).alias("date")
 
     df = pl.DataFrame({
         "date": dates,
@@ -93,18 +94,6 @@ def yearly_returns(
     return yearly.sort("year")
 
 
-@dataclass
-class DrawdownPeriod:
-    """A single drawdown period with details."""
-
-    start_idx: int
-    end_idx: int
-    valley_idx: int
-    depth: float
-    length: int
-    recovery_length: int | None
-
-
 def drawdown_details(
     returns: pl.Series,
     *,
@@ -115,6 +104,8 @@ def drawdown_details(
 
     This is the "drawdown table" feature commonly found in fund fact sheets,
     showing start date, end date, depth, and duration of each drawdown period.
+
+    Uses vectorized Polars operations for optimal performance.
 
     Parameters
     ----------
@@ -171,85 +162,115 @@ def drawdown_details(
         })
 
     returns = to_float_series(returns)
+    n = len(returns)
 
-    # Calculate cumulative wealth and drawdown series
+    # Calculate cumulative wealth and drawdown series using Polars
     cumulative = (1 + returns).cum_prod()
     running_max = cumulative.cum_max()
     drawdown = (cumulative - running_max) / running_max
 
-    # Convert to lists for iteration
-    dd_list = drawdown.to_list()
-    cum_list = cumulative.to_list()
-    n = len(dd_list)
+    # Build a DataFrame for vectorized processing
+    df = pl.DataFrame({
+        "idx": pl.arange(0, n, eager=True),
+        "dd": drawdown,
+    })
 
-    # Find drawdown periods
-    periods: list[DrawdownPeriod] = []
-    i = 0
+    # Add date column if provided
+    if dates is not None:
+        df = df.with_columns(pl.Series("date", dates))
 
-    while i < n:
-        # Skip periods at peak (drawdown == 0)
-        if dd_list[i] >= 0:
-            i += 1
-            continue
+    # Identify drawdown periods using run-length encoding
+    # A new drawdown period starts when we transition from dd >= 0 to dd < 0
+    df = df.with_columns([
+        (pl.col("dd") < 0).alias("in_dd"),
+    ])
 
-        # Found start of a drawdown
-        start_idx = i - 1 if i > 0 else 0
+    # Create group IDs for consecutive drawdown/non-drawdown periods
+    df = df.with_columns([
+        (pl.col("in_dd") != pl.col("in_dd").shift(1)).fill_null(True).cum_sum().alias("period_id"),
+    ])
 
-        # Find the valley (minimum point)
-        valley_idx = i
-        valley_depth = dd_list[i]
+    # Filter to only drawdown periods (dd < 0)
+    dd_periods = df.filter(pl.col("in_dd"))
 
-        while i < n and dd_list[i] < 0:
-            if dd_list[i] < valley_depth:
-                valley_depth = dd_list[i]
-                valley_idx = i
-            i += 1
+    if dd_periods.is_empty():
+        # No drawdowns found
+        if dates is not None:
+            return pl.DataFrame({
+                "start": pl.Series([], dtype=dates.dtype),
+                "valley": pl.Series([], dtype=dates.dtype),
+                "end": pl.Series([], dtype=dates.dtype),
+                "depth": pl.Series([], dtype=pl.Float64),
+                "length": pl.Series([], dtype=pl.Int64),
+                "recovery": pl.Series([], dtype=pl.Int64),
+            })
+        return pl.DataFrame({
+            "start": pl.Series([], dtype=pl.Int64),
+            "valley": pl.Series([], dtype=pl.Int64),
+            "end": pl.Series([], dtype=pl.Int64),
+            "depth": pl.Series([], dtype=pl.Float64),
+            "length": pl.Series([], dtype=pl.Int64),
+            "recovery": pl.Series([], dtype=pl.Int64),
+        })
 
-        # i is now at recovery point (or end of series)
-        if i < n:
-            # Recovered
-            end_idx = i
-            recovery_length = i - valley_idx
-        else:
-            # Not yet recovered
-            end_idx = n - 1
-            recovery_length = None
+    # Aggregate each drawdown period to find start, valley, end, depth
+    period_stats = dd_periods.group_by("period_id").agg([
+        pl.col("idx").min().alias("first_dd_idx"),
+        pl.col("idx").max().alias("last_dd_idx"),
+        pl.col("dd").min().alias("depth"),
+        # Find the index where minimum drawdown occurred
+        pl.col("idx").filter(pl.col("dd") == pl.col("dd").min()).first().alias("valley_idx"),
+    ])
 
-        length = (end_idx if recovery_length else valley_idx) - start_idx + 1
+    # Start is one index before first_dd_idx (the peak), clamped to 0
+    period_stats = period_stats.with_columns([
+        (pl.col("first_dd_idx") - 1).clip(lower_bound=0).alias("start_idx"),
+    ])
 
-        periods.append(DrawdownPeriod(
-            start_idx=start_idx,
-            end_idx=end_idx,
-            valley_idx=valley_idx,
-            depth=valley_depth,
-            length=length,
-            recovery_length=recovery_length,
-        ))
+    # End is one index after last_dd_idx if recovered, otherwise last_dd_idx
+    period_stats = period_stats.with_columns([
+        pl.when(pl.col("last_dd_idx") < n - 1)
+        .then(pl.col("last_dd_idx") + 1)
+        .otherwise(pl.col("last_dd_idx"))
+        .alias("end_idx"),
+        pl.when(pl.col("last_dd_idx") < n - 1)
+        .then(True)
+        .otherwise(False)
+        .alias("recovered"),
+    ])
+
+    # Calculate length and recovery
+    period_stats = period_stats.with_columns([
+        (pl.col("end_idx") - pl.col("start_idx") + 1).alias("length"),
+        pl.when(pl.col("recovered"))
+        .then(pl.col("end_idx") - pl.col("valley_idx"))
+        .otherwise(None)
+        .alias("recovery"),
+    ])
 
     # Sort by depth (most negative first) and take top N
-    periods.sort(key=lambda p: p.depth)
-    periods = periods[:top_n]
+    period_stats = period_stats.sort("depth").head(top_n)
 
-    # Build result DataFrame
+    # Map indices to dates if provided
     if dates is not None:
         dates_list = dates.to_list()
         result = pl.DataFrame({
-            "start": [dates_list[p.start_idx] for p in periods],
-            "valley": [dates_list[p.valley_idx] for p in periods],
-            "end": [dates_list[p.end_idx] for p in periods],
-            "depth": [p.depth for p in periods],
-            "length": [p.length for p in periods],
-            "recovery": [p.recovery_length for p in periods],
+            "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
+            "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
+            "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
+            "depth": period_stats["depth"].to_list(),
+            "length": period_stats["length"].to_list(),
+            "recovery": period_stats["recovery"].to_list(),
         })
     else:
-        result = pl.DataFrame({
-            "start": [p.start_idx for p in periods],
-            "valley": [p.valley_idx for p in periods],
-            "end": [p.end_idx for p in periods],
-            "depth": [p.depth for p in periods],
-            "length": [p.length for p in periods],
-            "recovery": [p.recovery_length for p in periods],
-        })
+        result = period_stats.select([
+            pl.col("start_idx").alias("start"),
+            pl.col("valley_idx").alias("valley"),
+            pl.col("end_idx").alias("end"),
+            pl.col("depth"),
+            pl.col("length"),
+            pl.col("recovery"),
+        ])
 
     return result
 
@@ -262,7 +283,7 @@ def histogram(
 ) -> pl.DataFrame:
     """Calculate histogram of returns for distribution visualization.
 
-    Uses Polars' optimized histogram implementation for performance.
+    Uses Polars' native histogram implementation for optimal performance.
 
     Parameters
     ----------
@@ -326,39 +347,24 @@ def histogram(
             "bin_center": [min_val],
             "count": [len(returns)],
             "frequency": [1.0],
-        })
+        }).cast({"count": pl.UInt32})
 
-    # Calculate bin edges
-    bin_width = (max_val - min_val) / bins
-    bin_starts = [min_val + i * bin_width for i in range(bins)]
-    bin_ends = [min_val + (i + 1) * bin_width for i in range(bins)]
-    bin_centers = [(s + e) / 2 for s, e in zip(bin_starts, bin_ends)]
-
-    # Count values in each bin manually (more robust than cut)
-    count_list = []
-    returns_list = returns.to_list()
-
-    for i in range(bins):
-        start = bin_starts[i]
-        end = bin_ends[i]
-        if i == bins - 1:
-            # Last bin includes right edge
-            count = sum(1 for r in returns_list if start <= r <= end)
-        else:
-            # Other bins are [start, end)
-            count = sum(1 for r in returns_list if start <= r < end)
-        count_list.append(count)
+    # Use Polars native hist() for optimal performance
+    # hist() returns columns: breakpoint (right edge), category, count
+    hist_df = returns.hist(bin_count=bins, include_breakpoint=True)
 
     total = len(returns)
-    frequencies = [c / total for c in count_list]
+    bin_width = (max_val - min_val) / bins
 
-    result = pl.DataFrame({
-        "bin_start": bin_starts,
-        "bin_end": bin_ends,
-        "bin_center": bin_centers,
-        "count": count_list,
-        "frequency": frequencies,
-    }).cast({"count": pl.UInt32})
+    # Build result with proper column names
+    # breakpoint is the right edge of each bin
+    result = hist_df.select([
+        (pl.col("breakpoint") - bin_width).alias("bin_start"),
+        pl.col("breakpoint").alias("bin_end"),
+        (pl.col("breakpoint") - bin_width / 2).alias("bin_center"),
+        pl.col("count").cast(pl.UInt32),
+        (pl.col("count") / total).alias("frequency"),
+    ])
 
     if density:
         # Density = frequency / bin_width (so area sums to 1)

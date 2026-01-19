@@ -1,57 +1,97 @@
-# Polars Metrics
+# NanuQuant
 
-Native Polars metrics library for quantitative finance - a complete QuantStats replacement.
+### Institutional quantitative analytics at Polars speed.
 
-## Features
+[![PyPI](https://img.shields.io/pypi/v/nanuquant)](https://pypi.org/project/nanuquant/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-- **67 QuantStats metrics** fully replicated with native Polars
-- **18 additional trading metrics** (SQN, Expectancy, K-ratio, etc.)
-- **Institutional metrics** (Deflated Sharpe, Probabilistic Sharpe)
-- **Zero pandas dependency** in production code path
-- **Lazy evaluation support** for large datasets
-- **Polars expression namespace** for idiomatic usage
-- **Full type annotations** with py.typed marker for MyPy support
+**NanuQuant** is a high-performance, native Polars library for quantitative finance. It replaces legacy Pandas-based tools with a vectorized engine capable of handling tick-level data and large-scale backtests without memory overhead.
+
+It goes beyond standard metrics to provide institutional-grade robustness testing, volatility modeling, and execution analysis.
+
+## Why NanuQuant?
+
+- **Zero Pandas Dependency:** Built purely on Polars for maximum speed and stability in production containers.
+- **Institutional Rigor:** Includes advanced metrics like Cornish-Fisher VaR, Ledoit-Wolf Shrinkage, and Deflated Sharpe Ratios.
+- **Production Ready:** Fully typed, rigorously tested against industry standards (QuantStats), and designed for high-frequency workflows.
 
 ## Installation
 
 ```bash
-pip install polars-metrics
+pip install nanuquant
 ```
 
 ## Quick Start
 
-### Functional API
-
 ```python
 import polars as pl
-import polars_metrics as pm
+import nanuquant as nq
 
-# Generate sample returns
+# 1. Load market data (lazy or eager)
 returns = pl.Series("returns", [0.01, -0.02, 0.03, 0.01, -0.01, 0.02])
 
-# Core metrics
-sharpe = pm.sharpe(returns, risk_free_rate=0.02, periods_per_year=252)
-sortino = pm.sortino(returns, risk_free_rate=0.0, periods_per_year=252)
-max_dd = pm.max_drawdown(returns)
-vol = pm.volatility(returns, periods_per_year=252)
+# 2. Calculate core metrics
+sharpe = nq.sharpe(returns, risk_free_rate=0.04)
+sortino = nq.sortino(returns)
+max_dd = nq.max_drawdown(returns)
 
-# Benchmark metrics (with benchmark series)
-benchmark = pl.Series("benchmark", [0.005, -0.01, 0.02, 0.005, -0.005, 0.01])
-alpha, beta = pm.greeks(returns, benchmark, periods_per_year=252)
-info_ratio = pm.information_ratio(returns, benchmark)
-
-# Rolling metrics
-rolling_vol = pm.rolling_volatility(returns, rolling_period=126)
-rolling_sharpe = pm.rolling_sharpe(returns, rolling_period=126)
+print(f"Sharpe: {sharpe:.2f} | Max Drawdown: {max_dd:.2%}")
 ```
 
-### DataFrame Namespace
+## Institutional Analysis
 
-Import `polars_metrics` to register the `.metrics` namespace on Polars expressions:
+NanuQuant shines where other libraries stop. Validate your strategies with statistical rigor:
+
+### Robustness Testing
+
+Don't be fooled by random luck. Use the **Probabilistic Sharpe Ratio (PSR)** and **Deflated Sharpe Ratio (DSR)** to adjust for non-normality and multiple testing overfitting.
+
+```python
+# Did you test 100 variations of your strategy? Adjust for selection bias.
+dsr = nq.deflated_sharpe_ratio(returns, n_trials=100)
+print(f"Deflated Sharpe Probability: {dsr:.4f}")
+```
+
+### Volatility Modeling
+
+Detect volatility clustering and regime changes using GARCH(1,1) estimates.
+
+```python
+from nanuquant import institutional
+
+# Test for ARCH effects (volatility clustering)
+arch_test = institutional.arch_effect_test(returns)
+if arch_test.has_arch_effects:
+    print("Regime: Volatility Clustering Detected")
+```
+
+## Features
+
+### Core Metrics
+
+* **Returns:** CAGR, Compounded Growth, Log Returns, Greeks (Alpha/Beta)
+* **Risk:** Volatility, VaR (Parametric, Historical, Cornish-Fisher), CVaR, Ulcer Index
+* **Performance:** Sharpe, Sortino, Calmar, Omega, Kelly Criterion
+* **Drawdowns:** Max Drawdown, Drawdown Duration, Underwater Curves
+
+### Advanced Trading
+
+* **System Quality:** SQN, Expectancy, K-Ratio
+* **Trade Analysis:** Win Rate, Profit Factor, Payoff Ratio, Exposure
+
+### Institutional & Systemic
+
+* **Execution:** Implementation Shortfall, Market Impact (Square-root law)
+* **Portfolio:** Ledoit-Wolf Covariance, Marginal Contribution to Risk (MCR)
+* **Systemic:** Absorption Ratio, Tail Dependence
+
+## DataFrame Namespace
+
+Import `nanuquant` to register the `.metrics` namespace on Polars expressions:
 
 ```python
 import polars as pl
-import polars_metrics as pm  # Registers the .metrics accessor
+import nanuquant as nq  # Registers the .metrics accessor
 
 df = pl.DataFrame({
     "returns": [0.01, -0.02, 0.015, -0.01, 0.02] * 50
@@ -75,17 +115,17 @@ df_with_rolling = df.with_columns([
 ])
 ```
 
-### Null Handling
+## Null Handling
 
-Polars Metrics follows QuantStats/pandas conventions by dropping null values before calculations by default. This ensures consistent results across different data sources:
+NanuQuant follows QuantStats/pandas conventions by dropping null values before calculations by default. This ensures consistent results across different data sources:
 
 ```python
 import polars as pl
-import polars_metrics as pm
+import nanuquant as nq
 
 # Nulls are dropped by default
 returns_with_nulls = pl.Series([0.01, None, -0.02, None, 0.015])
-sharpe = pm.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
+sharpe = nq.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
 ```
 
 ## Available Metrics
@@ -102,10 +142,10 @@ sharpe = pm.sharpe(returns_with_nulls)  # Calculates using [0.01, -0.02, 0.015]
 ### Distribution (8)
 `skewness`, `kurtosis`, `jarque_bera`, `shapiro_wilk`, `outlier_win_ratio`, `outlier_loss_ratio`, `expected_return`, `geometric_mean`
 
-### Rolling (4)
-`rolling_volatility`, `rolling_sharpe`, `rolling_sortino`, `rolling_beta`
+### Rolling (5)
+`rolling_volatility`, `rolling_sharpe`, `rolling_sortino`, `rolling_beta`, `rolling_greeks`
 
-### Trading (11)
+### Trading (12)
 `exposure`, `ghpr`, `rar`, `cpc_index`, `serenity_index`, `risk_of_ruin`, `adjusted_sortino`, `smart_sharpe`, `smart_sortino`, `sqn`, `expectancy`, `k_ratio`
 
 ### Institutional (2)
@@ -123,8 +163,6 @@ This library intentionally differs from QuantStats in some areas for improved co
 
 4. **Smart Sharpe/Sortino**: Uses Lo (2002) autocorrelation adjustment formula.
 
-See the test documentation in `tests/test_vs_quantstats.py` for detailed comparison notes.
-
 ## Development
 
 ```bash
@@ -141,9 +179,9 @@ pytest tests/test_vs_quantstats.py -v
 pytest -m integration
 
 # Type checking
-mypy polars_metrics
+mypy nanuquant
 ```
 
 ## License
 
-MIT
+MIT License. See [LICENSE](LICENSE) for details.

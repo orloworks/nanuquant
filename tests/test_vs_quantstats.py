@@ -1,4 +1,4 @@
-"""Differential tests comparing polars_metrics against QuantStats.
+"""Differential tests comparing nanuquant against QuantStats.
 
 These tests verify that our implementations match QuantStats output exactly
 where possible, and document intentional differences where our implementation
@@ -9,7 +9,7 @@ Known Differences from QuantStats
 
 1. **CAGR / Calmar (Calendar-based metrics)**
    QuantStats uses datetime index to calculate actual calendar years (365.25 days).
-   polars_metrics uses periods-based calculation for consistency with non-datetime
+   nanuquant uses periods-based calculation for consistency with non-datetime
    indexed data. This is intentional - our approach works with any time series.
 
    Difference: < 1% when using periods_per_year=252 for trading day data.
@@ -17,14 +17,14 @@ Known Differences from QuantStats
 
 2. **Treynor Ratio**
    QuantStats uses: Treynor = comp(returns) / beta  (total compounded return)
-   polars_metrics uses: Treynor = CAGR / beta  (annualized return)
+   nanuquant uses: Treynor = CAGR / beta  (annualized return)
 
    Our implementation follows the standard academic definition where Treynor
    measures annualized excess return per unit of systematic risk.
 
 3. **Omega Ratio**
    QuantStats has a bug in some versions where `Series.sum().values[0]` fails.
-   polars_metrics implements the correct Omega ratio formula:
+   nanuquant implements the correct Omega ratio formula:
    Omega = (sum of returns above threshold) / abs(sum of returns below threshold)
 
 4. **CPC Index (Compound Profit & Consistency)**
@@ -54,8 +54,8 @@ import pytest
 
 qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
 
-import polars_metrics as pm
-from polars_metrics.exceptions import EmptySeriesError
+import nanuquant as pm
+from nanuquant.exceptions import EmptySeriesError
 
 # Tolerance levels from implementation plan
 EXACT = {"rtol": 1e-10, "atol": 0}
@@ -886,7 +886,7 @@ class TestBenchmarkVsQuantStats:
         """Test Treynor ratio on synthetic data.
 
         Note: QuantStats uses comp(returns)/beta (total return),
-        polars_metrics uses CAGR/beta (annualized return) which is the
+        nanuquant uses CAGR/beta (annualized return) which is the
         standard academic definition. We verify the formula is correct
         by computing expected value using our own comp and beta.
         """

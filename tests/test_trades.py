@@ -17,9 +17,9 @@ from datetime import date, datetime, timedelta
 import polars as pl
 import pytest
 
-import polars_metrics as pm
-from polars_metrics.exceptions import EmptySeriesError
-from polars_metrics.trades import (
+import nanuquant as pm
+from nanuquant.exceptions import EmptySeriesError
+from nanuquant.trades import (
     InvalidDirectionError,
     InvalidPriceError,
     InvalidTradeTimesError,
@@ -434,7 +434,7 @@ class TestValidation:
 
     def test_exit_before_entry_raises(self) -> None:
         """Exit time before entry time should raise error."""
-        from polars_metrics.trades import validate_trade_times
+        from nanuquant.trades import validate_trade_times
 
         trades = pl.DataFrame({
             "entry_time": [datetime(2024, 1, 2)],

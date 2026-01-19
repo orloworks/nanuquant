@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from polars_metrics.institutional import (
+from nanuquant.institutional import (
     LedoitWolfResult,
     MCRResult,
     correlation_from_covariance,

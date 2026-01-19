@@ -12,7 +12,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-import polars_metrics as pm
+import nanuquant as pm
 
 
 class TestOutliers:

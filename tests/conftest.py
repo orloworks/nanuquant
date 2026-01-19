@@ -1,4 +1,4 @@
-"""Test fixtures for polars_metrics.
+"""Test fixtures for nanuquant.
 
 Provides both synthetic deterministic data and real market data (SPY, QQQ, BND).
 Market data is pre-cached in tests/.data_cache/ - no network required.

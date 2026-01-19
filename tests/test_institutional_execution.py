@@ -11,7 +11,7 @@ import numpy as np
 import polars as pl
 import pytest
 
-from polars_metrics.institutional import (
+from nanuquant.institutional import (
     ImplementationShortfallResult,
     execution_vwap,
     implementation_shortfall,

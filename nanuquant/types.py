@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal, Union
+from typing import Literal
 
 import polars as pl
 
 # Input types that can be used for returns data
-ReturnsInput = Union[pl.Series, pl.Expr]
+ReturnsInput = pl.Series | pl.Expr
 
 # Supported frequency types for return data
 FrequencyType = Literal["D", "W", "M", "H", "min", "s"]
@@ -23,11 +23,8 @@ ANNUALIZATION_PERIODS: dict[FrequencyType, float] = {
     "s": 252.0 * 390.0 * 60.0,  # trading seconds/year
 }
 
-# VaR confidence levels
-VaRConfidence = Literal[0.90, 0.95, 0.99]
-
-# Standard deviation multipliers for parametric VaR
-VAR_SIGMA_MAP: dict[VaRConfidence, float] = {
+# Standard deviation multipliers for parametric VaR at common confidence levels
+VAR_SIGMA_MAP: dict[float, float] = {
     0.90: 1.282,
     0.95: 1.645,
     0.99: 2.326,

@@ -6,7 +6,6 @@ Market data is pre-cached in tests/.data_cache/ - no network required.
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -235,11 +234,13 @@ def market_data_df(
     Useful for portfolio and correlation testing.
     """
     # Align on common dates
-    df = pd.DataFrame({
-        "SPY": spy_returns,
-        "QQQ": qqq_returns,
-        "BND": bnd_returns,
-    }).dropna()
+    df = pd.DataFrame(
+        {
+            "SPY": spy_returns,
+            "QQQ": qqq_returns,
+            "BND": bnd_returns,
+        }
+    ).dropna()
 
     return pl.from_pandas(df.reset_index(drop=True))
 
@@ -254,11 +255,13 @@ def market_data_df_full(
 
     Common period starts from BND inception (2007).
     """
-    df = pd.DataFrame({
-        "SPY": spy_returns_full,
-        "QQQ": qqq_returns_full,
-        "BND": bnd_returns_full,
-    }).dropna()
+    df = pd.DataFrame(
+        {
+            "SPY": spy_returns_full,
+            "QQQ": qqq_returns_full,
+            "BND": bnd_returns_full,
+        }
+    ).dropna()
 
     return pl.from_pandas(df.reset_index(drop=True))
 

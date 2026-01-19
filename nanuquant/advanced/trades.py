@@ -13,10 +13,8 @@ from scipy import stats as scipy_stats
 
 from nanuquant.config import get_config
 from nanuquant.core.distribution import skewness
-from nanuquant.core.returns import avg_loss, avg_win, comp, win_rate
-from nanuquant.core.risk import var
+from nanuquant.core.returns import avg_loss, avg_win, win_rate
 from nanuquant.core.utils import (
-    get_annualization_factor,
     safe_divide,
     to_float_series,
 )
@@ -341,7 +339,7 @@ def adjusted_sortino(
     kurt = kurtosis(returns)
 
     # Adjusted Sortino formula
-    adj = sort_ratio * (1 + (skew / 6) * sort_ratio - (kurt / 24) * sort_ratio ** 2)
+    adj = sort_ratio * (1 + (skew / 6) * sort_ratio - (kurt / 24) * sort_ratio**2)
 
     return float(adj)
 
@@ -478,7 +476,6 @@ def _autocorr(returns: pl.Series, lag: int = 1) -> float | None:
         return None
 
     returns = to_float_series(returns)
-    n = len(returns)
 
     mean = returns.mean()
     if mean is None:
@@ -621,9 +618,7 @@ def k_ratio(returns: pl.Series) -> float:
     x = list(range(n))
 
     # Linear regression
-    slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(
-        x, cum_returns
-    )
+    slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, cum_returns)
 
     if std_err == 0:
         return float("inf") if slope > 0 else 0.0

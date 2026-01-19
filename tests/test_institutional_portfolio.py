@@ -5,8 +5,6 @@ Tests marginal contribution to risk, Ledoit-Wolf shrinkage, and portfolio volati
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
 import polars as pl
 import pytest
@@ -27,10 +25,12 @@ class TestMarginalContributionToRisk:
     def test_result_type(self) -> None:
         """Test that result is correct named tuple type."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.015, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.015, 200),
+            }
+        )
 
         result = marginal_contribution_to_risk(returns, [0.6, 0.4])
 
@@ -43,11 +43,13 @@ class TestMarginalContributionToRisk:
     def test_pcr_sums_to_one(self) -> None:
         """Percentage contributions to risk must sum to 1."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.015, 200),
-            "C": np.random.normal(0, 0.025, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.015, 200),
+                "C": np.random.normal(0, 0.025, 200),
+            }
+        )
 
         result = marginal_contribution_to_risk(returns, [0.4, 0.3, 0.3])
 
@@ -56,10 +58,12 @@ class TestMarginalContributionToRisk:
     def test_total_risk_positive(self) -> None:
         """Total portfolio risk must be positive."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.015, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.015, 200),
+            }
+        )
 
         result = marginal_contribution_to_risk(returns, [0.6, 0.4])
 
@@ -67,10 +71,12 @@ class TestMarginalContributionToRisk:
 
     def test_weight_mismatch_error(self) -> None:
         """Should raise error if weights don't match asset count."""
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+            }
+        )
 
         with pytest.raises(ValueError):
             marginal_contribution_to_risk(returns, [0.3, 0.3, 0.4])
@@ -78,10 +84,12 @@ class TestMarginalContributionToRisk:
     def test_equal_weights_equal_volatility(self) -> None:
         """Equal weight portfolio of equal vol assets should have equal MCR."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 500),
-            "B": np.random.normal(0, 0.02, 500),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 500),
+                "B": np.random.normal(0, 0.02, 500),
+            }
+        )
 
         result = marginal_contribution_to_risk(returns, [0.5, 0.5])
 
@@ -91,10 +99,12 @@ class TestMarginalContributionToRisk:
     def test_higher_vol_asset_higher_mcr(self) -> None:
         """Higher volatility asset should have higher MCR."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "Low": np.random.normal(0, 0.01, 500),
-            "High": np.random.normal(0, 0.04, 500),
-        })
+        returns = pl.DataFrame(
+            {
+                "Low": np.random.normal(0, 0.01, 500),
+                "High": np.random.normal(0, 0.04, 500),
+            }
+        )
 
         result = marginal_contribution_to_risk(returns, [0.5, 0.5])
 
@@ -108,11 +118,13 @@ class TestLedoitWolfCovariance:
     def test_result_type(self) -> None:
         """Test that result is correct named tuple type."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-            "C": np.random.normal(0, 0.025, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+                "C": np.random.normal(0, 0.025, 100),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 
@@ -124,10 +136,12 @@ class TestLedoitWolfCovariance:
     def test_shrinkage_intensity_range(self) -> None:
         """Shrinkage intensity must be in [0, 1]."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 
@@ -136,11 +150,13 @@ class TestLedoitWolfCovariance:
     def test_covariance_matrix_symmetric(self) -> None:
         """Covariance matrix must be symmetric."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-            "C": np.random.normal(0, 0.025, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+                "C": np.random.normal(0, 0.025, 100),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 
@@ -149,10 +165,12 @@ class TestLedoitWolfCovariance:
     def test_covariance_positive_semi_definite(self) -> None:
         """Covariance matrix must be positive semi-definite."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 
@@ -165,14 +183,10 @@ class TestLedoitWolfCovariance:
         n = 50  # observations
 
         # Low dimension (n >> p)
-        returns_low = pl.DataFrame({
-            f"A{i}": np.random.normal(0, 0.02, n) for i in range(3)
-        })
+        returns_low = pl.DataFrame({f"A{i}": np.random.normal(0, 0.02, n) for i in range(3)})
 
         # High dimension (n ≈ p)
-        returns_high = pl.DataFrame({
-            f"A{i}": np.random.normal(0, 0.02, n) for i in range(40)
-        })
+        returns_high = pl.DataFrame({f"A{i}": np.random.normal(0, 0.02, n) for i in range(40)})
 
         result_low = ledoit_wolf_covariance(returns_low)
         result_high = ledoit_wolf_covariance(returns_high)
@@ -183,11 +197,13 @@ class TestLedoitWolfCovariance:
     def test_diagonal_higher_than_off_diagonal(self) -> None:
         """Variances should be higher than covariances (on average) after shrinkage."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-            "C": np.random.normal(0, 0.025, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+                "C": np.random.normal(0, 0.025, 100),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 
@@ -204,10 +220,12 @@ class TestPortfolioVolatility:
     def test_positive_volatility(self) -> None:
         """Portfolio volatility must be positive."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 200),
-            "B": np.random.normal(0, 0.015, 200),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 200),
+                "B": np.random.normal(0, 0.015, 200),
+            }
+        )
 
         vol = portfolio_volatility(returns, [0.6, 0.4])
 
@@ -232,10 +250,12 @@ class TestPortfolioVolatility:
         n = 500
 
         # Independent assets with same volatility
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, n),
-            "B": np.random.normal(0, 0.02, n),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, n),
+                "B": np.random.normal(0, 0.02, n),
+            }
+        )
 
         port_vol = portfolio_volatility(returns, [0.5, 0.5], annualize=False)
 
@@ -248,10 +268,12 @@ class TestPortfolioVolatility:
     def test_shrinkage_option(self) -> None:
         """Test with and without shrinkage."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 100),
-            "B": np.random.normal(0, 0.015, 100),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 100),
+                "B": np.random.normal(0, 0.015, 100),
+            }
+        )
 
         vol_sample = portfolio_volatility(returns, [0.6, 0.4], use_shrinkage=False)
         vol_shrunk = portfolio_volatility(returns, [0.6, 0.4], use_shrinkage=True)
@@ -263,17 +285,15 @@ class TestPortfolioVolatility:
     def test_annualization(self) -> None:
         """Test annualization option."""
         np.random.seed(42)
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 252),
-            "B": np.random.normal(0, 0.015, 252),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 252),
+                "B": np.random.normal(0, 0.015, 252),
+            }
+        )
 
-        vol_daily = portfolio_volatility(
-            returns, [0.6, 0.4], annualize=False
-        )
-        vol_annual = portfolio_volatility(
-            returns, [0.6, 0.4], annualize=True, periods_per_year=252
-        )
+        vol_daily = portfolio_volatility(returns, [0.6, 0.4], annualize=False)
+        vol_annual = portfolio_volatility(returns, [0.6, 0.4], annualize=True, periods_per_year=252)
 
         # Annual should be sqrt(252) times daily
         assert abs(vol_annual / vol_daily - np.sqrt(252)) < 0.1
@@ -285,11 +305,13 @@ class TestCorrelationFromCovariance:
     def test_diagonal_ones(self) -> None:
         """Correlation matrix should have 1s on diagonal."""
         np.random.seed(42)
-        cov = np.array([
-            [0.04, 0.01, 0.02],
-            [0.01, 0.09, 0.015],
-            [0.02, 0.015, 0.0625],
-        ])
+        cov = np.array(
+            [
+                [0.04, 0.01, 0.02],
+                [0.01, 0.09, 0.015],
+                [0.02, 0.015, 0.0625],
+            ]
+        )
 
         corr = correlation_from_covariance(cov)
 
@@ -298,11 +320,13 @@ class TestCorrelationFromCovariance:
     def test_correlation_range(self) -> None:
         """All correlations must be in [-1, 1]."""
         np.random.seed(42)
-        cov = np.array([
-            [0.04, 0.01, -0.005],
-            [0.01, 0.09, 0.02],
-            [-0.005, 0.02, 0.0625],
-        ])
+        cov = np.array(
+            [
+                [0.04, 0.01, -0.005],
+                [0.01, 0.09, 0.02],
+                [-0.005, 0.02, 0.0625],
+            ]
+        )
 
         corr = correlation_from_covariance(cov)
 
@@ -311,10 +335,12 @@ class TestCorrelationFromCovariance:
 
     def test_symmetric(self) -> None:
         """Correlation matrix must be symmetric."""
-        cov = np.array([
-            [0.04, 0.01],
-            [0.01, 0.09],
-        ])
+        cov = np.array(
+            [
+                [0.04, 0.01],
+                [0.01, 0.09],
+            ]
+        )
 
         corr = correlation_from_covariance(cov)
 
@@ -330,10 +356,12 @@ class TestSyntheticDataRecovery:
 
         # Create assets with known volatilities
         vol1, vol2 = 0.02, 0.04
-        returns = pl.DataFrame({
-            "Low": np.random.normal(0, vol1, 500),
-            "High": np.random.normal(0, vol2, 500),
-        })
+        returns = pl.DataFrame(
+            {
+                "Low": np.random.normal(0, vol1, 500),
+                "High": np.random.normal(0, vol2, 500),
+            }
+        )
 
         # Approximate risk parity weights (inverse vol)
         w1 = (1 / vol1) / (1 / vol1 + 1 / vol2)
@@ -349,10 +377,12 @@ class TestSyntheticDataRecovery:
         np.random.seed(42)
 
         # Large sample relative to dimension
-        returns = pl.DataFrame({
-            "A": np.random.normal(0, 0.02, 2000),
-            "B": np.random.normal(0, 0.015, 2000),
-        })
+        returns = pl.DataFrame(
+            {
+                "A": np.random.normal(0, 0.02, 2000),
+                "B": np.random.normal(0, 0.015, 2000),
+            }
+        )
 
         result = ledoit_wolf_covariance(returns)
 

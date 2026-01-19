@@ -134,9 +134,7 @@ def arch_effect_test(
     # Demean returns
     mean = returns.mean()
     if mean is None:
-        return ARCHTestResult(
-            statistic=0.0, p_value=1.0, lags=lags, has_arch_effects=False
-        )
+        return ARCHTestResult(statistic=0.0, p_value=1.0, lags=lags, has_arch_effects=False)
 
     residuals = (returns - mean).to_numpy()
 
@@ -183,9 +181,7 @@ def arch_effect_test(
         )
 
     except np.linalg.LinAlgError:
-        return ARCHTestResult(
-            statistic=0.0, p_value=1.0, lags=lags, has_arch_effects=False
-        )
+        return ARCHTestResult(statistic=0.0, p_value=1.0, lags=lags, has_arch_effects=False)
 
 
 def garch_volatility(
@@ -361,7 +357,7 @@ def _garch_variance_targeting(
     forecast_var = omega + alpha * last_return**2 + beta * last_var
 
     # Multi-step forecast (if needed)
-    for h in range(1, forecast_horizon):
+    for _ in range(1, forecast_horizon):
         forecast_var = omega + persistence * forecast_var
 
     forecast_vol = math.sqrt(forecast_var)

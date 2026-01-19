@@ -16,12 +16,13 @@ Examples
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
 if TYPE_CHECKING:
-    from polars.type_aliases import IntoExpr
+    pass
 
 
 @pl.api.register_expr_namespace("metrics")
@@ -60,11 +61,12 @@ class MetricsNamespace:
 
     def _apply_metric(
         self,
-        func: callable,
-        return_dtype: pl.DataType = pl.Float64,
+        func: Callable[..., Any],
+        return_dtype: type[pl.DataType] = pl.Float64,
         **kwargs: object,
     ) -> pl.Expr:
         """Apply a metric function to the expression using map_batches."""
+
         def apply_func(s: pl.Series) -> pl.Series:
             result = func(s, **kwargs)
             if isinstance(result, pl.Series):
@@ -172,23 +174,17 @@ class MetricsNamespace:
 
         return self._apply_metric(ulcer_index)
 
-    def downside_deviation(
-        self, *, mar: float = 0.0, periods_per_year: int = 252
-    ) -> pl.Expr:
+    def downside_deviation(self, *, mar: float = 0.0, periods_per_year: int = 252) -> pl.Expr:
         """Calculate downside deviation."""
         from nanuquant.core import downside_deviation
 
-        return self._apply_metric(
-            downside_deviation, mar=mar, periods_per_year=periods_per_year
-        )
+        return self._apply_metric(downside_deviation, mar=mar, periods_per_year=periods_per_year)
 
     # =========================================================================
     # Performance Metrics
     # =========================================================================
 
-    def sharpe(
-        self, *, risk_free_rate: float = 0.0, periods_per_year: int = 252
-    ) -> pl.Expr:
+    def sharpe(self, *, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> pl.Expr:
         """Calculate Sharpe ratio."""
         from nanuquant.core import sharpe
 
@@ -196,9 +192,7 @@ class MetricsNamespace:
             sharpe, risk_free_rate=risk_free_rate, periods_per_year=periods_per_year
         )
 
-    def sortino(
-        self, *, risk_free_rate: float = 0.0, periods_per_year: int = 252
-    ) -> pl.Expr:
+    def sortino(self, *, risk_free_rate: float = 0.0, periods_per_year: int = 252) -> pl.Expr:
         """Calculate Sortino ratio."""
         from nanuquant.core import sortino
 
@@ -239,9 +233,7 @@ class MetricsNamespace:
         """Calculate Ulcer Performance Index."""
         from nanuquant.core import ulcer_performance_index
 
-        return self._apply_metric(
-            ulcer_performance_index, risk_free_rate=risk_free_rate
-        )
+        return self._apply_metric(ulcer_performance_index, risk_free_rate=risk_free_rate)
 
     def kelly_criterion(self) -> pl.Expr:
         """Calculate Kelly Criterion."""

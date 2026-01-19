@@ -67,16 +67,20 @@ def monthly_returns(
         )
 
     # Create DataFrame with returns and dates
-    df = pl.DataFrame({
-        "date": dates,
-        "returns": returns,
-    })
+    df = pl.DataFrame(
+        {
+            "date": dates,
+            "returns": returns,
+        }
+    )
 
     # Extract year and month
-    df = df.with_columns([
-        pl.col("date").dt.year().alias("year"),
-        pl.col("date").dt.month().alias("month"),
-    ])
+    df = df.with_columns(
+        [
+            pl.col("date").dt.year().alias("year"),
+            pl.col("date").dt.month().alias("month"),
+        ]
+    )
 
     # Aggregate returns by month/year
     if compounded:
@@ -163,10 +167,12 @@ def distribution(
             [start + timedelta(days=i) for i in range(len(returns))],
         )
 
-    df = pl.DataFrame({
-        "date": dates,
-        "returns": returns,
-    })
+    df = pl.DataFrame(
+        {
+            "date": dates,
+            "returns": returns,
+        }
+    )
 
     def aggregate_period(
         data: pl.DataFrame,
@@ -178,9 +184,7 @@ def distribution(
                 ((pl.col("returns") + 1).product() - 1).alias("period_return")
             )
         else:
-            agg = data.group_by(period_col).agg(
-                pl.col("returns").sum().alias("period_return")
-            )
+            agg = data.group_by(period_col).agg(pl.col("returns").sum().alias("period_return"))
         return agg["period_return"]
 
     def identify_outliers_iqr(series: pl.Series) -> pl.Series:
@@ -214,32 +218,35 @@ def distribution(
 
     # Weekly - aggregate by ISO week
     df_weekly = df.with_columns(
-        (pl.col("date").dt.year().cast(pl.Utf8) + "-" +
-         pl.col("date").dt.week().cast(pl.Utf8)).alias("week")
+        (
+            pl.col("date").dt.year().cast(pl.Utf8) + "-" + pl.col("date").dt.week().cast(pl.Utf8)
+        ).alias("week")
     )
     weekly_returns = aggregate_period(df_weekly, "week")
     result["Weekly"] = compute_stats(weekly_returns)
 
     # Monthly
     df_monthly = df.with_columns(
-        (pl.col("date").dt.year().cast(pl.Utf8) + "-" +
-         pl.col("date").dt.month().cast(pl.Utf8)).alias("month")
+        (
+            pl.col("date").dt.year().cast(pl.Utf8) + "-" + pl.col("date").dt.month().cast(pl.Utf8)
+        ).alias("month")
     )
     monthly_rets = aggregate_period(df_monthly, "month")
     result["Monthly"] = compute_stats(monthly_rets)
 
     # Quarterly
     df_quarterly = df.with_columns(
-        (pl.col("date").dt.year().cast(pl.Utf8) + "-Q" +
-         ((pl.col("date").dt.month() - 1) // 3 + 1).cast(pl.Utf8)).alias("quarter")
+        (
+            pl.col("date").dt.year().cast(pl.Utf8)
+            + "-Q"
+            + ((pl.col("date").dt.month() - 1) // 3 + 1).cast(pl.Utf8)
+        ).alias("quarter")
     )
     quarterly_returns = aggregate_period(df_quarterly, "quarter")
     result["Quarterly"] = compute_stats(quarterly_returns)
 
     # Yearly
-    df_yearly = df.with_columns(
-        pl.col("date").dt.year().alias("year")
-    )
+    df_yearly = df.with_columns(pl.col("date").dt.year().alias("year"))
     yearly_returns = aggregate_period(df_yearly, "year")
     result["Yearly"] = compute_stats(yearly_returns)
 
@@ -304,10 +311,12 @@ def compare(
             [start + timedelta(days=i) for i in range(len(returns))],
         )
 
-    return pl.DataFrame({
-        "date": dates,
-        "strategy": returns,
-        "benchmark": benchmark,
-        "excess": returns - benchmark,
-        "win": (returns > benchmark).cast(pl.Int32),
-    })
+    return pl.DataFrame(
+        {
+            "date": dates,
+            "strategy": returns,
+            "benchmark": benchmark,
+            "excess": returns - benchmark,
+            "win": (returns > benchmark).cast(pl.Int32),
+        }
+    )

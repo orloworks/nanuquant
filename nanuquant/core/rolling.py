@@ -26,12 +26,11 @@ import math
 
 import polars as pl
 
-from nanuquant.config import get_config
 from nanuquant.core.utils import (
     get_annualization_factor,
     to_float_series,
 )
-from nanuquant.core.validation import validate_min_length, validate_returns
+from nanuquant.core.validation import validate_returns
 
 
 def rolling_volatility(
@@ -76,9 +75,7 @@ def rolling_volatility(
     returns = to_float_series(returns)
 
     # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(
-        periods_per_year=periods_per_year or 365
-    )
+    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
 
     # Calculate rolling std with ddof=1
     rolling_std = returns.rolling_std(window_size=rolling_period, ddof=1)
@@ -136,9 +133,7 @@ def rolling_sharpe(
     returns = to_float_series(returns)
 
     # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(
-        periods_per_year=periods_per_year or 365
-    )
+    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -215,9 +210,7 @@ def rolling_sortino(
     returns = to_float_series(returns)
 
     # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(
-        periods_per_year=periods_per_year or 365
-    )
+    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -312,13 +305,13 @@ def rolling_beta(
     rolling_mean_product = (returns * benchmark).rolling_mean(window_size=rolling_period)
 
     # Rolling mean of benchmark squared (for variance)
-    rolling_mean_bench_sq = (benchmark ** 2).rolling_mean(window_size=rolling_period)
+    rolling_mean_bench_sq = (benchmark**2).rolling_mean(window_size=rolling_period)
 
     # Covariance: E[XY] - E[X]E[Y]
     rolling_cov = rolling_mean_product - rolling_mean_ret * rolling_mean_bench
 
     # Variance of benchmark: E[Y^2] - E[Y]^2
-    rolling_var_bench = rolling_mean_bench_sq - rolling_mean_bench ** 2
+    rolling_var_bench = rolling_mean_bench_sq - rolling_mean_bench**2
 
     # Beta = Cov / Var (will be null where var is 0 due to division)
     result = rolling_cov / rolling_var_bench
@@ -384,18 +377,18 @@ def rolling_greeks(
     validate_benchmark_match(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.DataFrame({
-            "rolling_alpha": pl.Series([], dtype=pl.Float64),
-            "rolling_beta": pl.Series([], dtype=pl.Float64),
-        })
+        return pl.DataFrame(
+            {
+                "rolling_alpha": pl.Series([], dtype=pl.Float64),
+                "rolling_beta": pl.Series([], dtype=pl.Float64),
+            }
+        )
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
 
     # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(
-        periods_per_year=periods_per_year or 365
-    )
+    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
 
     # Rolling means
     rolling_mean_ret = returns.rolling_mean(window_size=rolling_period)
@@ -405,13 +398,13 @@ def rolling_greeks(
     rolling_mean_product = (returns * benchmark).rolling_mean(window_size=rolling_period)
 
     # Rolling mean of benchmark squared (for variance)
-    rolling_mean_bench_sq = (benchmark ** 2).rolling_mean(window_size=rolling_period)
+    rolling_mean_bench_sq = (benchmark**2).rolling_mean(window_size=rolling_period)
 
     # Covariance: E[XY] - E[X]E[Y]
     rolling_cov = rolling_mean_product - rolling_mean_ret * rolling_mean_bench
 
     # Variance of benchmark: E[Y^2] - E[Y]^2
-    rolling_var_bench = rolling_mean_bench_sq - rolling_mean_bench ** 2
+    rolling_var_bench = rolling_mean_bench_sq - rolling_mean_bench**2
 
     # Beta = Cov / Var
     beta = rolling_cov / rolling_var_bench
@@ -420,7 +413,9 @@ def rolling_greeks(
     # Annualize by multiplying by periods_per_year
     alpha = (rolling_mean_ret - beta * rolling_mean_bench) * ann_factor
 
-    return pl.DataFrame({
-        "rolling_alpha": alpha,
-        "rolling_beta": beta,
-    })
+    return pl.DataFrame(
+        {
+            "rolling_alpha": alpha,
+            "rolling_beta": beta,
+        }
+    )

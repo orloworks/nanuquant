@@ -21,24 +21,24 @@ ReturnMethod = Literal["simple", "log"]
 AggregationMode = Literal["trade", "equity", "D", "W", "M"]
 
 # Required columns for trade DataFrame input
-REQUIRED_TRADE_COLUMNS: dict[str, pl.DataType] = {
+REQUIRED_TRADE_COLUMNS: dict[str, type[pl.DataType]] = {
     "entry_time": pl.Datetime,
     "entry_price": pl.Float64,
 }
 
 # Optional columns with their types and default values
-OPTIONAL_TRADE_COLUMNS: dict[str, tuple[pl.DataType, object]] = {
+OPTIONAL_TRADE_COLUMNS: dict[str, tuple[type[pl.DataType], object]] = {
     "exit_time": (pl.Datetime, None),
     "exit_price": (pl.Float64, None),
     "quantity": (pl.Float64, 1.0),
-    "direction": (pl.Utf8, "long"),
-    "symbol": (pl.Utf8, None),
+    "direction": (pl.String, "long"),
+    "symbol": (pl.String, None),
     "fees": (pl.Float64, 0.0),
-    "trade_id": (pl.Utf8, None),
+    "trade_id": (pl.String, None),
 }
 
 # Required columns for prices DataFrame
-REQUIRED_PRICE_COLUMNS: dict[str, pl.DataType] = {
+REQUIRED_PRICE_COLUMNS: dict[str, type[pl.DataType]] = {
     "date": pl.Date,
     "close": pl.Float64,
 }

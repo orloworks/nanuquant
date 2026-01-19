@@ -116,9 +116,7 @@ def absorption_ratio(
 
     n_obs = len(returns_matrix)
     if n_obs < n_assets:
-        raise ValueError(
-            f"Need at least as many observations ({n_obs}) as assets ({n_assets})"
-        )
+        raise ValueError(f"Need at least as many observations ({n_obs}) as assets ({n_assets})")
 
     # Determine number of components
     if n_components is None:

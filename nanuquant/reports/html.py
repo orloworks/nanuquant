@@ -12,8 +12,7 @@ from typing import Any
 
 import polars as pl
 
-from nanuquant.reports.metrics import full_metrics, MetricsReport
-
+from nanuquant.reports.metrics import full_metrics
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -208,7 +207,7 @@ def _create_metric_card(title: str, metrics: dict[str, Any]) -> str:
         rows.append(
             f'<div class="metric-row">'
             f'<span class="metric-name">{display_name}</span>'
-            f'<span {class_attr}>{formatted_value}</span>'
+            f"<span {class_attr}>{formatted_value}</span>"
             f"</div>"
         )
 
@@ -277,7 +276,9 @@ def generate_html_report(
     # Create highlight cards for key metrics
     highlight_cards = []
     highlight_cards.append(
-        _create_highlight_card("Total Return", report.returns_metrics["total_return"], "total_return")
+        _create_highlight_card(
+            "Total Return", report.returns_metrics["total_return"], "total_return"
+        )
     )
     highlight_cards.append(
         _create_highlight_card("Sharpe Ratio", report.performance_metrics["sharpe"], "sharpe")

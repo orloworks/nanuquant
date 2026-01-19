@@ -5,14 +5,11 @@ This module provides statistical distribution metrics that match QuantStats outp
 
 from __future__ import annotations
 
-import math
-from typing import Tuple
-
 import polars as pl
 from scipy import stats as scipy_stats
 
 from nanuquant.core.utils import to_float_series
-from nanuquant.core.validation import validate_min_length, validate_returns
+from nanuquant.core.validation import validate_returns
 
 
 def skewness(returns: pl.Series) -> float:
@@ -96,7 +93,7 @@ def kurtosis(returns: pl.Series) -> float:
     return float(scipy_stats.kurtosis(returns.to_numpy(), bias=False))
 
 
-def jarque_bera(returns: pl.Series) -> Tuple[float, float]:
+def jarque_bera(returns: pl.Series) -> tuple[float, float]:
     """Perform Jarque-Bera normality test.
 
     Parameters
@@ -129,7 +126,7 @@ def jarque_bera(returns: pl.Series) -> Tuple[float, float]:
     return (float(stat), float(pval))
 
 
-def shapiro_wilk(returns: pl.Series) -> Tuple[float, float]:
+def shapiro_wilk(returns: pl.Series) -> tuple[float, float]:
     """Perform Shapiro-Wilk normality test.
 
     Parameters

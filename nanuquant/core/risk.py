@@ -6,18 +6,16 @@ This module provides risk-based metrics that match QuantStats output.
 from __future__ import annotations
 
 import math
-from scipy import stats as scipy_stats
 
 import polars as pl
+from scipy import stats as scipy_stats
 
 from nanuquant.config import get_config
 from nanuquant.core.utils import (
-    compound_returns,
     get_annualization_factor,
     to_float_series,
 )
-from nanuquant.core.validation import validate_min_length, validate_returns
-from nanuquant.types import VAR_SIGMA_MAP
+from nanuquant.core.validation import validate_returns
 
 
 def volatility(
@@ -304,7 +302,7 @@ def ulcer_index(returns: pl.Series) -> float:
     dd_series = to_drawdown_series(returns)
 
     # Square the drawdowns and sum
-    dd_squared_sum = (dd_series ** 2).sum()
+    dd_squared_sum = (dd_series**2).sum()
 
     if dd_squared_sum is None:
         return 0.0
@@ -370,7 +368,7 @@ def downside_deviation(
         return 0.0
 
     # Sum of squared negative returns divided by total count
-    squared_sum = (negative_returns ** 2).sum()
+    squared_sum = (negative_returns**2).sum()
     if squared_sum is None:
         return 0.0
 

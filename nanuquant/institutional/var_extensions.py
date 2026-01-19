@@ -16,7 +16,8 @@ import math
 
 import numpy as np
 import polars as pl
-from scipy import optimize, stats as scipy_stats
+from scipy import optimize
+from scipy import stats as scipy_stats
 
 from nanuquant.core.utils import to_float_series
 from nanuquant.core.validation import validate_min_length, validate_returns
@@ -107,12 +108,7 @@ def cornish_fisher_var(
     z2 = z * z
     z3 = z2 * z
 
-    z_cf = (
-        z
-        + (z2 - 1) * skew / 6
-        + (z3 - 3 * z) * kurt / 24
-        - (2 * z3 - 5 * z) * skew**2 / 36
-    )
+    z_cf = z + (z2 - 1) * skew / 6 + (z3 - 3 * z) * kurt / 24 - (2 * z3 - 5 * z) * skew**2 / 36
 
     # VaR (negative return at confidence level, expressed as positive loss)
     var = -(mu + z_cf * sigma)
@@ -188,7 +184,7 @@ def entropic_var(
         if exp_term <= 0 or (1 - alpha) <= 0:
             return float("inf")
 
-        return (1 / z) * np.log(exp_term / (1 - alpha))
+        return float((1 / z) * np.log(exp_term / (1 - alpha)))
 
     # Optimize to find minimum
     try:

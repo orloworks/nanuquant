@@ -11,6 +11,20 @@ from typing import Any
 
 import polars as pl
 
+from nanuquant.advanced import (
+    adjusted_sortino,
+    cpc_index,
+    expectancy,
+    exposure,
+    ghpr,
+    k_ratio,
+    rar,
+    risk_of_ruin,
+    serenity_index,
+    smart_sharpe,
+    smart_sortino,
+    sqn,
+)
 from nanuquant.config import get_config
 from nanuquant.core import (
     avg_loss,
@@ -54,20 +68,6 @@ from nanuquant.core import (
     volatility,
     win_rate,
     worst,
-)
-from nanuquant.advanced import (
-    adjusted_sortino,
-    cpc_index,
-    expectancy,
-    exposure,
-    ghpr,
-    k_ratio,
-    rar,
-    risk_of_ruin,
-    serenity_index,
-    smart_sharpe,
-    smart_sortino,
-    sqn,
 )
 
 
@@ -241,9 +241,7 @@ def compute_performance_metrics(
         "calmar": calmar(returns, periods_per_year=ppy),
         "omega": omega(returns, risk_free_rate=rf, periods_per_year=ppy),
         "gain_to_pain_ratio": gain_to_pain_ratio(returns),
-        "ulcer_performance_index": ulcer_performance_index(
-            returns, risk_free_rate=rf
-        ),
+        "ulcer_performance_index": ulcer_performance_index(returns, risk_free_rate=rf),
         "kelly_criterion": kelly_criterion(returns),
         "tail_ratio": tail_ratio(returns),
         "common_sense_ratio": common_sense_ratio(returns),
@@ -315,13 +313,9 @@ def compute_trading_metrics(
         "cpc_index": cpc_index(returns),
         "serenity_index": serenity_index(returns),
         "risk_of_ruin": risk_of_ruin(returns),
-        "adjusted_sortino": adjusted_sortino(
-            returns, risk_free_rate=rf, periods_per_year=ppy
-        ),
+        "adjusted_sortino": adjusted_sortino(returns, risk_free_rate=rf, periods_per_year=ppy),
         "smart_sharpe": smart_sharpe(returns, risk_free_rate=rf, periods_per_year=ppy),
-        "smart_sortino": smart_sortino(
-            returns, risk_free_rate=rf, periods_per_year=ppy
-        ),
+        "smart_sortino": smart_sortino(returns, risk_free_rate=rf, periods_per_year=ppy),
         "sqn": sqn(returns),
         "expectancy": expectancy(returns),
         "k_ratio": k_ratio(returns),
@@ -364,9 +358,7 @@ def compute_benchmark_metrics(
         "beta": beta,
         "information_ratio": information_ratio(returns, benchmark),
         "r_squared": r_squared(returns, benchmark),
-        "treynor_ratio": treynor_ratio(
-            returns, benchmark, risk_free_rate=rf, periods_per_year=ppy
-        ),
+        "treynor_ratio": treynor_ratio(returns, benchmark, risk_free_rate=rf, periods_per_year=ppy),
     }
 
 
@@ -417,16 +409,12 @@ def full_metrics(
     confidence = var_confidence or config.var_confidence
 
     returns_metrics = compute_returns_metrics(returns, periods_per_year=ppy)
-    risk_metrics = compute_risk_metrics(
-        returns, periods_per_year=ppy, var_confidence=confidence
-    )
+    risk_metrics = compute_risk_metrics(returns, periods_per_year=ppy, var_confidence=confidence)
     performance_metrics = compute_performance_metrics(
         returns, risk_free_rate=rf, periods_per_year=ppy
     )
     distribution_metrics = compute_distribution_metrics(returns)
-    trading_metrics = compute_trading_metrics(
-        returns, risk_free_rate=rf, periods_per_year=ppy
-    )
+    trading_metrics = compute_trading_metrics(returns, risk_free_rate=rf, periods_per_year=ppy)
 
     benchmark_metrics = None
     if benchmark is not None:

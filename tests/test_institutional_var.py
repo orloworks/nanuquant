@@ -64,10 +64,12 @@ class TestCornishFisherVaR:
         np.random.seed(42)
 
         # Create negatively skewed returns
-        neg_skew = np.concatenate([
-            np.random.normal(0.001, 0.01, 800),
-            np.random.normal(-0.05, 0.02, 200),  # Occasional large losses
-        ])
+        neg_skew = np.concatenate(
+            [
+                np.random.normal(0.001, 0.01, 800),
+                np.random.normal(-0.05, 0.02, 200),  # Occasional large losses
+            ]
+        )
         np.random.shuffle(neg_skew)
         neg_skew_series = pl.Series(neg_skew)
 

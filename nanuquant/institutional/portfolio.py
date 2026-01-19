@@ -19,7 +19,6 @@ import numpy as np
 import polars as pl
 
 
-
 class MCRResult(NamedTuple):
     """Result of marginal contribution to risk calculation.
 
@@ -120,9 +119,7 @@ def marginal_contribution_to_risk(
     n_assets = len(returns_matrix.columns)
 
     if len(weights) != n_assets:
-        raise ValueError(
-            f"Weight count ({len(weights)}) must match asset count ({n_assets})"
-        )
+        raise ValueError(f"Weight count ({len(weights)}) must match asset count ({n_assets})")
 
     asset_names = returns_matrix.columns
 
@@ -283,9 +280,6 @@ def _compute_shrinkage_intensity(
     # Compute sum of squared sample covariances
     # This is used in the numerator of the shrinkage formula
 
-    # Average squared entry of sample covariance
-    mu = np.trace(sample_cov) / p
-
     # Vectorized calculation of the sum of squared differences
     # This replaces: sum_{i=1 to n} || x_i x_i^T - S ||_F^2
     # where x_i is a row vector of demeaned returns
@@ -299,7 +293,7 @@ def _compute_shrinkage_intensity(
     kappa = (sum_sq / n**2) / delta_sq
 
     # Bound between 0 and 1
-    delta = min(1.0, max(0.0, kappa))
+    delta = float(min(1.0, max(0.0, kappa)))
 
     return delta
 
@@ -330,7 +324,7 @@ def correlation_from_covariance(
     # Ensure diagonal is exactly 1
     np.fill_diagonal(correlation, 1.0)
 
-    return correlation
+    return correlation  # type: ignore[no-any-return]
 
 
 def portfolio_volatility(

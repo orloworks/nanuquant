@@ -151,8 +151,7 @@ def trades_to_returns(
     elif aggregation == "equity":
         return _aggregate_equity(trades, prices, initial_capital, method)
     else:  # D, W, M
-        return _aggregate_calendar(trades, prices, aggregation, initial_capital,
-                                   method, fill_gaps)
+        return _aggregate_calendar(trades, prices, aggregation, initial_capital, method, fill_gaps)
 
 
 def _aggregate_per_trade(
@@ -298,9 +297,7 @@ def _aggregate_calendar(
     elif initial_capital is not None:
         equity = build_equity_curve_no_mtm(trades, initial_capital)
         has_mtm = False
-        warnings.append(
-            "Intra-trade volatility not captured. Provide 'prices' for MTM valuation."
-        )
+        warnings.append("Intra-trade volatility not captured. Provide 'prices' for MTM valuation.")
     else:
         # Fall back to trade-level returns aggregated by period
         return _aggregate_trades_by_period(trades, frequency, method, fill_gaps)
@@ -377,9 +374,7 @@ def _aggregate_trades_by_period(
     trade_returns = calculate_trade_returns_series(closed, method=method)
 
     # Add exit date column
-    trade_returns = trade_returns.with_columns(
-        pl.col("exit_time").cast(pl.Date).alias("exit_date")
-    )
+    trade_returns = trade_returns.with_columns(pl.col("exit_time").cast(pl.Date).alias("exit_date"))
 
     # Group by period
     period_str = AGGREGATION_FREQUENCY_MAP[frequency]
@@ -396,15 +391,17 @@ def _aggregate_trades_by_period(
         min_date = result["exit_date"].min()
         max_date = result["exit_date"].max()
         if min_date is not None and max_date is not None:
-            full_date_range = pl.date_range(
+            # eager=True ensures Series is returned (not Expr)
+            date_series = pl.date_range(
                 start=min_date,
                 end=max_date,
                 interval=period_str,
                 eager=True,
-            ).alias("exit_date").to_frame()
-            result = full_date_range.join(
-                result, on="exit_date", how="left"
-            ).with_columns(pl.col("return").fill_null(0.0))
+            )
+            full_date_range = date_series.alias("exit_date").to_frame()  # type: ignore[union-attr]
+            result = full_date_range.join(result, on="exit_date", how="left").with_columns(
+                pl.col("return").fill_null(0.0)
+            )
             returns = result["return"].alias("returns")
             dates = result["exit_date"]
 

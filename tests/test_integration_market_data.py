@@ -19,7 +19,9 @@ import pandas as pd
 import polars as pl
 import pytest
 
-qs = pytest.importorskip("quantstats_lumi", reason="quantstats_lumi required for differential tests")
+qs = pytest.importorskip(
+    "quantstats_lumi", reason="quantstats_lumi required for differential tests"
+)
 
 import nanuquant as pm
 
@@ -58,7 +60,7 @@ class TestRealDataSanityChecks:
     def test_spy_reasonable_returns(self, spy_returns: pd.Series) -> None:
         """SPY daily returns should be in reasonable range."""
         assert spy_returns.min() > -0.15  # No daily drop > 15%
-        assert spy_returns.max() < 0.15   # No daily gain > 15%
+        assert spy_returns.max() < 0.15  # No daily gain > 15%
         assert abs(spy_returns.mean()) < 0.01  # Mean close to 0
 
     def test_qqq_more_volatile_than_bnd(

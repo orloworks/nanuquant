@@ -268,9 +268,7 @@ class TestMetricsSummary:
         assert "beta" in summary
         assert "information_ratio" in summary
 
-    def test_metrics_summary_fewer_keys_than_full(
-        self, sample_returns: pl.Series
-    ) -> None:
+    def test_metrics_summary_fewer_keys_than_full(self, sample_returns: pl.Series) -> None:
         """Test metrics_summary has fewer keys than full_metrics."""
         summary = metrics_summary(sample_returns)
         report = full_metrics(sample_returns)
@@ -291,9 +289,7 @@ class TestHTMLReport:
         assert "<html" in html
         assert "</html>" in html
 
-    def test_generate_html_report_custom_title(
-        self, sample_returns: pl.Series
-    ) -> None:
+    def test_generate_html_report_custom_title(self, sample_returns: pl.Series) -> None:
         """Test generate_html_report with custom title."""
         title = "My Custom Strategy Report"
         html = generate_html_report(sample_returns, title=title)
@@ -311,9 +307,7 @@ class TestHTMLReport:
         assert "Alpha" in html
         assert "Beta" in html
 
-    def test_generate_html_report_contains_metrics(
-        self, sample_returns: pl.Series
-    ) -> None:
+    def test_generate_html_report_contains_metrics(self, sample_returns: pl.Series) -> None:
         """Test generate_html_report contains metric sections."""
         html = generate_html_report(sample_returns)
 
@@ -388,4 +382,6 @@ class TestEdgeCases:
         assert report.returns_metrics["win_rate"] == 0.0
         # avg_win may be None, 0, or NaN for all-negative returns
         avg_win = report.returns_metrics["avg_win"]
-        assert avg_win is None or avg_win == 0 or (isinstance(avg_win, float) and math.isnan(avg_win))
+        assert (
+            avg_win is None or avg_win == 0 or (isinstance(avg_win, float) and math.isnan(avg_win))
+        )

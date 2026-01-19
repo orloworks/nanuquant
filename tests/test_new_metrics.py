@@ -360,8 +360,8 @@ class TestDifferentialVsQuantStats:
     def test_outliers_vs_quantstats(self, sample_returns: pl.Series) -> None:
         """Test outliers detection matches QuantStats."""
         try:
-            import quantstats_lumi as qs
             import pandas as pd
+            import quantstats_lumi as qs
         except ImportError:
             pytest.skip("quantstats-lumi not installed")
 
@@ -377,8 +377,8 @@ class TestDifferentialVsQuantStats:
     def test_remove_outliers_vs_quantstats(self, sample_returns: pl.Series) -> None:
         """Test remove_outliers matches QuantStats."""
         try:
-            import quantstats_lumi as qs
             import pandas as pd
+            import quantstats_lumi as qs
         except ImportError:
             pytest.skip("quantstats-lumi not installed")
 

@@ -27,7 +27,6 @@ from nanuquant.institutional._helpers import (
 )
 from nanuquant.institutional.robustness import minimum_track_record_length
 
-
 # =============================================================================
 # Helper Function Tests
 # =============================================================================
@@ -565,9 +564,7 @@ class TestIntegrationMarketData:
 
     def test_minimum_trl_practical_values(self, spy_polars: pl.Series) -> None:
         """Minimum TRL should give practical values for real data."""
-        min_trl = minimum_track_record_length(
-            spy_polars, target_sr=0.0, confidence=0.95
-        )
+        min_trl = minimum_track_record_length(spy_polars, target_sr=0.0, confidence=0.95)
 
         # Should be reasonable (not too short, not astronomical)
         assert 10 < min_trl < 10000

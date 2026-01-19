@@ -12,7 +12,7 @@ Tests cover:
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import polars as pl
 import pytest
@@ -24,14 +24,12 @@ from nanuquant.trades import (
     InvalidPriceError,
     InvalidTradeTimesError,
     MissingColumnError,
-    TradeResult,
     build_equity_curve,
     build_equity_curve_no_mtm,
     calculate_single_trade_return,
     trades_to_returns,
     validate_trade_dataframe,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -41,74 +39,84 @@ from nanuquant.trades import (
 @pytest.fixture
 def simple_trades() -> pl.DataFrame:
     """Simple trade data for basic testing."""
-    return pl.DataFrame({
-        "entry_time": [
-            datetime(2024, 1, 1),
-            datetime(2024, 1, 2),
-            datetime(2024, 1, 3),
-        ],
-        "exit_time": [
-            datetime(2024, 1, 2),
-            datetime(2024, 1, 3),
-            datetime(2024, 1, 4),
-        ],
-        "entry_price": [100.0, 105.0, 102.0],
-        "exit_price": [105.0, 103.0, 108.0],
-        "direction": ["long", "long", "long"],
-    })
+    return pl.DataFrame(
+        {
+            "entry_time": [
+                datetime(2024, 1, 1),
+                datetime(2024, 1, 2),
+                datetime(2024, 1, 3),
+            ],
+            "exit_time": [
+                datetime(2024, 1, 2),
+                datetime(2024, 1, 3),
+                datetime(2024, 1, 4),
+            ],
+            "entry_price": [100.0, 105.0, 102.0],
+            "exit_price": [105.0, 103.0, 108.0],
+            "direction": ["long", "long", "long"],
+        }
+    )
 
 
 @pytest.fixture
 def mixed_direction_trades() -> pl.DataFrame:
     """Trades with both long and short positions."""
-    return pl.DataFrame({
-        "entry_time": [datetime(2024, 1, i) for i in range(1, 5)],
-        "exit_time": [datetime(2024, 1, i) for i in range(2, 6)],
-        "entry_price": [100.0, 102.0, 98.0, 105.0],
-        "exit_price": [102.0, 98.0, 102.0, 100.0],
-        "direction": ["long", "short", "long", "short"],
-    })
+    return pl.DataFrame(
+        {
+            "entry_time": [datetime(2024, 1, i) for i in range(1, 5)],
+            "exit_time": [datetime(2024, 1, i) for i in range(2, 6)],
+            "entry_price": [100.0, 102.0, 98.0, 105.0],
+            "exit_price": [102.0, 98.0, 102.0, 100.0],
+            "direction": ["long", "short", "long", "short"],
+        }
+    )
 
 
 @pytest.fixture
 def trades_with_fees() -> pl.DataFrame:
     """Trades including transaction fees."""
-    return pl.DataFrame({
-        "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
-        "exit_time": [datetime(2024, 1, 2), datetime(2024, 1, 3)],
-        "entry_price": [100.0, 100.0],
-        "exit_price": [110.0, 105.0],
-        "direction": ["long", "long"],
-        "quantity": [10.0, 20.0],
-        "fees": [5.0, 10.0],
-    })
+    return pl.DataFrame(
+        {
+            "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+            "exit_time": [datetime(2024, 1, 2), datetime(2024, 1, 3)],
+            "entry_price": [100.0, 100.0],
+            "exit_price": [110.0, 105.0],
+            "direction": ["long", "long"],
+            "quantity": [10.0, 20.0],
+            "fees": [5.0, 10.0],
+        }
+    )
 
 
 @pytest.fixture
 def multi_day_trade() -> pl.DataFrame:
     """Single trade held over multiple days."""
-    return pl.DataFrame({
-        "entry_time": [datetime(2024, 1, 1)],
-        "exit_time": [datetime(2024, 1, 5)],
-        "entry_price": [100.0],
-        "exit_price": [105.0],
-        "direction": ["long"],
-    })
+    return pl.DataFrame(
+        {
+            "entry_time": [datetime(2024, 1, 1)],
+            "exit_time": [datetime(2024, 1, 5)],
+            "entry_price": [100.0],
+            "exit_price": [105.0],
+            "direction": ["long"],
+        }
+    )
 
 
 @pytest.fixture
 def price_data() -> pl.DataFrame:
     """Daily price data for mark-to-market."""
-    return pl.DataFrame({
-        "date": [
-            date(2024, 1, 1),
-            date(2024, 1, 2),
-            date(2024, 1, 3),
-            date(2024, 1, 4),
-            date(2024, 1, 5),
-        ],
-        "close": [100.0, 102.0, 101.0, 103.0, 105.0],
-    })
+    return pl.DataFrame(
+        {
+            "date": [
+                date(2024, 1, 1),
+                date(2024, 1, 2),
+                date(2024, 1, 3),
+                date(2024, 1, 4),
+                date(2024, 1, 5),
+            ],
+            "close": [100.0, 102.0, 101.0, 103.0, 105.0],
+        }
+    )
 
 
 # =============================================================================
@@ -135,13 +143,15 @@ class TestBasicConversion:
 
     def test_short_trades(self) -> None:
         """Test conversion of short trades."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [95.0],
-            "direction": ["short"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [95.0],
+                "direction": ["short"],
+            }
+        )
         result = trades_to_returns(trades)
 
         # Short profit: (entry - exit) / entry = (100 - 95) / 100 = 0.05
@@ -149,13 +159,15 @@ class TestBasicConversion:
 
     def test_short_trade_loss(self) -> None:
         """Test short trade with loss (price goes up)."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [105.0],
-            "direction": ["short"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [105.0],
+                "direction": ["short"],
+            }
+        )
         result = trades_to_returns(trades)
 
         # Short loss: (100 - 105) / 100 = -0.05
@@ -220,15 +232,17 @@ class TestFeeHandling:
 
     def test_fee_calculation_accuracy(self) -> None:
         """Test precise fee impact calculation."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [110.0],
-            "direction": ["long"],
-            "quantity": [10.0],
-            "fees": [10.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [110.0],
+                "direction": ["long"],
+                "quantity": [10.0],
+                "fees": [10.0],
+            }
+        )
         result = trades_to_returns(trades, include_fees=True)
 
         # Gross return: (110-100)/100 = 0.10
@@ -250,9 +264,7 @@ class TestFeeHandling:
 class TestTradeAggregation:
     """Tests for trade-level aggregation."""
 
-    def test_trade_level_returns_one_per_trade(
-        self, simple_trades: pl.DataFrame
-    ) -> None:
+    def test_trade_level_returns_one_per_trade(self, simple_trades: pl.DataFrame) -> None:
         """Test that trade-level returns one return per trade."""
         result = trades_to_returns(simple_trades, aggregation="trade")
         assert len(result.returns) == 3
@@ -260,9 +272,7 @@ class TestTradeAggregation:
 
     def test_trades_per_year_override(self, simple_trades: pl.DataFrame) -> None:
         """Test trades_per_year parameter."""
-        result = trades_to_returns(
-            simple_trades, aggregation="trade", trades_per_year=100
-        )
+        result = trades_to_returns(simple_trades, aggregation="trade", trades_per_year=100)
         assert result.periods_per_year == 100
 
 
@@ -276,22 +286,16 @@ class TestEquityAggregation:
 
     def test_equity_mode_daily_returns(self, simple_trades: pl.DataFrame) -> None:
         """Test equity mode produces daily returns."""
-        result = trades_to_returns(
-            simple_trades, aggregation="equity", initial_capital=10000
-        )
+        result = trades_to_returns(simple_trades, aggregation="equity", initial_capital=10000)
 
         assert result.aggregation == "equity"
         assert result.periods_per_year == 252
         # Should have returns for date range
         assert len(result.returns) >= 3
 
-    def test_equity_mode_without_prices_warns(
-        self, simple_trades: pl.DataFrame
-    ) -> None:
+    def test_equity_mode_without_prices_warns(self, simple_trades: pl.DataFrame) -> None:
         """Test warning when using equity mode without prices."""
-        result = trades_to_returns(
-            simple_trades, aggregation="equity", initial_capital=10000
-        )
+        result = trades_to_returns(simple_trades, aggregation="equity", initial_capital=10000)
 
         assert not result.has_mtm
         assert len(result.warnings) > 0
@@ -343,24 +347,24 @@ class TestCalendarAggregation:
 
     def test_daily_aggregation(self) -> None:
         """Test daily aggregation of multiple trades on same day."""
-        trades = pl.DataFrame({
-            "entry_time": [
-                datetime(2024, 1, 1, 9, 30),
-                datetime(2024, 1, 1, 10, 30),
-                datetime(2024, 1, 2, 9, 30),
-            ],
-            "exit_time": [
-                datetime(2024, 1, 1, 10, 0),
-                datetime(2024, 1, 1, 11, 0),
-                datetime(2024, 1, 2, 10, 0),
-            ],
-            "entry_price": [100.0, 102.0, 101.0],
-            "exit_price": [102.0, 103.0, 102.0],
-            "direction": ["long", "long", "long"],
-        })
-        result = trades_to_returns(
-            trades, aggregation="D", initial_capital=10000
+        trades = pl.DataFrame(
+            {
+                "entry_time": [
+                    datetime(2024, 1, 1, 9, 30),
+                    datetime(2024, 1, 1, 10, 30),
+                    datetime(2024, 1, 2, 9, 30),
+                ],
+                "exit_time": [
+                    datetime(2024, 1, 1, 10, 0),
+                    datetime(2024, 1, 1, 11, 0),
+                    datetime(2024, 1, 2, 10, 0),
+                ],
+                "entry_price": [100.0, 102.0, 101.0],
+                "exit_price": [102.0, 103.0, 102.0],
+                "direction": ["long", "long", "long"],
+            }
         )
+        result = trades_to_returns(trades, aggregation="D", initial_capital=10000)
 
         assert result.aggregation == "D"
         assert result.periods_per_year == 252
@@ -376,58 +380,70 @@ class TestValidation:
 
     def test_missing_entry_time_raises(self) -> None:
         """Missing entry_time should raise error."""
-        trades = pl.DataFrame({
-            "entry_price": [100.0],
-            "exit_time": [datetime(2024, 1, 2)],
-            "exit_price": [105.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 2)],
+                "exit_price": [105.0],
+            }
+        )
         with pytest.raises(MissingColumnError, match="entry_time"):
             validate_trade_dataframe(trades)
 
     def test_missing_entry_price_raises(self) -> None:
         """Missing entry_price should raise error."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "exit_price": [105.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "exit_price": [105.0],
+            }
+        )
         with pytest.raises(MissingColumnError, match="entry_price"):
             validate_trade_dataframe(trades)
 
     def test_negative_price_raises(self) -> None:
         """Negative prices should raise error."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "entry_price": [-100.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [-100.0],
+            }
+        )
         with pytest.raises(InvalidPriceError):
             validate_trade_dataframe(trades)
 
     def test_zero_price_raises(self) -> None:
         """Zero prices should raise error."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "entry_price": [0.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [0.0],
+            }
+        )
         with pytest.raises(InvalidPriceError):
             validate_trade_dataframe(trades)
 
     def test_invalid_direction_raises(self) -> None:
         """Invalid direction should raise error."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "entry_price": [100.0],
-            "direction": ["buy"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "direction": ["buy"],
+            }
+        )
         with pytest.raises(InvalidDirectionError):
             validate_trade_dataframe(trades)
 
     def test_empty_dataframe_raises(self) -> None:
         """Empty DataFrame should raise error."""
-        trades = pl.DataFrame({
-            "entry_time": [],
-            "entry_price": [],
-        }).cast({"entry_time": pl.Datetime, "entry_price": pl.Float64})
+        trades = pl.DataFrame(
+            {
+                "entry_time": [],
+                "entry_price": [],
+            }
+        ).cast({"entry_time": pl.Datetime, "entry_price": pl.Float64})
 
         with pytest.raises(EmptySeriesError):
             trades_to_returns(trades)
@@ -436,12 +452,14 @@ class TestValidation:
         """Exit time before entry time should raise error."""
         from nanuquant.trades import validate_trade_times
 
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 2)],
-            "exit_time": [datetime(2024, 1, 1)],
-            "entry_price": [100.0],
-            "exit_price": [105.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2)],
+                "exit_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "exit_price": [105.0],
+            }
+        )
         with pytest.raises(InvalidTradeTimesError):
             validate_trade_times(trades)
 
@@ -456,62 +474,72 @@ class TestEdgeCases:
 
     def test_single_trade(self) -> None:
         """Test with a single trade."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [105.0],
-            "direction": ["long"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [105.0],
+                "direction": ["long"],
+            }
+        )
         result = trades_to_returns(trades)
         assert result.n_trades == 1
         assert abs(result.returns[0] - 0.05) < 1e-6
 
     def test_zero_return_trade(self) -> None:
         """Test trade with zero return."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [100.0],
-            "direction": ["long"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [100.0],
+                "direction": ["long"],
+            }
+        )
         result = trades_to_returns(trades)
         assert result.returns[0] == 0.0
 
     def test_open_trades_filtered(self) -> None:
         """Test that open trades (no exit) are filtered out."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
-            "exit_time": [datetime(2024, 1, 2), None],
-            "entry_price": [100.0, 105.0],
-            "exit_price": [105.0, None],
-            "direction": ["long", "long"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 2)],
+                "exit_time": [datetime(2024, 1, 2), None],
+                "entry_price": [100.0, 105.0],
+                "exit_price": [105.0, None],
+                "direction": ["long", "long"],
+            }
+        )
         result = trades_to_returns(trades)
         assert result.n_trades == 1
 
     def test_default_values_applied(self) -> None:
         """Test that default values are applied for missing columns."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [105.0],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [105.0],
+            }
+        )
         # Should not raise - direction defaults to "long"
         result = trades_to_returns(trades)
         assert result.n_trades == 1
 
     def test_very_small_return(self) -> None:
         """Test with very small price movement."""
-        trades = pl.DataFrame({
-            "entry_time": [datetime(2024, 1, 1)],
-            "exit_time": [datetime(2024, 1, 2)],
-            "entry_price": [100.0],
-            "exit_price": [100.001],
-            "direction": ["long"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "exit_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_price": [100.001],
+                "direction": ["long"],
+            }
+        )
         result = trades_to_returns(trades)
         assert abs(result.returns[0] - 0.00001) < 1e-8
 
@@ -546,17 +574,21 @@ class TestEquityCurve:
 
     def test_equity_curve_empty_trades(self) -> None:
         """Test equity curve with no trades."""
-        trades = pl.DataFrame({
-            "entry_time": [],
-            "exit_time": [],
-            "entry_price": [],
-            "exit_price": [],
-        }).cast({
-            "entry_time": pl.Datetime,
-            "exit_time": pl.Datetime,
-            "entry_price": pl.Float64,
-            "exit_price": pl.Float64,
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [],
+                "exit_time": [],
+                "entry_price": [],
+                "exit_price": [],
+            }
+        ).cast(
+            {
+                "entry_time": pl.Datetime,
+                "exit_time": pl.Datetime,
+                "entry_price": pl.Float64,
+                "exit_price": pl.Float64,
+            }
+        )
 
         equity = build_equity_curve_no_mtm(trades, 10000)
         assert equity.is_empty()
@@ -573,34 +605,36 @@ class TestOverlappingHoldings:
     @pytest.fixture
     def overlapping_trades(self) -> pl.DataFrame:
         """Trades with overlapping holding periods."""
-        return pl.DataFrame({
-            "entry_time": [
-                datetime(2024, 1, 2),  # Trade 1: Jan 2-5
-                datetime(2024, 1, 3),  # Trade 2: Jan 3-6 (overlaps)
-                datetime(2024, 1, 4),  # Trade 3: Jan 4-8 (overlaps)
-            ],
-            "exit_time": [
-                datetime(2024, 1, 5),
-                datetime(2024, 1, 6),
-                datetime(2024, 1, 8),
-            ],
-            "entry_price": [100.0, 102.0, 104.0],
-            "exit_price": [105.0, 108.0, 100.0],
-            "quantity": [10.0, 20.0, 15.0],
-            "direction": ["long", "long", "short"],
-        })
+        return pl.DataFrame(
+            {
+                "entry_time": [
+                    datetime(2024, 1, 2),  # Trade 1: Jan 2-5
+                    datetime(2024, 1, 3),  # Trade 2: Jan 3-6 (overlaps)
+                    datetime(2024, 1, 4),  # Trade 3: Jan 4-8 (overlaps)
+                ],
+                "exit_time": [
+                    datetime(2024, 1, 5),
+                    datetime(2024, 1, 6),
+                    datetime(2024, 1, 8),
+                ],
+                "entry_price": [100.0, 102.0, 104.0],
+                "exit_price": [105.0, 108.0, 100.0],
+                "quantity": [10.0, 20.0, 15.0],
+                "direction": ["long", "long", "short"],
+            }
+        )
 
     @pytest.fixture
     def overlapping_prices(self) -> pl.DataFrame:
         """Price data covering the overlapping period."""
-        return pl.DataFrame({
-            "date": [date(2024, 1, d) for d in range(2, 9)],
-            "close": [100.0, 101.0, 103.0, 105.0, 106.0, 104.0, 102.0],
-        })
+        return pl.DataFrame(
+            {
+                "date": [date(2024, 1, d) for d in range(2, 9)],
+                "close": [100.0, 101.0, 103.0, 105.0, 106.0, 104.0, 102.0],
+            }
+        )
 
-    def test_trade_level_returns_independent(
-        self, overlapping_trades: pl.DataFrame
-    ) -> None:
+    def test_trade_level_returns_independent(self, overlapping_trades: pl.DataFrame) -> None:
         """Trade-level returns treat each trade independently."""
         result = trades_to_returns(overlapping_trades, aggregation="trade")
 
@@ -615,13 +649,9 @@ class TestOverlappingHoldings:
         # Trade 3 (short): (104-100)/104 = 0.0385
         assert abs(returns[2] - 0.038461538) < 1e-6
 
-    def test_equity_mode_handles_overlaps(
-        self, overlapping_trades: pl.DataFrame
-    ) -> None:
+    def test_equity_mode_handles_overlaps(self, overlapping_trades: pl.DataFrame) -> None:
         """Equity mode processes overlapping positions."""
-        result = trades_to_returns(
-            overlapping_trades, aggregation="equity", initial_capital=10000
-        )
+        result = trades_to_returns(overlapping_trades, aggregation="equity", initial_capital=10000)
 
         # Should have daily returns for the period
         assert len(result.returns) == 7  # Jan 2-8
@@ -650,9 +680,7 @@ class TestOverlappingHoldings:
         no_mtm_nonzero = (result_no_mtm.returns != 0).sum()
         assert mtm_nonzero >= no_mtm_nonzero
 
-    def test_total_return_consistency(
-        self, overlapping_trades: pl.DataFrame
-    ) -> None:
+    def test_total_return_consistency(self, overlapping_trades: pl.DataFrame) -> None:
         """Total compounded return should be consistent across modes."""
         result_trade = trades_to_returns(overlapping_trades, aggregation="trade")
         result_equity = trades_to_returns(
@@ -671,20 +699,22 @@ class TestOverlappingHoldings:
     def test_concurrent_long_short(self) -> None:
         """Test concurrent long and short positions in same asset."""
         # Same asset, same exit price - price goes up to 110
-        trades = pl.DataFrame({
-            "entry_time": [
-                datetime(2024, 1, 2),  # Long
-                datetime(2024, 1, 2),  # Short (same day)
-            ],
-            "exit_time": [
-                datetime(2024, 1, 5),
-                datetime(2024, 1, 5),
-            ],
-            "entry_price": [100.0, 100.0],
-            "exit_price": [110.0, 110.0],  # Same exit price for same asset
-            "quantity": [10.0, 10.0],
-            "direction": ["long", "short"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [
+                    datetime(2024, 1, 2),  # Long
+                    datetime(2024, 1, 2),  # Short (same day)
+                ],
+                "exit_time": [
+                    datetime(2024, 1, 5),
+                    datetime(2024, 1, 5),
+                ],
+                "entry_price": [100.0, 100.0],
+                "exit_price": [110.0, 110.0],  # Same exit price for same asset
+                "quantity": [10.0, 10.0],
+                "direction": ["long", "short"],
+            }
+        )
 
         result = trades_to_returns(trades, aggregation="trade")
 
@@ -697,28 +727,28 @@ class TestOverlappingHoldings:
 
     def test_multiple_entries_same_day(self) -> None:
         """Test multiple trade entries on the same day."""
-        trades = pl.DataFrame({
-            "entry_time": [
-                datetime(2024, 1, 2, 9, 30),
-                datetime(2024, 1, 2, 10, 30),
-                datetime(2024, 1, 2, 14, 0),
-            ],
-            "exit_time": [
-                datetime(2024, 1, 3, 10, 0),
-                datetime(2024, 1, 3, 11, 0),
-                datetime(2024, 1, 3, 15, 0),
-            ],
-            "entry_price": [100.0, 101.0, 102.0],
-            "exit_price": [102.0, 103.0, 104.0],
-            "direction": ["long", "long", "long"],
-        })
+        trades = pl.DataFrame(
+            {
+                "entry_time": [
+                    datetime(2024, 1, 2, 9, 30),
+                    datetime(2024, 1, 2, 10, 30),
+                    datetime(2024, 1, 2, 14, 0),
+                ],
+                "exit_time": [
+                    datetime(2024, 1, 3, 10, 0),
+                    datetime(2024, 1, 3, 11, 0),
+                    datetime(2024, 1, 3, 15, 0),
+                ],
+                "entry_price": [100.0, 101.0, 102.0],
+                "exit_price": [102.0, 103.0, 104.0],
+                "direction": ["long", "long", "long"],
+            }
+        )
 
         result = trades_to_returns(trades, aggregation="trade")
         assert result.n_trades == 3
 
-        result_equity = trades_to_returns(
-            trades, aggregation="equity", initial_capital=10000
-        )
+        result_equity = trades_to_returns(trades, aggregation="equity", initial_capital=10000)
         # Should have 2 days of returns
         assert len(result_equity.returns) == 2
 
@@ -803,9 +833,7 @@ class TestSingleTradeFunction:
 
     def test_with_fees(self) -> None:
         """Test return with fees."""
-        ret = calculate_single_trade_return(
-            100.0, 110.0, direction="long", fees=5.0, quantity=10.0
-        )
+        ret = calculate_single_trade_return(100.0, 110.0, direction="long", fees=5.0, quantity=10.0)
         # Gross: 0.10, Fee impact: 5/(100*10) = 0.005
         assert abs(ret - 0.095) < 1e-6
 
@@ -849,9 +877,7 @@ class TestTradeResult:
         assert hasattr(result, "has_mtm")
         assert hasattr(result, "warnings")
 
-    def test_returns_series_named_correctly(
-        self, simple_trades: pl.DataFrame
-    ) -> None:
+    def test_returns_series_named_correctly(self, simple_trades: pl.DataFrame) -> None:
         """Test that returns series is named 'returns'."""
         result = trades_to_returns(simple_trades)
         assert result.returns.name == "returns"

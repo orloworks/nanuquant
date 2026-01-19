@@ -17,7 +17,7 @@ from nanuquant.config import get_config
 from nanuquant.core.distribution import kurtosis, skewness
 from nanuquant.core.utils import get_annualization_factor, to_float_series
 from nanuquant.core.validation import validate_min_length, validate_returns
-from nanuquant.institutional._helpers import _expected_max_sharpe, newey_west_se
+from nanuquant.institutional._helpers import _expected_max_sharpe
 
 
 class PSRResult(NamedTuple):
@@ -196,7 +196,8 @@ def deflated_sharpe_ratio(
     The DSR uses the PSR framework but replaces the benchmark with the
     expected maximum Sharpe ratio from n independent trials under the null:
 
-    E[max(SR_1, ..., SR_n)] ≈ sqrt(Var) * (sqrt(2*ln(n)) - (gamma + ln(ln(n) + ln(4*pi))) / (2*sqrt(2*ln(n))))
+    E[max(SR_1, ..., SR_n)] ≈ sqrt(Var) * (sqrt(2*ln(n)) -
+        (gamma + ln(ln(n) + ln(4*pi))) / (2*sqrt(2*ln(n))))
 
     where gamma is the Euler-Mascheroni constant.
 

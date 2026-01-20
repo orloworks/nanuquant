@@ -1,0 +1,62 @@
+{
+  "name": "nanuquant",
+  "version": "0.1.0",
+  "description": "High-performance quantitative analytics - zero dependencies",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src tests --ext .ts",
+    "lint:fix": "eslint src tests --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "generate-fixtures": "python tests/fixtures/generate-fixtures.py",
+    "validate-python": "VALIDATE_PYTHON=true vitest run",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "quantitative-finance",
+    "financial-metrics",
+    "sharpe-ratio",
+    "risk-metrics",
+    "backtesting",
+    "trading",
+    "polars",
+    "analytics"
+  ],
+  "author": "NanuQuant Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/launchstack-dev/nanuquant.git",
+    "directory": "nanuquant-ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.4.0",
+    "eslint": "^8.57.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

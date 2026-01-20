@@ -1,0 +1,8 @@
+{
+  "skewness": -0.04375404785394402,
+  "kurtosis": 0.09188436309365766,
+  "expectedReturn": -7.783101991893657e-05,
+  "geometricMean": -0.0002735724805768003,
+  "outlierWinRatio": 3.664799379704257,
+  "outlierLossRatio": 3.6620433701298443
+}

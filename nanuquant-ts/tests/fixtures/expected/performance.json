@@ -1,0 +1,22 @@
+{
+  "sharpe": -0.062449848136057355,
+  "sharpeRf": -0.12613059083758624,
+  "sortino": -0.08741251284019955,
+  "calmar": -0.13026543433746104,
+  "omega": 0.9900994539630572,
+  "gainToPainRatio": -0.00990054603694276,
+  "ulcerPerformanceIndex": -0.842641297112879,
+  "kellyCriterion": -0.005089769429356572,
+  "tailRatio": 0.9883190025840543,
+  "commonSenseRatio": 0.9785341047997854,
+  "riskReturnRatio": -0.0039339706567085315,
+  "recoveryFactor": 0.15217235589498665,
+  "greeks": {
+    "alpha": -0.01228162537473388,
+    "beta": -0.04616875852137517
+  },
+  "informationRatio": -0.02799268085301265,
+  "rSquared": 0.0012378293433876072,
+  "treynorRatio": 1.4431050704921158,
+  "benchmarkCorrelation": -0.03518279897034355
+}

@@ -3,12 +3,13 @@
 ### Institutional quantitative analytics at Polars speed.
 
 [![PyPI](https://img.shields.io/pypi/v/nanuquant)](https://pypi.org/project/nanuquant/)
+[![Documentation](https://img.shields.io/badge/docs-latest-brightgreen.svg)](https://launchstack-dev.github.io/nanuquant/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 ---
 
-> **DISCLAIMER**: NanuQuant is for **educational and research purposes only**. Nothing in this library constitutes financial advice. Past performance does not guarantee future results. See [DISCLAIMER.md](DISCLAIMER.md) for full legal notices.
+> **DISCLAIMER**: NanuQuant is for **educational and research purposes only**. Nothing in this library constitutes financial advice. Past performance does not guarantee future results. See [DISCLAIMER.md](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md) for full legal notices.
 
 ---
 
@@ -37,15 +38,15 @@ It goes beyond standard metrics to provide institutional-grade robustness testin
 
 | Document | Description |
 |----------|-------------|
-| [Installation Guide](docs/installation.md) | Setup and configuration |
-| [Quick Start](docs/quickstart.md) | Get started in minutes |
-| [Core API Reference](docs/api/core.md) | Returns, risk, performance metrics |
-| [Advanced API Reference](docs/api/advanced.md) | Trading system metrics |
-| [Institutional API Reference](docs/api/institutional.md) | PSR, DSR, GARCH, VaR extensions |
-| [Mathematical Foundations](docs/mathematics.md) | Formulas and theory |
-| [Testing Methodology](docs/testing.md) | How NanuQuant is validated |
-| [Use Cases](docs/use-cases.md) | Practical examples with caveats |
-| [Full Disclaimer](DISCLAIMER.md) | Important legal notices |
+| [Installation Guide](https://launchstack-dev.github.io/nanuquant/installation/) | Setup and configuration |
+| [Quick Start](https://launchstack-dev.github.io/nanuquant/quickstart/) | Get started in minutes |
+| [Core API Reference](https://launchstack-dev.github.io/nanuquant/api/core/) | Returns, risk, performance metrics |
+| [Advanced API Reference](https://launchstack-dev.github.io/nanuquant/api/advanced/) | Trading system metrics |
+| [Institutional API Reference](https://launchstack-dev.github.io/nanuquant/api/institutional/) | PSR, DSR, GARCH, VaR extensions |
+| [Mathematical Foundations](https://launchstack-dev.github.io/nanuquant/mathematics/) | Formulas and theory |
+| [Testing Methodology](https://launchstack-dev.github.io/nanuquant/testing/) | How NanuQuant is validated |
+| [Use Cases](https://launchstack-dev.github.io/nanuquant/use-cases/) | Practical examples with caveats |
+| [Full Disclaimer](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md) | Important legal notices |
 
 ---
 
@@ -89,7 +90,7 @@ print(f"Sortino: {sortino:.2f}")
 print(f"Max Drawdown: {max_dd:.2%}")
 ```
 
-> **Note**: These metrics are for educational analysis only. See [Use Cases](docs/use-cases.md) for proper interpretation.
+> **Note**: These metrics are for educational analysis only. See [Use Cases](https://launchstack-dev.github.io/nanuquant/use-cases/) for proper interpretation.
 
 ---
 
@@ -244,7 +245,7 @@ NanuQuant intentionally differs from QuantStats in some areas for improved consi
 | **CPC Index** | PF x WR x PR | Standard trading literature formula |
 | **Smart Sharpe** | Lo (2002) adjustment | Established academic reference |
 
-See [Mathematics](docs/mathematics.md) for detailed formula explanations.
+See [Mathematics](https://launchstack-dev.github.io/nanuquant/mathematics/) for detailed formula explanations.
 
 ---
 
@@ -272,7 +273,7 @@ pytest -m integration
 mypy nanuquant
 ```
 
-See [Testing Methodology](docs/testing.md) for details.
+See [Testing Methodology](https://launchstack-dev.github.io/nanuquant/testing/) for details.
 
 ---
 
@@ -320,13 +321,14 @@ Always consult a qualified financial professional before making investment decis
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License. See [LICENSE](https://github.com/launchstack-dev/nanuquant/blob/main/LICENSE) for details.
 
 ---
 
 ## Links
 
 - [GitHub Repository](https://github.com/launchstack-dev/nanuquant)
+- [Documentation](https://launchstack-dev.github.io/nanuquant/)
 - [PyPI Package](https://pypi.org/project/nanuquant/)
 - [Issue Tracker](https://github.com/launchstack-dev/nanuquant/issues)
-- [Changelog](CHANGELOG.md)
+- [Changelog](https://github.com/launchstack-dev/nanuquant/blob/main/CHANGELOG.md)

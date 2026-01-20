@@ -1,0 +1,93 @@
+site_name: NanuQuant
+site_url: https://launchstack-dev.github.io/nanuquant/
+site_description: Institutional quantitative analytics at Polars speed.
+site_author: Trade Conductor
+repo_url: https://github.com/launchstack-dev/nanuquant
+repo_name: launchstack-dev/nanuquant
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            separate_signature: true
+            signature_crossrefs: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: installation.md
+      - Quick Start: quickstart.md
+  - User Guide:
+      - Use Cases: use-cases.md
+      - Mathematical Foundations: mathematics.md
+  - API Reference:
+      - Core API: api/core.md
+      - Advanced API: api/advanced.md
+      - Institutional API: api/institutional.md
+  - Development:
+      - Testing Methodology: testing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/launchstack-dev/nanuquant
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/nanuquant/
+
+copyright: Copyright &copy; 2024 Trade Conductor - MIT License

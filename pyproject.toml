@@ -30,6 +30,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/launchstack-dev/nanuquant"
+Documentation = "https://launchstack-dev.github.io/nanuquant/"
 Repository = "https://github.com/launchstack-dev/nanuquant"
 Changelog = "https://github.com/launchstack-dev/nanuquant/blob/main/CHANGELOG.md"
 Issues = "https://github.com/launchstack-dev/nanuquant/issues"
@@ -46,11 +47,16 @@ dev = [
     "yfinance>=0.2.40",
     "pyarrow>=14.0",
 ]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+]
 reports = [
     "msgspec>=0.18",
 ]
 all = [
-    "nanuquant[dev,reports]",
+    "nanuquant[dev,docs,reports]",
 ]
 
 [build-system]

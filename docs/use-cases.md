@@ -1,6 +1,6 @@
 # Use Cases and Practical Examples
 
-> **IMPORTANT DISCLAIMER**: NanuQuant is for **educational and research purposes only**. The examples in this document do **NOT** constitute financial advice, investment recommendations, or trading signals. Past performance does not guarantee future results. Always consult a qualified financial professional before making investment decisions. See [DISCLAIMER.md](../DISCLAIMER.md).
+> **IMPORTANT DISCLAIMER**: NanuQuant is for **educational and research purposes only**. The examples in this document do **NOT** constitute financial advice, investment recommendations, or trading signals. Past performance does not guarantee future results. Always consult a qualified financial professional before making investment decisions. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document provides practical use cases for NanuQuant metrics, along with important considerations for each.
 
@@ -570,4 +570,4 @@ def analyze_autocorrelation_effect():
 - [API Reference](api/core.md)
 - [Mathematical Formulas](mathematics.md)
 - [Testing Methodology](testing.md)
-- [Full Disclaimer](../DISCLAIMER.md)
+- [Full Disclaimer](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md)

@@ -1,6 +1,6 @@
 # Mathematical Foundations
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. Understanding these formulas does **NOT** constitute financial advice. Mathematical models have limitations - see [Statistical Assumptions](#statistical-assumptions-and-limitations). See [DISCLAIMER.md](../DISCLAIMER.md).
+> **Disclaimer**: NanuQuant is for educational and research purposes only. Understanding these formulas does **NOT** constitute financial advice. Mathematical models have limitations - see [Statistical Assumptions](#statistical-assumptions-and-limitations). See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document details the mathematical formulas implemented in NanuQuant.
 

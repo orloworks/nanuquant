@@ -1,6 +1,6 @@
 # Institutional Metrics API Reference
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. These institutional-grade metrics do **NOT** constitute financial advice. They require proper understanding and should be used alongside professional judgment. See [DISCLAIMER.md](../../DISCLAIMER.md).
+> **Disclaimer**: NanuQuant is for educational and research purposes only. These institutional-grade metrics do **NOT** constitute financial advice. They require proper understanding and should be used alongside professional judgment. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document covers institutional-grade metrics for professional quantitative analysis.
 

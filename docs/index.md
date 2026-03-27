@@ -1,8 +1,8 @@
-# NanuQuant Documentation
+# NanuQuant
 
-> **DISCLAIMER**: NanuQuant is for **educational and research purposes only**. Nothing in this library constitutes financial advice. See [DISCLAIMER.md](../DISCLAIMER.md).
+> **DISCLAIMER**: NanuQuant is for **educational and research purposes only**. Nothing in this library constitutes financial advice. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
-Welcome to the NanuQuant documentation. NanuQuant is a high-performance quantitative finance library built natively on Polars.
+NanuQuant is a high-performance quantitative finance library built natively on Polars. It provides 60+ core metrics, 12 advanced trading metrics, and 15+ institutional-grade analytics — all without a single Pandas dependency in production.
 
 ## About the Name
 
@@ -10,54 +10,54 @@ In Inuktitut, the language of the Inuit people, **"nanuq"** means **polar bear**
 
 ---
 
+## Performance Highlights
+
+NanuQuant is benchmarked against QuantStats on every release:
+
+- **13x median speedup** over QuantStats across 24 metrics
+- **56x peak speedup** on kelly_criterion
+- **21/24 metrics** match QuantStats within 1e-8 tolerance (3 are intentional improvements)
+
+See the full [Benchmarks](benchmarks.md) page for detailed timing and accuracy tables.
+
+---
+
 ## Getting Started
 
-- [Installation Guide](installation.md) - How to install NanuQuant
-- [Quick Start](quickstart.md) - Get up and running in minutes
+- [Installation Guide](installation.md) — Setup and configuration
+- [Quick Start](quickstart.md) — Get up and running in minutes
 
 ---
 
 ## API Reference
 
-Detailed documentation for all NanuQuant modules:
-
-### Core Metrics
-- [Core API Reference](api/core.md) - Returns, risk, performance, distribution, and rolling metrics
-
-### Advanced Metrics
-- [Advanced Trading Metrics](api/advanced.md) - SQN, expectancy, K-ratio, Smart Sharpe
-
-### Institutional Metrics
-- [Institutional Analytics](api/institutional.md) - PSR, DSR, GARCH, VaR extensions, portfolio analytics
+- [Core Metrics](api/core.md) — Returns, risk, performance, distribution, rolling
+- [Advanced Trading Metrics](api/advanced.md) — SQN, expectancy, K-ratio, Smart Sharpe
+- [Institutional Analytics](api/institutional.md) — PSR, DSR, GARCH, VaR extensions, portfolio analytics
 
 ---
 
 ## Understanding the Metrics
 
-- [Mathematical Foundations](mathematics.md) - Detailed formulas and theory behind each metric
-- [Use Cases](use-cases.md) - Practical examples with important caveats
+- [Mathematical Foundations](mathematics.md) — Formulas and theory behind each metric
+- [Use Cases](use-cases.md) — Practical examples with important caveats
 
 ---
 
 ## Quality Assurance
 
-- [Testing Methodology](testing.md) - How NanuQuant is validated and tested
-
----
-
-## Important Information
-
-- [Full Disclaimer](../DISCLAIMER.md) - Legal notices and limitations
-- [Changelog](../CHANGELOG.md) - Version history
+- [Benchmarks](benchmarks.md) — Performance and accuracy comparison vs QuantStats
+- [Testing Methodology](testing.md) — How NanuQuant is validated
 
 ---
 
 ## Quick Reference
 
-### Core Functions
-
 ```python
+import polars as pl
 import nanuquant as nq
+
+returns = pl.Series("returns", [0.01, -0.02, 0.03, 0.01, -0.01, 0.02])
 
 # Performance
 nq.sharpe(returns)
@@ -76,12 +76,10 @@ nq.cagr(returns)
 nq.comp(returns)
 nq.win_rate(returns)
 
-# Distribution
-nq.skewness(returns)
-nq.kurtosis(returns)
+# Polars namespace
+df = pl.DataFrame({"returns": [0.01, -0.02, 0.03, 0.01, -0.01]})
+df.select(pl.col("returns").metrics.sharpe())
 ```
-
-### Institutional Functions
 
 ```python
 from nanuquant import institutional
@@ -102,26 +100,12 @@ institutional.marginal_contribution_to_risk(returns_df, weights)
 institutional.ledoit_wolf_covariance(returns_df)
 ```
 
-### DataFrame Namespace
+---
 
-```python
-import polars as pl
-import nanuquant as nq
+## Contributing
 
-df = pl.DataFrame({"returns": [...]})
-
-# Use .metrics namespace
-df.select(pl.col("returns").metrics.sharpe())
-df.with_columns(pl.col("returns").metrics.rolling_sharpe())
-```
+See [CONTRIBUTING](https://github.com/launchstack-dev/nanuquant/blob/main/CONTRIBUTING.md) for development setup, coding standards, and PR guidelines.
 
 ---
 
-## Need Help?
-
-- Check the [GitHub Issues](https://github.com/launchstack-dev/nanuquant/issues)
-- Review the [Use Cases](use-cases.md) for examples
-
----
-
-*Remember: NanuQuant is for educational purposes only. Always consult a qualified financial professional before making investment decisions.*
+*NanuQuant is for educational purposes only. Always consult a qualified financial professional before making investment decisions.*

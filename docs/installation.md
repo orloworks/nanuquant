@@ -1,6 +1,6 @@
 # Installation Guide
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. See [DISCLAIMER.md](../DISCLAIMER.md) for important legal notices. Nothing in this library constitutes financial advice.
+> **Disclaimer**: NanuQuant is for educational and research purposes only. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md) for important legal notices. Nothing in this library constitutes financial advice.
 
 ## Requirements
 

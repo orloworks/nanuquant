@@ -1,6 +1,6 @@
 # Advanced Trading Metrics API Reference
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. These metrics do **NOT** constitute financial advice and should not be the sole basis for trading decisions. See [DISCLAIMER.md](../../DISCLAIMER.md).
+> **Disclaimer**: NanuQuant is for educational and research purposes only. These metrics do **NOT** constitute financial advice and should not be the sole basis for trading decisions. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document covers advanced trading metrics designed for systematic strategy evaluation.
 

@@ -1,6 +1,6 @@
 # Testing Methodology
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. Thorough testing does **NOT** guarantee accuracy for all use cases. Users should independently verify calculations for their specific applications. See [DISCLAIMER.md](../DISCLAIMER.md).
+> **Disclaimer**: NanuQuant is for educational and research purposes only. Thorough testing does **NOT** guarantee accuracy for all use cases. Users should independently verify calculations for their specific applications. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document describes how NanuQuant is tested and validated.
 
@@ -420,4 +420,4 @@ test:
 
 - [API Reference](api/core.md)
 - [Mathematical Formulas](mathematics.md)
-- [Contributing Guidelines](../CONTRIBUTING.md)
+- [Contributing Guidelines](https://github.com/launchstack-dev/nanuquant/blob/main/CONTRIBUTING.md)

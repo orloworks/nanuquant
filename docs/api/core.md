@@ -1,6 +1,6 @@
 # Core API Reference
 
-> **Disclaimer**: NanuQuant is for educational and research purposes only. The metrics described here do **NOT** constitute financial advice. See [DISCLAIMER.md](../../DISCLAIMER.md).
+> **Disclaimer**: NanuQuant is for educational and research purposes only. The metrics described here do **NOT** constitute financial advice. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 This document covers the core metrics modules in NanuQuant.
 

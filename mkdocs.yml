@@ -80,6 +80,7 @@ nav:
       - Core API: api/core.md
       - Advanced API: api/advanced.md
       - Institutional API: api/institutional.md
+  - Benchmarks: benchmarks.md
   - Development:
       - Testing Methodology: testing.md
 
@@ -90,4 +91,4 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/nanuquant/
 
-copyright: Copyright &copy; 2024 Trade Conductor - MIT License
+copyright: Copyright &copy; 2024-2026 Trade Conductor - MIT License

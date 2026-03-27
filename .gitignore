@@ -49,6 +49,7 @@ htmlcov/
 
 # Build artifacts
 *.whl
+site/
 
 # Test data cache (commented out - we commit cached data for CI)
 # tests/.data_cache/

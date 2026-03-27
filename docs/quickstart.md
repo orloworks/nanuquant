@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-> **Important**: NanuQuant is for educational and research purposes only. The metrics and analyses provided do **NOT** constitute financial advice. Always consult a qualified financial professional before making investment decisions. See [DISCLAIMER.md](../DISCLAIMER.md).
+> **Important**: NanuQuant is for educational and research purposes only. The metrics and analyses provided do **NOT** constitute financial advice. Always consult a qualified financial professional before making investment decisions. See [DISCLAIMER](https://github.com/launchstack-dev/nanuquant/blob/main/DISCLAIMER.md).
 
 ## Introduction
 

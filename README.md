@@ -234,7 +234,7 @@ NanuQuant is designed for **educational purposes** and **research**. It is NOT d
 
 ## Acknowledgments
 
-NanuQuant owes a debt of gratitude to [QuantStats](https://github.com/ranaroussi/quantstats) by Ran Aroussi. QuantStats pioneered accessible quantitative analytics in Python and remains the industry standard. NanuQuant's API design, metric definitions, and differential test suite are all built on the foundation QuantStats established. We benchmark against it not as criticism, but as respect — you can't improve on something you don't deeply understand.
+NanuQuant owes a debt of gratitude to [QuantStats](https://github.com/ranaroussi/quantstats) by Ran Aroussi, which pioneered accessible quantitative analytics in Python. NanuQuant's API design, metric definitions, and differential test suite are all built on the foundation QuantStats established. Our benchmarks run against [quantstats-lumi](https://github.com/Lumiwealth/quantstats_lumi), the actively maintained community fork by Lumiwealth. We benchmark against these libraries not as criticism, but as respect — you can't improve on something you don't deeply understand.
 
 ---
 

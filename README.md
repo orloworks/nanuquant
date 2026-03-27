@@ -232,6 +232,12 @@ NanuQuant is designed for **educational purposes** and **research**. It is NOT d
 
 ---
 
+## Acknowledgments
+
+NanuQuant owes a debt of gratitude to [QuantStats](https://github.com/ranaroussi/quantstats) by Ran Aroussi. QuantStats pioneered accessible quantitative analytics in Python and remains the industry standard. NanuQuant's API design, metric definitions, and differential test suite are all built on the foundation QuantStats established. We benchmark against it not as criticism, but as respect — you can't improve on something you don't deeply understand.
+
+---
+
 ## License
 
 MIT License. See [LICENSE](LICENSE).

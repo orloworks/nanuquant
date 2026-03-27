@@ -51,7 +51,8 @@ def rolling_volatility(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. If None, uses 365 to match QuantStats.
+        Periods per year for annualization. Default 365 matches QuantStats.
+        Pass ``periods_per_year=252`` for trading-day data.
     annualize : bool, default True
         If True, annualize the volatility.
 
@@ -109,7 +110,8 @@ def rolling_sharpe(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. If None, uses 365 to match QuantStats.
+        Periods per year for annualization. Default 365 matches QuantStats.
+        Pass ``periods_per_year=252`` for trading-day data.
     annualize : bool, default True
         If True, annualize the Sharpe ratio.
 
@@ -181,7 +183,8 @@ def rolling_sortino(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. If None, uses 365 to match QuantStats.
+        Periods per year for annualization. Default 365 matches QuantStats.
+        Pass ``periods_per_year=252`` for trading-day data.
     annualize : bool, default True
         If True, annualize the Sortino ratio.
 
@@ -343,7 +346,8 @@ def rolling_greeks(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. If None, uses 365 to match QuantStats.
+        Periods per year for annualization. Default 365 matches QuantStats.
+        Pass ``periods_per_year=252`` for trading-day data.
 
     Returns
     -------

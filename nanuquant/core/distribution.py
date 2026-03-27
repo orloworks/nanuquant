@@ -5,6 +5,8 @@ This module provides statistical distribution metrics that match QuantStats outp
 
 from __future__ import annotations
 
+import warnings
+
 import polars as pl
 from scipy import stats as scipy_stats
 
@@ -158,6 +160,12 @@ def shapiro_wilk(returns: pl.Series) -> tuple[float, float]:
     returns = to_float_series(returns)
     # Shapiro-Wilk is limited to 5000 samples
     if len(returns) > 5000:
+        warnings.warn(
+            f"Shapiro-Wilk limited to 5000 samples; truncating from {len(returns)}. "
+            "Consider jarque_bera() for larger datasets.",
+            UserWarning,
+            stacklevel=2,
+        )
         returns = returns.head(5000)
 
     stat, pval = scipy_stats.shapiro(returns.to_numpy())

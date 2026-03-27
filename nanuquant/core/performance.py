@@ -441,7 +441,7 @@ def kelly_criterion(returns: pl.Series) -> float:
 
     # Handle edge case where payoff ratio is 0 (no wins)
     if r == 0:
-        return float("-inf")  # No wins means kelly suggests full loss
+        return 0.0  # No winning trades means no edge — Kelly says don't bet
 
     # Kelly formula
     kelly = w - (1 - w) / r
@@ -639,6 +639,9 @@ def greeks(
     -----
     Uses OLS regression: returns = alpha + beta * benchmark + epsilon
     Alpha is annualized by multiplying by periods_per_year.
+
+    Uses population covariance (n denominator) to match QuantStats. Alpha omits
+    risk-free rate adjustment (simplified Jensen's alpha variant).
 
     Examples
     --------

@@ -100,6 +100,10 @@ def var(
     -----
     Uses parametric VaR: norm.ppf(1 - confidence, mean, sigma * std)
 
+    Assumes normally distributed returns. Real market returns often have fat
+    tails, making parametric VaR optimistic. For non-normal returns, use
+    ``institutional.cornish_fisher_var()`` or ``institutional.historical_var()``.
+
     Examples
     --------
     >>> import polars as pl
@@ -150,7 +154,7 @@ def cvar(
 
     Notes
     -----
-    CVaR = mean(returns[returns < VaR])
+    CVaR = mean(returns[returns <= VaR])
 
     Examples
     --------
@@ -168,16 +172,18 @@ def cvar(
     # Get the VaR threshold using parametric method
     var_threshold = var(returns, sigma=sigma, confidence=confidence)
 
-    # Calculate expected loss in the tail (values < VaR)
-    tail_losses = returns.filter(returns < var_threshold)
+    # Filter observations at or below VaR to compute expected shortfall
+    tail_losses = returns.filter(returns <= var_threshold)
 
     if tail_losses.is_empty():
-        # If no values in tail, return VaR
-        return float(var_threshold)
+        # With small samples, the parametric VaR can be more extreme than any
+        # observed return. Return the worst observed return as the best
+        # empirical tail estimate rather than the parametric extrapolation.
+        return float(returns.min())
 
     expected_shortfall = tail_losses.mean()
     if expected_shortfall is None:
-        return float(var_threshold)
+        return float(returns.min())
 
     return float(expected_shortfall)
 
@@ -340,8 +346,10 @@ def downside_deviation(
 
     Notes
     -----
-    Formula: sqrt(sum(min(returns, 0)^2) / n)
-    This matches the Red Rock Capital Sortino paper formula used by QuantStats.
+    Formula: sqrt(sum(min(returns - MAR, 0)^2) / n)
+
+    Uses population formula (n denominator) per Red Rock Capital Sortino paper,
+    not sample formula (n-1). This matches QuantStats.
 
     Examples
     --------

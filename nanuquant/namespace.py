@@ -241,11 +241,11 @@ class MetricsNamespace:
 
         return self._apply_metric(kelly_criterion)
 
-    def tail_ratio(self, *, confidence: float = 0.95) -> pl.Expr:
+    def tail_ratio(self) -> pl.Expr:
         """Calculate Tail ratio."""
         from nanuquant.core import tail_ratio
 
-        return self._apply_metric(tail_ratio, confidence=confidence)
+        return self._apply_metric(tail_ratio)
 
     def common_sense_ratio(self) -> pl.Expr:
         """Calculate Common Sense ratio."""
@@ -275,17 +275,17 @@ class MetricsNamespace:
 
         return self._apply_metric(skewness)
 
-    def kurtosis(self, *, excess: bool = True) -> pl.Expr:
-        """Calculate kurtosis."""
+    def kurtosis(self) -> pl.Expr:
+        """Calculate kurtosis (excess/Fisher)."""
         from nanuquant.core import kurtosis
 
-        return self._apply_metric(kurtosis, excess=excess)
+        return self._apply_metric(kurtosis)
 
-    def expected_return(self, *, periods_per_year: int = 252) -> pl.Expr:
-        """Calculate expected (annualized) return."""
+    def expected_return(self) -> pl.Expr:
+        """Calculate expected return (arithmetic mean)."""
         from nanuquant.core import expected_return
 
-        return self._apply_metric(expected_return, periods_per_year=periods_per_year)
+        return self._apply_metric(expected_return)
 
     def geometric_mean(self) -> pl.Expr:
         """Calculate geometric mean return."""

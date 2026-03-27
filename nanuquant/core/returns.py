@@ -91,7 +91,7 @@ def cagr(
 
     total_return = comp(returns)
     # Handle negative total returns that would cause issues with fractional exponents
-    if total_return <= -1:
+    if total_return < -1:
         return float("-inf")
 
     years = n_periods / ann_factor

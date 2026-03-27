@@ -18,6 +18,13 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Office/Business :: Financial :: Investment",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Typing :: Typed",
@@ -70,9 +77,13 @@ packages = ["nanuquant"]
 include = [
     "nanuquant/",
     "tests/",
+    "docs/",
+    "benchmarks/",
     "LICENSE",
     "README.md",
     "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "DISCLAIMER.md",
 ]
 
 [tool.hatch.version]

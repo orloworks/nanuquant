@@ -126,6 +126,9 @@ from nanuquant.exceptions import (
     MetricsError,
 )
 from nanuquant.institutional import (
+    # Systemic / correlation metrics
+    correlation_matrix,
+    correlation_pairs,
     # Robustness metrics
     deflated_sharpe_ratio,
     probabilistic_sharpe_ratio,
@@ -250,6 +253,9 @@ __all__ = [
     # Institutional / Robustness metrics
     "probabilistic_sharpe_ratio",
     "deflated_sharpe_ratio",
+    # Institutional / Correlation metrics
+    "correlation_matrix",
+    "correlation_pairs",
     # Reports
     "MetricsReport",
     "full_metrics",

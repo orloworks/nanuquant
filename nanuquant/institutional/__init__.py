@@ -28,6 +28,8 @@ from nanuquant.institutional.robustness import (
 from nanuquant.institutional.systemic import (
     AbsorptionRatioResult,
     absorption_ratio,
+    correlation_matrix,
+    correlation_pairs,
     downside_correlation,
     lower_tail_dependence,
     upside_correlation,
@@ -57,6 +59,8 @@ __all__ = [
     "GARCHResult",
     # Systemic metrics
     "absorption_ratio",
+    "correlation_matrix",
+    "correlation_pairs",
     "lower_tail_dependence",
     "downside_correlation",
     "upside_correlation",

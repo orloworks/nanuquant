@@ -14,6 +14,8 @@ import pytest
 from nanuquant.institutional import (
     AbsorptionRatioResult,
     absorption_ratio,
+    correlation_matrix,
+    correlation_pairs,
     downside_correlation,
     lower_tail_dependence,
     upside_correlation,
@@ -299,3 +301,160 @@ class TestSyntheticDataRecovery:
 
         # Should detect the tail dependence
         assert ltd > 0.5
+
+
+class TestCorrelationMatrix:
+    """Tests for the vectorized full correlation matrix."""
+
+    def test_matches_numpy_corrcoef(self) -> None:
+        """Vectorized matrix must match numpy's reference implementation."""
+        np.random.seed(42)
+        data = {f"s{i}": np.random.normal(0, 0.02, 300) for i in range(20)}
+        df = pl.DataFrame(data)
+
+        result = correlation_matrix(df)
+        got = result.drop("strategy").to_numpy()
+        expected = np.corrcoef(df.to_numpy(), rowvar=False)
+
+        np.testing.assert_allclose(got, expected, atol=1e-10)
+
+    def test_shape_and_labels(self) -> None:
+        """Result is square with a leading strategy label column."""
+        np.random.seed(0)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 100) for i in range(8)})
+
+        result = correlation_matrix(df)
+
+        assert result.shape == (8, 9)  # 8 rows, 8 value cols + strategy col
+        assert result.columns[0] == "strategy"
+        assert result["strategy"].to_list() == [f"s{i}" for i in range(8)]
+
+    def test_diagonal_is_one(self) -> None:
+        """Self-correlation is 1 for every strategy."""
+        np.random.seed(1)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 200) for i in range(6)})
+
+        result = correlation_matrix(df).drop("strategy").to_numpy()
+
+        np.testing.assert_allclose(np.diag(result), 1.0, atol=1e-12)
+
+    def test_bounded(self) -> None:
+        """All correlations lie in [-1, 1]."""
+        np.random.seed(2)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 150) for i in range(10)})
+
+        values = correlation_matrix(df).drop("strategy").to_numpy()
+
+        assert values.max() <= 1.0
+        assert values.min() >= -1.0
+
+    def test_zero_variance_is_nan(self) -> None:
+        """Constant (zero-variance) strategies yield NaN correlations."""
+        df = pl.DataFrame(
+            {
+                "flat": [0.01] * 100,
+                "vary": list(np.random.normal(0, 0.02, 100)),
+            }
+        )
+
+        values = correlation_matrix(df).drop("strategy").to_numpy()
+
+        # Off-diagonal against the flat series must be NaN.
+        assert math.isnan(values[0, 1])
+        assert math.isnan(values[1, 0])
+
+    def test_insufficient_strategies(self) -> None:
+        """A single strategy must raise."""
+        df = pl.DataFrame({"only": np.random.normal(0, 0.02, 100)})
+
+        with pytest.raises(ValueError):
+            correlation_matrix(df)
+
+    def test_empty_matrix(self) -> None:
+        """An empty frame must raise."""
+        with pytest.raises(ValueError):
+            correlation_matrix(pl.DataFrame())
+
+
+class TestCorrelationPairs:
+    """Tests for the long-form correlation pairs."""
+
+    def test_columns(self) -> None:
+        """Result has the expected tidy columns."""
+        np.random.seed(0)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 120) for i in range(5)})
+
+        pairs = correlation_pairs(df)
+
+        assert pairs.columns == ["strategy_a", "strategy_b", "correlation"]
+
+    def test_unique_pair_count(self) -> None:
+        """There are N*(N-1)/2 unique unordered pairs."""
+        np.random.seed(0)
+        n_strategies = 10
+        df = pl.DataFrame(
+            {f"s{i}": np.random.normal(0, 0.02, 120) for i in range(n_strategies)}
+        )
+
+        pairs = correlation_pairs(df)
+
+        assert pairs.height == n_strategies * (n_strategies - 1) // 2
+
+    def test_values_match_matrix(self) -> None:
+        """Pair correlations agree with the square-matrix form."""
+        np.random.seed(3)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 200) for i in range(6)})
+
+        matrix = correlation_matrix(df).drop("strategy").to_numpy()
+        labels = df.columns
+        index = {label: i for i, label in enumerate(labels)}
+
+        pairs = correlation_pairs(df, sort=False)
+        for row in pairs.iter_rows(named=True):
+            i = index[row["strategy_a"]]
+            j = index[row["strategy_b"]]
+            assert row["correlation"] == pytest.approx(matrix[i, j], abs=1e-10)
+
+    def test_min_abs_filter(self) -> None:
+        """Thresholding keeps only sufficiently correlated pairs."""
+        np.random.seed(4)
+        n = 400
+        common = np.random.normal(0, 0.02, n)
+        df = pl.DataFrame(
+            {
+                "a": common + np.random.normal(0, 0.001, n),  # ~1.0 with b
+                "b": common + np.random.normal(0, 0.001, n),
+                "c": np.random.normal(0, 0.02, n),  # independent
+            }
+        )
+
+        pairs = correlation_pairs(df, min_abs=0.9)
+
+        assert pairs.height == 1
+        assert {pairs["strategy_a"][0], pairs["strategy_b"][0]} == {"a", "b"}
+
+    def test_sorted_by_abs_correlation(self) -> None:
+        """Default sort orders by absolute correlation, descending."""
+        np.random.seed(5)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 300) for i in range(12)})
+
+        pairs = correlation_pairs(df)
+
+        abs_corr = pairs["correlation"].abs().to_list()
+        assert abs_corr == sorted(abs_corr, reverse=True)
+
+    def test_no_self_pairs(self) -> None:
+        """A strategy is never paired with itself."""
+        np.random.seed(6)
+        df = pl.DataFrame({f"s{i}": np.random.normal(0, 0.02, 100) for i in range(7)})
+
+        pairs = correlation_pairs(df)
+
+        assert (pairs["strategy_a"] == pairs["strategy_b"]).sum() == 0
+
+    def test_insufficient_strategies(self) -> None:
+        """A single strategy must raise."""
+        df = pl.DataFrame({"only": np.random.normal(0, 0.02, 100)})
+
+        with pytest.raises(ValueError):
+            correlation_pairs(df)

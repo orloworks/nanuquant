@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`correlation_matrix` / `correlation_pairs`** (`nanuquant.institutional.systemic`) — vectorized all-pairs Pearson correlation for wide strategy panels. Computes the full matrix with a single BLAS matmul (sub-second for 6000 strategies) and returns either the square matrix or a tidy long-form of unique pairs, with a `min_abs` threshold to keep large books tractable.
 - **Benchmark suite** (`benchmarks/run_benchmarks.py`) — automated performance and accuracy comparison against QuantStats
 - **Benchmark documentation** (`docs/benchmarks.md`) — full timing tables and calculation audit results across synthetic and real market data
 - **CONTRIBUTING.md** — development setup, coding standards, PR guidelines

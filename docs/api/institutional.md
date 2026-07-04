@@ -422,6 +422,56 @@ ar = institutional.absorption_ratio(
 
 ---
 
+### correlation_matrix
+
+Full pairwise Pearson correlation matrix for a wide panel of strategies, computed as a single vectorized matrix multiplication. Built for thousands of strategies, where a per-pair loop is far too slow.
+
+```python
+corr = institutional.correlation_matrix(
+    returns: pl.DataFrame
+) -> pl.DataFrame
+```
+
+**Parameters:**
+- `returns`: Wide DataFrame with one strategy's return series per column. Columns must be equal length and pre-aligned in time (no nulls).
+
+**Returns:** Square correlation DataFrame with a leading `strategy` label column; value at row *i*, column *j* is the correlation between strategy *i* and *j*. Zero-variance (flat) strategies yield `NaN`.
+
+**Notes:** Each column is demeaned and scaled to unit length, so `Zᵀ Z` is the Pearson correlation matrix directly. Runtime scales with `n_obs · n_strategies²` and stays sub-second even for thousands of strategies (a single BLAS call does the heavy lifting).
+
+**Use Case:** Cluster or de-duplicate a large book of strategies by how much they move together.
+
+---
+
+### correlation_pairs
+
+Every unique strategy correlation pair in long (tidy) form — the upper triangle of the correlation matrix, one row per unordered pair.
+
+```python
+pairs = institutional.correlation_pairs(
+    returns: pl.DataFrame,
+    *,
+    min_abs: float | None = None,
+    sort: bool = True
+) -> pl.DataFrame
+```
+
+**Parameters:**
+- `returns`: Wide DataFrame with one strategy's return series per column.
+- `min_abs`: If given, keep only pairs whose absolute correlation is at least this value. Applied on the raw matrix *before* materializing the DataFrame, so a selective threshold avoids building the full `N·(N-1)/2` rows.
+- `sort`: If `True` (default), sort by absolute correlation, descending.
+
+**Returns:** DataFrame with columns `strategy_a`, `strategy_b`, `correlation`. For `N` strategies there are `N·(N-1)/2` rows before thresholding (~18M for 6000 strategies) — pass `min_abs` to keep the output tractable.
+
+**Use Case:** Surface the most correlated (or most anti-correlated) strategy pairs across thousands of strategies for pruning or risk concentration checks.
+
+```python
+# 6000 strategies -> only report meaningfully correlated pairs
+pairs = institutional.correlation_pairs(returns_df, min_abs=0.5)
+```
+
+---
+
 ### lower_tail_dependence
 
 Measures co-movement in extreme down markets.

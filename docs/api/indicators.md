@@ -25,7 +25,7 @@ df.select(ind.rsi(pl.col("SPY", "QQQ"), 2))          # one pass over both column
 df.select(pl.col("SPY").ind.max_drawdown(3))         # `.ind` expression namespace
 ```
 
-- A missing price (null **or** NaN) is missing: the indicator is null there, and windows that include one produce null. NaN never appears in the output.
+- A missing price (null **or** NaN) is missing, and so is a zero or negative price (bad data; as a divisor it would be an infinite return): the indicator is null there, and windowed indicators (`sma`, `max_drawdown`, rolling `current_drawdown`, and the return-window indicators) are null for any window that includes one. `cumulative_return` reads only the two endpoint prices, so a gap strictly inside its lookback does not null it. NaN never appears in the output.
 - Output keeps the input column's name.
 - Platform conventions are explicit keyword arguments, never silent defaults:
   `percent=` (x100 units), `annualize=` (volatility), `period=None` vs an integer

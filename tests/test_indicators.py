@@ -15,6 +15,7 @@ import polars as pl
 import pytest
 
 from nanuquant import indicators as ind
+from nanuquant.indicators import core
 from tests.conftest import load_cached_returns
 from tests.indicator_reference import compute_indicator, current_drawdown_main
 
@@ -61,6 +62,14 @@ CASES = [
     ("max_drawdown", lambda s, n: ind.max_drawdown(s, n, percent=True)),
     ("std_dev_return", lambda s, n: ind.std_dev_return(s, n, percent=True)),
     ("moving_average_return", lambda s, n: ind.moving_average_return(s, n, percent=True)),
+]
+
+
+# Every indicator, for the contract tests that don't compare against the reference.
+ALL_CASES = [
+    *CASES,
+    ("current_drawdown_all_time", lambda s, n: ind.current_drawdown(s)),
+    ("current_drawdown_rolling", lambda s, n: ind.current_drawdown(s, n)),
 ]
 
 
@@ -112,16 +121,18 @@ def test_max_drawdown_counts_mid_window_spike_after_recovery():
     assert ind.current_drawdown(prices, 4)[-1] == pytest.approx(1 / 130)
 
 
-def test_max_drawdown_spans_block_boundary():
+@pytest.mark.parametrize("block_floats", [1, 7 * 50, 1 << 18])
+def test_max_drawdown_spans_block_boundary(monkeypatch, block_floats):
+    monkeypatch.setattr(core, "_MDD_BLOCK_FLOATS", block_floats)
     rng = np.random.default_rng(7)
-    raw = 100.0 * np.cumprod(1.0 + rng.normal(0, 0.02, 9000))
+    raw = 100.0 * np.cumprod(1.0 + rng.normal(0, 0.02, 2000))
     expected = compute_indicator(pd.Series(raw), "max_drawdown", {"period": 50})
     _assert_matches(
         ind.max_drawdown(pl.Series("x", raw), 50, percent=True), expected, label="blocks"
     )
 
 
-@pytest.mark.parametrize("ref,call", CASES, ids=[c[0] for c in CASES])
+@pytest.mark.parametrize("ref,call", ALL_CASES, ids=[c[0] for c in ALL_CASES])
 def test_expr_and_series_paths_agree_on_multiple_columns(market_prices, ref, call):
     spy = market_prices["SPY"].to_numpy()
     qqq = market_prices["QQQ"].to_numpy()
@@ -135,18 +146,25 @@ def test_expr_and_series_paths_agree_on_multiple_columns(market_prices, ref, cal
         assert lazy[col].equals(eager)
 
 
-def test_namespace_matches_functions(market_prices):
+NAMESPACE_CASES = [
+    ("current_price", (), {}),
+    ("sma", (20,), {}),
+    ("ema", (20,), {"adjust": True}),
+    ("rsi", (10,), {"method": "wilder"}),
+    ("cumulative_return", (20,), {"percent": True}),
+    ("max_drawdown", (20,), {"percent": True}),
+    ("current_drawdown", (20,), {"percent": True}),
+    ("current_drawdown", (), {}),
+    ("std_dev_return", (20,), {"percent": True, "annualize": True, "periods_per_year": 52}),
+    ("moving_average_return", (20,), {"percent": True}),
+]
+
+
+@pytest.mark.parametrize("name,args,kwargs", NAMESPACE_CASES)
+def test_namespace_matches_functions(market_prices, name, args, kwargs):
     df = pl.DataFrame({"SPY": market_prices["SPY"].to_numpy()})
-    via_namespace = df.select(
-        pl.col("SPY").ind.rsi(10).alias("rsi"),
-        pl.col("SPY").ind.max_drawdown(20, percent=True).alias("mdd"),
-        pl.col("SPY").ind.std_dev_return(20, annualize=True).alias("vol"),
-    )
-    assert via_namespace["rsi"].equals(ind.rsi(df["SPY"], 10).alias("rsi"))
-    assert via_namespace["mdd"].equals(ind.max_drawdown(df["SPY"], 20, percent=True).alias("mdd"))
-    assert via_namespace["vol"].equals(
-        ind.std_dev_return(df["SPY"], 20, annualize=True).alias("vol")
-    )
+    via_namespace = df.select(getattr(pl.col("SPY").ind, name)(*args, **kwargs))["SPY"]
+    assert via_namespace.equals(getattr(ind, name)(df["SPY"], *args, **kwargs))
 
 
 def test_nan_and_null_are_both_missing():
@@ -156,12 +174,18 @@ def test_nan_and_null_are_both_missing():
     assert ind.sma(with_nan, 2).to_list() == [None, 1.5, None, None, 4.5, 5.5]
 
 
-@pytest.mark.parametrize("ref,call", CASES, ids=[c[0] for c in CASES])
+@pytest.mark.parametrize("ref,call", ALL_CASES, ids=[c[0] for c in ALL_CASES])
 def test_interior_gap_is_missing_not_padded(ref, call):
     prices = pl.Series("x", [10.0, 11.0, 12.0, None, 13.0, 12.5, 14.0, 13.0, 15.0])
     out = call(prices, 2)
     assert out[3] is None, f"{ref}: a missing price must give a missing indicator"
-    if ref in ("sma", "max_drawdown", "std_dev_return", "moving_average_return"):
+    if ref in (
+        "sma",
+        "max_drawdown",
+        "std_dev_return",
+        "moving_average_return",
+        "current_drawdown_rolling",
+    ):
         # Windows reaching across the gap stay missing (no padding over it).
         assert out[4] is None, ref
     assert out[-1] is not None, f"{ref}: must recover after the gap"
@@ -169,8 +193,17 @@ def test_interior_gap_is_missing_not_padded(ref, call):
 
 def test_zero_price_gives_null_not_nan():
     prices = pl.Series("x", [1.0, 0.0, 0.0, 2.0, 2.0])
-    for _, call in CASES:
+    for _, call in ALL_CASES:
         assert not call(prices, 2).is_nan().any()
+
+
+def test_non_positive_price_is_missing_not_an_infinite_return():
+    # A zero print as a divisor would be +inf and top any "best return" ranking.
+    out = ind.cumulative_return(pl.Series("x", [0.0, 1.0, 2.0]), 1)
+    assert out.to_list() == [None, None, 1.0]
+    assert ind.sma(pl.Series("x", [1.0, -1.0, 3.0]), 1).to_list() == [1.0, None, 3.0]
+    for _, call in ALL_CASES:
+        assert not call(pl.Series("x", [0.0, 1.0, 2.0, 0.0, 3.0]), 1).is_infinite().any()
 
 
 def test_numpy_integer_period_accepted():
@@ -212,7 +245,7 @@ def test_non_polars_input_raises():
 
 def test_empty_series_returns_empty():
     empty = pl.Series("x", [], dtype=pl.Float64)
-    for _, call in CASES:
+    for _, call in ALL_CASES:
         assert call(empty, 5).len() == 0
 
 

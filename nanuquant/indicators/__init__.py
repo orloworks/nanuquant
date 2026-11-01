@@ -15,8 +15,9 @@ lazy, multi-column price frame:
 Conventions
 -----------
 - Input is **prices**, not returns (unlike ``nanuquant.max_drawdown`` etc.).
-- A missing price (null *or* NaN) is treated as missing. Output is null wherever the
-  window is incomplete.
+- A missing price (null *or* NaN) is treated as missing. Windowed indicators are null
+  wherever the window is incomplete; ``cumulative_return`` needs only its two endpoint
+  prices.
 - Convention choices that differ between platforms are explicit keyword arguments,
   never silent defaults: ``percent=`` for units, ``annualize=`` for volatility, and
   ``period=None`` (all-time) vs an integer (rolling window) for drawdown peaks.

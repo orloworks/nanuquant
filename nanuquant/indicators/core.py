@@ -19,9 +19,9 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 PriceInput = TypeVar("PriceInput", pl.Series, pl.Expr)
 
-# Rows of windows processed per block in max_drawdown, bounding memory at
-# _MDD_BLOCK * period floats regardless of series length.
-_MDD_BLOCK = 4096
+# Floats per block of windows in max_drawdown (~2 MB per temporary), so memory stays
+# bounded whatever the series length or period.
+_MDD_BLOCK_FLOATS = 1 << 18
 
 
 def _apply(prices: PriceInput, build: Callable[[pl.Expr], pl.Expr]) -> PriceInput:
@@ -31,8 +31,7 @@ def _apply(prices: PriceInput, build: Callable[[pl.Expr], pl.Expr]) -> PriceInpu
     indicator reports a missing value one way.
     """
     if isinstance(prices, pl.Series):
-        _require_numeric(prices)
-        frame = pl.DataFrame({"_x": prices})
+        frame = pl.DataFrame({"_x": _require_numeric(prices)})
         out = build(_clean(pl.col("_x"))).fill_nan(None)
         return frame.select(out).to_series().alias(prices.name)
     if isinstance(prices, pl.Expr):
@@ -49,13 +48,22 @@ def _require_numeric(s: pl.Series) -> pl.Series:
 
 
 def _clean(x: pl.Expr) -> pl.Expr:
-    """Float prices with NaN normalised to null, so every op treats both as missing.
+    """Float prices with NaN and non-positive values normalised to null.
+
+    A price must be positive: a zero or negative print is bad data, and as a
+    divisor it would turn into an infinite return that tops any ranking, so it is
+    treated as missing like NaN.
 
     The type is checked when the expression runs (an expression doesn't know its
-    column's dtype until then).
+    column's dtype until then). That needs a Python callback, which keeps a lazy
+    plan using an indicator from being JSON-serialized; silently averaging a Date
+    column as days-since-epoch would be worse.
     """
-    checked = x.map_batches(_require_numeric, return_dtype=pl.Float64, is_elementwise=True)
-    return checked.fill_nan(None)
+    checked = x.map_batches(
+        _require_numeric, return_dtype=pl.Float64, is_elementwise=True
+    ).fill_nan(None)
+    # (fill_nan first: Polars orders NaN above every number, so NaN > 0 is true.)
+    return pl.when(checked > 0).then(checked)
 
 
 def _check_period(period: int, name: str = "period") -> int:
@@ -212,8 +220,9 @@ def _worst_drawdowns(s: pl.Series, period: int) -> pl.Series:
     out = np.full(arr.shape[0], np.nan)
     if arr.shape[0] >= period:
         windows = sliding_window_view(arr, period)
-        for start in range(0, windows.shape[0], _MDD_BLOCK):
-            w = windows[start : start + _MDD_BLOCK]
+        rows = max(1, _MDD_BLOCK_FLOATS // period)
+        for start in range(0, windows.shape[0], rows):
+            w = windows[start : start + rows]
             peaks = np.maximum.accumulate(w, axis=1)
             with np.errstate(divide="ignore", invalid="ignore"):
                 dd = (peaks - w) / peaks

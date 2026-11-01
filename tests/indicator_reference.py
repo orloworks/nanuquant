@@ -8,8 +8,9 @@ Copied from orloworks/tc-trading-engine:
   rolling-window ``current_drawdown`` (absent from the phase-0 dispatcher).
 
 nanuquant.indicators must reproduce these values with the equivalent explicit
-arguments (``percent=True`` etc.). Keep this file byte-for-byte faithful to the
-engine; do not "fix" it here.
+arguments (``percent=True`` etc.). The computations are copied unchanged; only the
+engine's comments, docstrings and DataFrame plumbing were dropped. Keep them faithful
+to the engine and do not "fix" them here.
 """
 
 from __future__ import annotations

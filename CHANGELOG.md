@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`probabilistic_sharpe_ratio`, `deflated_sharpe_ratio` and `minimum_track_record_length` overstated significance.** The Bailey & López de Prado standard error is defined on the per-observation Sharpe ratio, but the annualized ratio was plugged in. On SPY this gave PSR = 1.0 and a minimum track record of 18 days; it is now 0.99987 and 1,677 observations (about 6.7 years). `benchmark_sr`, `target_sr` and `var_sharpe` remain **annualized** inputs and are documented as such. `minimum_track_record_length` now returns `float` (`inf` when the target can't be reached), and is exported at the top level along with `newey_west_se`. Tests pin all three to an independent implementation of the papers.
 - **Metrics documented as matching QuantStats now do, checked at `rtol=1e-9` on the full SPY, QQQ and BND histories** (`tests/test_quantstats_parity.py`). The previous integration tests allowed 3% error, and some only checked that the result was finite. **These change values:**
   - `win_rate`, `avg_return` and `kelly_criterion` exclude zero-return periods, like QuantStats. Pass `exclude_zeros=False` to `win_rate` or `avg_return` to count them.
   - `expected_return` is the geometric mean (it was the arithmetic mean).

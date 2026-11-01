@@ -231,8 +231,20 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     # Running maximum
     running_max = cumulative.cum_max()
 
-    # Drawdown as percentage from peak
-    drawdown = (cumulative - running_max) / running_max
+    # Drawdown as percentage from peak. A total loss in the first observed period
+    # leaves the peak at 0: that is a -100% drawdown, not 0/0 (NaN would read as a
+    # missing return). Missing returns stay null.
+    drawdown = (
+        pl.DataFrame({"c": cumulative, "m": running_max})
+        .select(
+            pl.when(pl.col("m") > 0)
+            .then((pl.col("c") - pl.col("m")) / pl.col("m"))
+            .when(pl.col("m").is_not_null())
+            .then(-1.0)
+            .otherwise(None)
+        )
+        .to_series()
+    )
 
     return drawdown.alias("drawdown")
 

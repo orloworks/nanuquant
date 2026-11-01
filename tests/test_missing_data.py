@@ -299,3 +299,9 @@ def test_portfolio_functions_reject_too_few_complete_rows():
     sparse = pl.DataFrame({"a": [0.01, None, 0.02], "b": [None, 0.01, 0.03]})
     with pytest.raises(ValueError, match="every asset present"):
         portfolio_volatility(sparse, [0.5, 0.5])
+
+
+def test_total_loss_in_first_period_is_full_drawdown():
+    dd = nq.to_drawdown_series(pl.Series([-1.0, 0.1]))
+    assert dd.to_list() == [-1.0, -1.0]
+    assert nq.max_drawdown(pl.Series([-1.0, 0.1])) == -1.0

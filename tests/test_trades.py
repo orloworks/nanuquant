@@ -907,6 +907,25 @@ class TestEquityTimeline:
         assert result.dates.to_list() == trading_days
         assert result.periods_per_year == 252
 
+    def test_curve_on_a_seven_day_price_feed_annualizes_at_365(self) -> None:
+        from datetime import date, timedelta
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 3, 31)],
+                "exit_price": [110.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(91)]  # every day
+        prices = pl.DataFrame({"date": days, "close": [100.0 + i / 9 for i in range(91)]})
+        result = trades_to_returns(
+            trades, prices=prices, aggregation="equity", initial_capital=10_000.0
+        )
+        assert result.periods_per_year == 365
+
     def test_most_recent_price_is_used_between_price_rows(self) -> None:
         from datetime import date
 
@@ -919,3 +938,23 @@ class TestEquityTimeline:
         assert book.at_or_before(date(2024, 1, 4), None) == 10.0
         assert book.at_or_before(date(2024, 1, 5), None) == 12.0
         assert book.at_or_before(date(2024, 1, 1), None) is None
+
+    def test_trade_on_a_day_without_prices_is_still_booked(self) -> None:
+        from datetime import date
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2), datetime(2024, 1, 6)],  # 6th: Saturday
+                "entry_price": [100.0, 50.0],
+                "exit_time": [datetime(2024, 1, 10), datetime(2024, 1, 8)],
+                "exit_price": [110.0, 60.0],
+                "quantity": [1.0, 10.0],
+                "direction": ["long", "long"],
+            }
+        )
+        days = [date(2024, 1, d) for d in (2, 3, 4, 5, 8, 9, 10)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 101, 102, 103, 104, 105, 110]})
+        equity = build_equity_curve(trades, 1000.0, prices)
+        assert date(2024, 1, 6) in equity["date"].to_list()
+        # Both trades closed: 10 profit on the first, 100 on the second
+        assert equity["nav"][-1] == pytest.approx(1110.0)

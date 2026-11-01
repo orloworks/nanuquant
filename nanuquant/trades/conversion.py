@@ -273,7 +273,7 @@ def _aggregate_equity(
         n_losing=n_losing,
         total_fees=total_fees,
         aggregation="equity",
-        periods_per_year=_equity_periods_per_year("D", has_mtm),
+        periods_per_year=_equity_periods_per_year("D", has_mtm, dates),
         has_mtm=has_mtm,
         warnings=warnings,
     )
@@ -426,11 +426,26 @@ def _aggregate_trades_by_period(
     )
 
 
-def _equity_periods_per_year(frequency: str, trading_days: bool) -> int:
-    """Annualization for an equity curve: daily curves built on calendar days use 365."""
-    if frequency == "D" and not trading_days:
+def _equity_periods_per_year(
+    frequency: str, trading_days: bool, dates: pl.Series | None = None
+) -> int:
+    """Annualization for an equity curve.
+
+    Daily curves built on calendar days use 365. A daily curve that follows price
+    dates uses the rate those dates actually have: a 7-day feed (crypto) is 365, a
+    trading-day feed 252, whichever the observed spacing is closer to.
+    """
+    if frequency != "D":
+        return _get_periods_per_year(frequency)
+    if not trading_days:
         return 365
-    return _get_periods_per_year(frequency)
+    if dates is not None and dates.len() >= 2:
+        days = dates.dt.epoch("d")
+        span_days = int(days.max()) - int(days.min())
+        if span_days > 0:
+            per_year = (dates.len() - 1) * 365.25 / span_days
+            return 365 if abs(per_year - 365) < abs(per_year - 252) else 252
+    return 252
 
 
 def _get_periods_per_year(frequency: str) -> int:

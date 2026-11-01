@@ -69,7 +69,7 @@ def cornish_fisher_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> cf_var = cornish_fisher_var(returns, confidence=0.95)
-    >>> cf_var > 0
+    >>> cf_var < 0
     True
 
     References
@@ -159,7 +159,7 @@ def entropic_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> evar = entropic_var(returns, confidence=0.95)
-    >>> evar > 0
+    >>> evar < 0
     True
 
     References
@@ -213,12 +213,12 @@ def _fallback_cvar(returns: pl.Series, confidence: float) -> float:
     """Calculate CVaR as fallback for EVaR."""
     returns_np = returns.to_numpy()
     q = np.percentile(returns_np, (1 - confidence) * 100)
-    tail_losses = -returns_np[returns_np <= q]
+    tail = returns_np[returns_np <= q]
 
-    if len(tail_losses) == 0:
+    if len(tail) == 0:
         return 0.0
 
-    return -float(np.mean(tail_losses))
+    return float(np.mean(tail))
 
 
 def modified_var(
@@ -273,7 +273,7 @@ def historical_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> hvar = historical_var(returns, confidence=0.95)
-    >>> hvar > 0
+    >>> hvar < 0
     True
     """
     returns = validate_returns(returns)
@@ -321,7 +321,7 @@ def parametric_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> pvar = parametric_var(returns, confidence=0.95)
-    >>> pvar > 0
+    >>> pvar < 0
     True
     """
     returns = validate_returns(returns)

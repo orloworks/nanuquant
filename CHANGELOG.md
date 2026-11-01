@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **One VaR sign convention.** `cornish_fisher_var`, `modified_var`, `historical_var`, `parametric_var` and `entropic_var` now return a signed return (a loss is negative), the same as `var`, `cvar` and QuantStats. They used to return a positive loss. **Breaking:** negate existing callers.
 - **Rolling metrics annualize with the configured `periods_per_year` (252 by default)**, like the core metrics, so `rolling_sharpe` and `sharpe` are on the same scale. QuantStats' rolling default is 365; pass `periods_per_year=365` to reproduce it. Strict rolling parity tests were added.
-- **`garch_volatility` no longer silently fakes an estimate.** Without the optional `arch` package it falls back to fixed alpha=0.10, beta=0.85; it now issues a `UserWarning`, and `GARCHResult.method` reports `"mle"` or `"variance_targeting"`.
-- **Portfolio and systemic functions drop incomplete rows instead of zero-filling them:** `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `portfolio_volatility`, `absorption_ratio`. Zero-filling biased covariances toward zero. They raise if fewer than two complete rows remain.
+- **`garch_volatility` no longer silently fakes an estimate.** Without the optional `arch` package it falls back to fixed alpha=0.10, beta=0.85; it now issues a `UserWarning`, and `GARCHResult.method` reports `"mle"` or `"variance_targeting"`. `GARCHResult` therefore has eight fields; code that unpacks it positionally into seven names must add one.
+- **Portfolio and systemic functions drop incomplete rows instead of zero-filling them:** `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `portfolio_volatility`, `absorption_ratio`. Zero-filling biased covariances toward zero. They raise if fewer than two complete rows remain (`absorption_ratio`: fewer complete rows than assets).
 - **Trade equity curves:**
-  - with `prices`, the curve follows the price dates (trading days) instead of every calendar day, and annualizes with 252;
-  - without prices, it stays on calendar days and now reports `periods_per_year=365` (it reported 252);
+  - with `prices`, the curve follows the price dates (trading days) plus every trade entry and exit date, instead of every calendar day, and annualizes with 252;
+  - without prices, it stays on calendar days and now reports `periods_per_year=365` (it reported 252); with prices, a daily curve takes 252 or 365 from the spacing of its dates, so a 7-day (crypto) feed annualizes at 365;
   - price lookups use binary search instead of scanning every price for every position and day.
 - HTML report footer and `py.typed` still said "polars-metrics"/"polars_metrics".
-- **`probabilistic_sharpe_ratio`, `deflated_sharpe_ratio` and `minimum_track_record_length` overstated significance.** The Bailey & López de Prado standard error is defined on the per-observation Sharpe ratio, but the annualized ratio was plugged in. On SPY this gave PSR = 1.0 and a minimum track record of 18 days; it is now 0.99987 and 1,677 observations (about 6.7 years). `benchmark_sr`, `target_sr` and `var_sharpe` remain **annualized** inputs and are documented as such. `minimum_track_record_length` now returns `float` (`inf` when the target can't be reached), and is exported at the top level along with `newey_west_se`. Tests pin all three to an independent implementation of the papers.
+- **`probabilistic_sharpe_ratio`, `deflated_sharpe_ratio` and `minimum_track_record_length` overstated significance.** The Bailey & López de Prado standard error is defined on the per-observation Sharpe ratio, but the annualized ratio was plugged in. On SPY this gave PSR = 1.0 and a minimum track record of 18 days; it is now 0.99987 and 1,677 observations (about 6.7 years). `benchmark_sr`, `target_sr` and `var_sharpe` remain **annualized** inputs and are documented as such. `minimum_track_record_length` now returns `float` (`inf` when the target can't be reached; a constant series takes its Sharpe ratio as +inf, -inf or 0 by the sign of its return instead of returning its own length), and is exported at the top level along with `newey_west_se`. Tests pin all three to an independent implementation of the papers.
 - **Metrics documented as matching QuantStats now do, checked at `rtol=1e-9` on the full SPY, QQQ and BND histories** (`tests/test_quantstats_parity.py`). The previous integration tests allowed 3% error, and some only checked that the result was finite. **These change values:**
   - `win_rate`, `avg_return` and `kelly_criterion` exclude zero-return periods, like QuantStats. Pass `exclude_zeros=False` to `win_rate` or `avg_return` to count them.
   - `expected_return` is the geometric mean (it was the arithmetic mean).
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `cpc_index` is `profit_factor * win_rate * payoff_ratio`.
   - `serenity_index` is `(sum(r) - rf) / (ulcer_index * pitfall)`, and it takes `risk_free_rate`.
   - `smart_sharpe` / `smart_sortino` use QuantStats' full autocorrelation penalty, not a lag-1 `2*rho` approximation.
-  - `risk_of_ruin` uses QuantStats' formula, computed in log space. It previously raised `OverflowError` on long losing series.
+  - `risk_of_ruin` uses QuantStats' formula, computed in log space. It previously raised `OverflowError` on long losing series. Its `target_fraction` argument, which was never used, is removed.
 - **Edge cases now report the mathematical limit instead of a masking value:**
   - `kelly_criterion` with no winning periods is `-inf`;
   - `omega` with no losses is `inf`;
@@ -39,9 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Missing data is now handled consistently, and never as a zero return.** A missing observation is a Polars `null` or a float `NaN`. Previously most metrics called `validate_returns()` and discarded its cleaned result, so nulls were still counted by `len()`, fed to numpy and scipy, and broke `win_rate`, `cagr`, `sortino`, `skewness`, `kurtosis`, `geometric_mean`, VaR and others. QuantStats, for comparison, fills missing returns with 0. Now:
   - single-series metrics drop missing observations;
   - paired metrics (`greeks`, `information_ratio`, `r_squared`, `treynor_ratio`, `benchmark_correlation`, the tail-dependence and regime correlations, `compare`) use only the rows where both series are present (`align_pair`);
-  - dated outputs (`yearly_returns`, `monthly_returns`, `distribution`, `drawdown_details`) drop a missing return together with its date (`align_dates`), and reject a `dates` series of a different length;
+  - dated outputs (`yearly_returns`, `monthly_returns`, `distribution`, `drawdown_details`) drop a missing return together with its date (`align_dates`), and reject a `dates` series of a different length. Without `dates`, each return keeps its own position: the synthetic daily dates are assigned before missing returns are dropped, and `drawdown_details` reports indices into the input series;
   - positional outputs (`to_drawdown_series`, rolling metrics) keep their length and are null where the input is missing. For rolling metrics, any window containing a missing value is null.
 - `newey_west_se` now validates its input.
+- `drawdown_details` uses `to_drawdown_series`, so a total loss in the first period is reported as a -100% drawdown (it was skipped as NaN).
 - `distribution()`, `monthly_returns()`, `yearly_returns()` and `drawdown_details()` return periods in a deterministic, chronological order (an unordered `group_by` made them random between calls).
 
 ### Added

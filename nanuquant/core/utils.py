@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import polars as pl
 
@@ -224,3 +224,13 @@ def simple_returns(log_rets: pl.Series) -> pl.Series:
         Simple (arithmetic) returns.
     """
     return log_rets.exp() - 1
+
+
+def synthetic_dates(n: int) -> pl.Series:
+    """Return ``n`` consecutive daily dates from 2020-01-01, one per input position.
+
+    Used by the period tables when the caller supplies no dates. They are generated
+    before missing returns are dropped, so every return keeps its own day.
+    """
+    start = date(2020, 1, 1)
+    return pl.Series("date", [start + timedelta(days=i) for i in range(n)], dtype=pl.Date)

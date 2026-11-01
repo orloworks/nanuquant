@@ -305,3 +305,51 @@ def test_total_loss_in_first_period_is_full_drawdown():
     dd = nq.to_drawdown_series(pl.Series([-1.0, 0.1]))
     assert dd.to_list() == [-1.0, -1.0]
     assert nq.max_drawdown(pl.Series([-1.0, 0.1])) == -1.0
+
+
+def test_absorption_ratio_needs_as_many_complete_rows_as_assets():
+    from nanuquant.institutional import absorption_ratio
+
+    sparse = pl.DataFrame(
+        {
+            "a": [0.01, None, 0.02, None, 0.01],
+            "b": [0.0, 0.01, None, 0.02, 0.01],
+            "c": [0.01, 0.02, 0.03, None, -0.01],
+        }
+    )
+    with pytest.raises(ValueError, match="complete observations"):
+        absorption_ratio(sparse)
+
+
+def test_drawdown_details_without_dates_reports_input_positions():
+    from nanuquant.core.timeseries import drawdown_details
+
+    r = pl.Series([None, None, 0.01, -0.05, -0.02, 0.10, 0.01])
+    row = drawdown_details(r).row(0, named=True)
+    dd = nq.to_drawdown_series(r)
+    assert (row["start"], row["valley"], row["end"]) == (2, 4, 5)
+    assert row["depth"] == pytest.approx(dd[4])
+
+
+def test_drawdown_details_reports_first_period_total_loss():
+    from nanuquant.core.timeseries import drawdown_details
+
+    details = drawdown_details(pl.Series([-1.0, 0.0, 0.0]))
+    assert details.height == 1
+    assert details["depth"][0] == -1.0
+
+
+def test_synthetic_dates_keep_each_return_on_its_own_day():
+    # Without dates, return i falls on day i. Dropping a missing return must not slide
+    # the later ones into the previous month.
+    r = pl.Series([None] + [0.0] * 30 + [0.05])  # index 31 is 2020-02-01
+    monthly = nq.monthly_returns(r)
+    by_month = dict(zip(monthly["month"].to_list(), monthly["2020"].to_list(), strict=True))
+    assert by_month[1] == pytest.approx(0.0)
+    assert by_month[2] == pytest.approx(0.05)
+
+
+def test_min_trl_of_a_constant_series_follows_the_sign_of_its_return():
+    assert minimum_track_record_length(pl.Series([0.0] * 10)) == float("inf")
+    assert minimum_track_record_length(pl.Series([-0.01] * 10)) == float("inf")
+    assert minimum_track_record_length(pl.Series([0.01] * 10)) == 3.0  # ceil(1 + 1.645^2/2)

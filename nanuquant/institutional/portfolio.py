@@ -363,15 +363,12 @@ def portfolio_volatility(
         return 0.0
 
     weights = np.array(weights, dtype=float)
-    # Rows with a missing return are dropped, never zero-filled
-    returns_np = complete_cases(returns_matrix)
 
-    # Get covariance matrix
+    # Get covariance matrix (rows with a missing return are dropped, never zero-filled)
     if use_shrinkage:
-        result = ledoit_wolf_covariance(returns_matrix)
-        cov_matrix = result.covariance
+        cov_matrix = ledoit_wolf_covariance(returns_matrix).covariance
     else:
-        cov_matrix = np.cov(returns_np, rowvar=False)
+        cov_matrix = np.cov(complete_cases(returns_matrix), rowvar=False)
 
     # Ensure 2D
     if cov_matrix.ndim == 0:

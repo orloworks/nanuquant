@@ -112,17 +112,19 @@ def absorption_ratio(
     if n_assets < 2:
         raise ValueError("At least 2 assets required for absorption ratio")
 
-    n_obs = len(returns_matrix)
+    # Rows with a missing return are dropped, never zero-filled
+    returns_np = complete_cases(returns_matrix)
+
+    n_obs = len(returns_np)
     if n_obs < n_assets:
-        raise ValueError(f"Need at least as many observations ({n_obs}) as assets ({n_assets})")
+        raise ValueError(
+            f"Need at least as many complete observations ({n_obs}) as assets ({n_assets})"
+        )
 
     # Determine number of components
     if n_components is None:
         n_components = max(1, int(fraction * n_assets))
     n_components = min(n_components, n_assets)
-
-    # Rows with a missing return are dropped, never zero-filled
-    returns_np = complete_cases(returns_matrix)
 
     # Compute correlation matrix
     corr_matrix = np.corrcoef(returns_np, rowvar=False)

@@ -76,10 +76,11 @@ def build_equity_curve(
     if has_prices:
         price_lookup = _build_price_lookup(prices, has_symbol)
 
-    # With prices the curve follows the price dates (trading days) plus the first and
-    # last trade dates; without them it can only use calendar days.
+    # With prices the curve follows the price dates (trading days) plus every trade
+    # entry and exit date, so no trade is skipped; without prices it can only use
+    # calendar days.
     if price_lookup is not None:
-        event_dates = {start_date, end_date}
+        event_dates = _trade_dates(trades)
         event_dates |= {d for d in price_lookup.dates() if start_date <= d <= end_date}
         all_dates = pl.Series("date", sorted(event_dates), dtype=pl.Date)
     else:
@@ -296,6 +297,14 @@ def _get_trade_date_range(
     return min_date, max_date
 
 
+def _trade_dates(trades: pl.DataFrame) -> set[date]:
+    """Every date on which a trade enters or exits."""
+    dates: set[date] = set(trades["entry_time"].cast(pl.Date).drop_nulls().to_list())
+    if "exit_time" in trades.columns:
+        dates |= set(trades["exit_time"].cast(pl.Date).drop_nulls().to_list())
+    return dates
+
+
 def _build_price_lookup(prices: pl.DataFrame, has_symbol: bool) -> _PriceBook:
     """Index prices by symbol for exact and most-recent lookups."""
     use_symbol = has_symbol and "symbol" in prices.columns
@@ -426,19 +435,15 @@ class _PriceBook:
     """Close prices per symbol with O(log n) "on or before" lookups."""
 
     def __init__(self, rows: dict[str | None, dict[date, float]]) -> None:
-        self._exact = rows
-        self._sorted = {
-            symbol: (sorted(by_date), [by_date[d] for d in sorted(by_date)])
-            for symbol, by_date in rows.items()
-        }
+        self._sorted: dict[str | None, tuple[list[date], list[float]]] = {}
+        for symbol, by_date in rows.items():
+            dates = sorted(by_date)
+            self._sorted[symbol] = (dates, [by_date[d] for d in dates])
 
     def dates(self) -> set[date]:
-        return {d for by_date in self._exact.values() for d in by_date}
+        return {d for dates, _ in self._sorted.values() for d in dates}
 
     def at_or_before(self, target_date: date, symbol: str | None) -> float | None:
-        exact = self._exact.get(symbol, {}).get(target_date)
-        if exact is not None:
-            return exact
         dates, closes = self._sorted.get(symbol, ([], []))
         i = bisect_right(dates, target_date)
         return closes[i - 1] if i > 0 else None

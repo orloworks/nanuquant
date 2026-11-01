@@ -420,7 +420,7 @@ def kelly_criterion(returns: pl.Series) -> float:
     if math.isinf(r):
         return float(w)
     if r == 0:
-        return float("-inf") if w < 1 else 0.0
+        return float("-inf")  # losses but no wins
     return float((r * w - (1 - w)) / r)
 
 

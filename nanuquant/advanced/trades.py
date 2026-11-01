@@ -13,6 +13,7 @@ import polars as pl
 from scipy import stats as scipy_stats
 
 from nanuquant.config import get_config
+from nanuquant.core.distribution import geometric_mean
 from nanuquant.core.returns import avg_loss, avg_win, win_rate
 from nanuquant.core.utils import (
     safe_divide,
@@ -85,22 +86,7 @@ def ghpr(returns: pl.Series) -> float:
     >>> ghpr(returns)
     0.0123...
     """
-    returns = validate_returns(returns)
-    if returns.is_empty():
-        return 0.0
-
-    returns = to_float_series(returns)
-    n = len(returns)
-
-    product = (1 + returns).product()
-    if product is None:
-        return 0.0
-    if product == 0:
-        return -1.0  # total loss
-    if product < 0:
-        return float("nan")  # wealth below zero has no real geometric mean
-
-    return float(product ** (1.0 / n) - 1)
+    return geometric_mean(returns)
 
 
 def rar(

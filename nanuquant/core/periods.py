@@ -10,9 +10,10 @@ from typing import Any
 
 import polars as pl
 
-from nanuquant.core.utils import to_float_series
+from nanuquant.core.utils import synthetic_dates, to_float_series
 from nanuquant.core.validation import (
     align_dates,
+    align_pair,
     normalize_missing,
     validate_benchmark_match,
 )
@@ -54,21 +55,13 @@ def monthly_returns(
     shape: (10, 2)
     ...
     """
+    if dates is None:
+        dates = synthetic_dates(len(returns))
     returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return pl.DataFrame()
 
     returns = to_float_series(returns)
-
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
 
     # Create DataFrame with returns and dates
     df = pl.DataFrame(
@@ -155,21 +148,13 @@ def distribution(
     >>> dist.keys()
     dict_keys(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'])
     """
+    if dates is None:
+        dates = synthetic_dates(len(returns))
     returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return {}
 
     returns = to_float_series(returns)
-
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
 
     df = pl.DataFrame(
         {
@@ -296,30 +281,19 @@ def compare(
     ...
     """
     validate_benchmark_match(returns, benchmark)
-    if dates is not None and len(dates) != len(returns):
+    if dates is None:
+        dates = synthetic_dates(len(returns))
+    elif len(dates) != len(returns):
         raise ValueError(f"dates length ({len(dates)}) must match returns length ({len(returns)})")
-    returns = normalize_missing(returns)
-    benchmark = normalize_missing(benchmark)
-    keep = returns.is_not_null() & benchmark.is_not_null()
-    returns, benchmark = returns.filter(keep), benchmark.filter(keep)
-    if dates is not None:
-        dates = dates.filter(keep)
+    keep = normalize_missing(returns).is_not_null() & normalize_missing(benchmark).is_not_null()
+    returns, benchmark = align_pair(returns, benchmark, allow_empty=True)
+    dates = dates.filter(keep)
 
     if returns.is_empty():
         return pl.DataFrame()
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
-
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
 
     return pl.DataFrame(
         {

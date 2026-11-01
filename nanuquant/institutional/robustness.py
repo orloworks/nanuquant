@@ -88,9 +88,9 @@ def probabilistic_sharpe_ratio(
     >>> returns = pl.Series(np.random.normal(0.001, 0.02, 252))
     >>> result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
     >>> result.psr  # Probability true SR > 0
-    0.85...
+    0.77...
     >>> result.p_value
-    0.14...
+    0.22...
     """
     returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="probabilistic_sharpe_ratio")
@@ -223,11 +223,11 @@ def deflated_sharpe_ratio(
     >>> # Strong strategy
     >>> returns = pl.Series(np.random.normal(0.002, 0.02, 252))
     >>> deflated_sharpe_ratio(returns, n_trials=100)
-    0.75...
+    0.14...
 
     >>> # After trying 1000 strategies, a lower DSR is expected
     >>> deflated_sharpe_ratio(returns, n_trials=1000)
-    0.45...
+    0.03...
     """
     returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="deflated_sharpe_ratio")
@@ -280,7 +280,9 @@ def minimum_track_record_length(
     -------
     float
         Minimum number of observations required (a whole number), or ``inf`` if the
-        sample Sharpe ratio does not exceed the target.
+        sample Sharpe ratio does not exceed the target. A constant series (zero
+        volatility) takes its Sharpe ratio as +inf, -inf or 0 by the sign of its
+        return.
 
     Notes
     -----
@@ -302,7 +304,7 @@ def minimum_track_record_length(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0.001, 0.02, 252))
     >>> minimum_track_record_length(returns, target_sr=0.0, confidence=0.95)
-    156
+    1170.0
     """
     returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="minimum_track_record_length")
@@ -321,12 +323,27 @@ def minimum_track_record_length(
     mean_ret = returns.mean()
     std_ret = returns.std()
 
-    if mean_ret is None or std_ret is None or std_ret == 0:
-        return float(len(returns))
+    if mean_ret is None or std_ret is None:
+        return float("inf")
 
-    # Per-observation Sharpe ratio and target, the units the formula is defined in
-    sr = float(mean_ret / std_ret)
+    # Per-observation target, the units the formula is defined in
     target_sr = target_sr / math.sqrt(ann_factor)
+
+    if std_ret == 0 or returns.n_unique() == 1:
+        # (Rounding can leave a tiny nonzero std for a constant series.)
+        # A constant series has no higher moments; its Sharpe ratio is +inf for a
+        # positive return, -inf for a negative one and 0 for a zero return.
+        z = float(scipy_stats.norm.ppf(confidence))
+        mean = float(mean_ret)
+        if mean > 0:
+            # Beats any finite target; the formula tends to 1 + z^2 / 2 as SR -> inf.
+            return float(math.ceil(1 + 0.5 * z**2))
+        if mean == 0 and target_sr < 0:
+            # SR = 0 beats a negative target; no dispersion, so the adjustment is 1.
+            return float(math.ceil(1 + (z / target_sr) ** 2))
+        return float("inf")
+
+    sr = float(mean_ret / std_ret)
 
     # If sample SR <= target, we can never achieve significance
     if sr <= target_sr:

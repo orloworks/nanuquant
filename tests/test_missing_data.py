@@ -379,3 +379,17 @@ def test_all_missing_series_is_missing_not_a_type_error():
     assert nq.to_drawdown_series(pl.Series([None, None])).null_count() == 2
     with pytest.raises(nq.EmptySeriesError):
         nq.sharpe(pl.Series([None, None]))
+
+
+def test_period_tables_are_chronological_for_unsorted_dates():
+    dates = pl.Series([date(2021, 3, 1), date(2020, 1, 1), date(2020, 2, 1)])
+    returns = pl.Series([0.03, 0.01, 0.02])
+    assert periods.monthly_returns(returns, dates=dates).columns == ["month", "2020", "2021"]
+    dist = periods.distribution(returns, dates=dates)
+    assert dist["Daily"]["values"] == [0.01, 0.02, 0.03]
+    assert dist["Monthly"]["values"] == pytest.approx([0.01, 0.02, 0.03])
+
+
+def test_dated_outputs_reject_a_non_numeric_series_even_when_all_missing():
+    with pytest.raises(TypeError):
+        nq.yearly_returns(pl.Series([None, None], dtype=pl.String))

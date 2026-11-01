@@ -219,6 +219,12 @@ def test_geometric_mean_of_total_loss_is_minus_one():
     assert nq.ghpr(pl.Series([0.1, -1.0, 0.2])) == -1.0
 
 
+def test_geometric_mean_of_a_long_series_does_not_underflow_or_overflow():
+    # 0.5 ** 1200 and 2 ** 1100 are out of float range as a product
+    assert nq.geometric_mean(pl.Series([-0.5] * 1200)) == pytest.approx(-0.5, rel=1e-12)
+    assert nq.geometric_mean(pl.Series([1.0] * 1100)) == pytest.approx(1.0, rel=1e-12)
+
+
 def test_zero_exclusion_is_optional():
     r = pl.Series([0.01, 0.0, -0.01, 0.0])
     assert nq.win_rate(r) == pytest.approx(0.5)

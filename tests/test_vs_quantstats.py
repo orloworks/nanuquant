@@ -27,19 +27,9 @@ Known Differences from QuantStats
    nanuquant implements the correct Omega ratio formula:
    Omega = (sum of returns above threshold) / abs(sum of returns below threshold)
 
-4. **CPC Index (Compound Profit & Consistency)**
-   Formula variations exist across sources. Our implementation uses:
-   CPC = profit_factor * win_rate * payoff_ratio
-   This is the commonly documented formula in trading literature.
-
-5. **Adjusted Sortino**
-   QuantStats applies skew/kurtosis adjustment differently. Our implementation
-   uses the standard adjustment formula from financial literature.
-
-6. **Smart Sharpe / Smart Sortino**
-   Autocorrelation penalty calculation may differ slightly. Our implementation
-   uses the Lo (2002) adjustment: SR_adj = SR * sqrt((1 - rho) / (1 + rho))
-   where rho is the first-order autocorrelation.
+4. **No longer different: CPC Index, Adjusted Sortino, Smart Sharpe / Smart Sortino**
+   These now match QuantStats exactly and are pinned at rtol=1e-9 in
+   ``tests/test_quantstats_parity.py``.
 
 These differences are documented and intentional. Tests use appropriate tolerances
 to account for numerical precision while verifying algorithmic correctness.

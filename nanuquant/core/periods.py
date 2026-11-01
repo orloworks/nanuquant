@@ -63,13 +63,14 @@ def monthly_returns(
 
     returns = to_float_series(returns)
 
-    # Create DataFrame with returns and dates
+    # Create DataFrame with returns and dates, in date order so that the grouped
+    # periods (and the pivoted year columns) come out chronologically
     df = pl.DataFrame(
         {
             "date": dates,
             "returns": returns,
         }
-    )
+    ).sort("date", maintain_order=True)
 
     # Extract year and month
     df = df.with_columns(
@@ -156,12 +157,13 @@ def distribution(
 
     returns = to_float_series(returns)
 
+    # In date order, so every period list below is chronological
     df = pl.DataFrame(
         {
             "date": dates,
             "returns": returns,
         }
-    )
+    ).sort("date", maintain_order=True)
 
     def aggregate_period(
         data: pl.DataFrame,
@@ -205,7 +207,7 @@ def distribution(
     result: dict[str, dict[str, Any]] = {}
 
     # Daily - just the raw returns
-    result["Daily"] = compute_stats(returns)
+    result["Daily"] = compute_stats(df["returns"])
 
     # Weekly - aggregate by ISO week, keyed by ISO year so that late-December days in
     # week 1 of the next year are not merged with the first week of their own year

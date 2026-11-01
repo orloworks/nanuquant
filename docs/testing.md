@@ -335,9 +335,9 @@ NanuQuant intentionally differs from QuantStats in some areas:
 |--------|------------|-----------|
 | **CAGR/Calmar** | Uses periods-based calculation | Works with any time series, not just datetime-indexed |
 | **Treynor** | Uses CAGR/Beta | Standard academic definition |
-| **Omega** | Fixed implementation | QuantStats has a bug in some versions |
-| **CPC Index** | Uses `PF × WR × PR` | Standard trading literature formula |
-| **Smart Sharpe/Sortino** | Uses Lo (2002) formula | Established academic reference |
+| **Omega** | Fixed implementation; `inf` with no losses | QuantStats has a bug in some versions and returns NaN |
+| **Exposure** | Exact | QuantStats rounds up to 2 decimals |
+| **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0 |
 
 These differences are documented and tests use appropriate tolerances.
 

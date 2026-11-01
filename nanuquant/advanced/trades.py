@@ -14,7 +14,14 @@ from scipy import stats as scipy_stats
 
 from nanuquant.config import get_config
 from nanuquant.core.distribution import geometric_mean
-from nanuquant.core.returns import avg_loss, avg_win, win_rate
+from nanuquant.core.returns import (
+    avg_loss,
+    avg_win,
+    cagr,
+    payoff_ratio,
+    profit_factor,
+    win_rate,
+)
 from nanuquant.core.utils import (
     safe_divide,
     to_float_series,
@@ -119,8 +126,6 @@ def rar(
     >>> rar(returns)
     5.0...
     """
-    from nanuquant.core.returns import cagr
-
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
@@ -153,8 +158,6 @@ def cpc_index(returns: pl.Series) -> float:
     float
         CPC index. ``inf`` if there are wins but no losses.
     """
-    from nanuquant.core.returns import payoff_ratio, profit_factor
-
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0

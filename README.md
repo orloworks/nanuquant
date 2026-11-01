@@ -181,7 +181,7 @@ NanuQuant intentionally differs from QuantStats where we believe the alternative
 | **CAGR/Calmar** | Periods-based calculation | Works with any time series, not just datetime-indexed |
 | **Treynor Ratio** | CAGR / Beta | Standard academic definition (annualized, not total return) |
 | **Omega Ratio** | Correct implementation | Fixes bug in some QuantStats versions |
-| **Smart Sharpe** | Lo (2002) adjustment | Established academic reference for autocorrelation penalty |
+| **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0, which reads a missing day as a flat one |
 
 All differences are documented in tests and in the [benchmark accuracy tables](https://launchstack-dev.github.io/nanuquant/benchmarks/).
 

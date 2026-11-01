@@ -995,6 +995,56 @@ class TestEquityTimeline:
         # Both trades closed: 10 profit on the first, 100 on the second
         assert equity["nav"][-1] == pytest.approx(1110.0)
 
+    def test_prices_of_untraded_symbols_do_not_add_dates(self) -> None:
+        from datetime import timedelta
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 26)],
+                "exit_price": [110.0],
+                "quantity": [1.0],
+                "symbol": ["AAPL"],
+            }
+        )
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(31)]
+        weekdays = [d for d in days if d.weekday() < 5]
+        prices = pl.concat(
+            [
+                pl.DataFrame(
+                    {
+                        "date": weekdays,
+                        "close": [100.0 + i for i in range(len(weekdays))],
+                        "symbol": ["AAPL"] * len(weekdays),
+                    }
+                ),
+                # A 7-day feed for a symbol that is never traded
+                pl.DataFrame({"date": days, "close": [40_000.0] * 31, "symbol": ["BTC"] * 31}),
+            ]
+        )
+        result = trades_to_returns(
+            trades, prices=prices, aggregation="equity", initial_capital=1000.0
+        )
+        assert all(d.weekday() < 5 for d in result.dates.to_list())
+        assert result.periods_per_year == 252
+
+    def test_price_row_without_a_date_is_ignored(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 4)],
+                "exit_price": [105.0],
+                "quantity": [1.0],
+            }
+        )
+        prices = pl.DataFrame(
+            {"date": [date(2024, 1, 2), None, date(2024, 1, 4)], "close": [100.0, 101.0, 105.0]}
+        )
+        equity = build_equity_curve(trades, 1000.0, prices)
+        assert equity["date"].to_list() == [date(2024, 1, 2), date(2024, 1, 4)]
+
 
 def test_daily_series_filled_to_every_calendar_day_annualizes_at_365() -> None:
     trades = pl.DataFrame(

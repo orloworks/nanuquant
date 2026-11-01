@@ -77,12 +77,14 @@ def build_equity_curve(
     if has_prices:
         price_lookup = _build_price_lookup(prices, has_symbol)
 
-    # With prices the curve follows the price dates (trading days) plus every trade
-    # entry and exit date, so no trade is skipped; without prices it can only use
-    # calendar days.
+    # With prices the curve follows the price dates (trading days) of the traded
+    # symbols plus every trade entry and exit date, so no trade is skipped; without
+    # prices it can only use calendar days. Prices of symbols never traded are ignored:
+    # a 7-day feed among them would otherwise add weekend days to the curve.
     if price_lookup is not None:
+        traded = set(trades["symbol"].to_list()) if has_symbol else {None}
         event_dates = _trade_dates(trades)
-        event_dates |= {d for d in price_lookup.dates() if start_date <= d <= end_date}
+        event_dates |= {d for d in price_lookup.dates(traded) if start_date <= d <= end_date}
         all_dates = pl.Series("date", sorted(event_dates), dtype=pl.Date)
     else:
         all_dates = get_date_range(start_date, end_date)
@@ -312,6 +314,8 @@ def _build_price_lookup(prices: pl.DataFrame, has_symbol: bool) -> _PriceBook:
     rows: dict[str | None, dict[date, float | None]] = {}
     for row in prices.iter_rows(named=True):
         price_date = row["date"]
+        if price_date is None:
+            continue  # a price without a date can't be placed on the timeline
         if isinstance(price_date, datetime):
             price_date = price_date.date()
         symbol = row.get("symbol") if use_symbol else None
@@ -440,7 +444,7 @@ class _PriceBook:
     """
 
     def __init__(self, rows: dict[str | None, dict[date, float | None]]) -> None:
-        self._dates = {d for by_date in rows.values() for d in by_date}
+        self._dates = {symbol: set(by_date) for symbol, by_date in rows.items()}
         self._sorted: dict[str | None, tuple[list[date], list[float]]] = {}
         for symbol, by_date in rows.items():
             present = sorted(
@@ -448,8 +452,9 @@ class _PriceBook:
             )
             self._sorted[symbol] = ([d for d, _ in present], [c for _, c in present])
 
-    def dates(self) -> set[date]:
-        return self._dates
+    def dates(self, symbols: set[str | None]) -> set[date]:
+        """Every price date of ``symbols`` (dates with a missing close included)."""
+        return {d for symbol in symbols for d in self._dates.get(symbol, ())}
 
     def at_or_before(self, target_date: date, symbol: str | None) -> float | None:
         dates, closes = self._sorted.get(symbol, ([], []))

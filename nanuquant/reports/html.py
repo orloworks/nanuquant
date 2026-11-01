@@ -6,6 +6,7 @@ for strategy performance analysis.
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -185,7 +186,10 @@ def _format_value(value: Any, name: str = "") -> tuple[str, str]:
         elif "drawdown" in name_lower:
             css_class = "negative" if value < 0 else ""
 
-        # Format as percentage or number
+        # Format as percentage or number. Non-finite values (e.g. Kelly with no
+        # winning period is -inf, omega with no losses is +inf) have no int form.
+        if isinstance(value, float) and not math.isfinite(value):
+            return str(value), css_class
         if any(m in name_lower for m in pct_metrics):
             return f"{value * 100:.2f}%", css_class
         elif isinstance(value, int) or (isinstance(value, float) and value == int(value)):

@@ -10,7 +10,7 @@ import math
 import polars as pl
 
 from nanuquant.config import get_config
-from nanuquant.core.returns import cagr, comp
+from nanuquant.core.returns import cagr, comp, payoff_ratio, win_rate
 from nanuquant.core.risk import (
     max_drawdown,
     ulcer_index,
@@ -410,8 +410,6 @@ def kelly_criterion(returns: pl.Series) -> float:
     >>> round(kelly_criterion(pl.Series([0.02, -0.01, 0.03, -0.01, 0.01])), 4)
     0.4
     """
-    from nanuquant.core.returns import payoff_ratio, win_rate
-
     returns = validate_returns(returns)
     if returns.is_empty() or (returns != 0).sum() == 0:
         return 0.0
@@ -824,8 +822,6 @@ def treynor_ratio(
     >>> treynor_ratio(returns, benchmark)
     0.50...
     """
-    from nanuquant.core.returns import cagr
-
     returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:

@@ -5,6 +5,7 @@ This module provides statistical distribution metrics that match QuantStats outp
 
 from __future__ import annotations
 
+import math
 import warnings
 
 import polars as pl
@@ -284,20 +285,19 @@ def geometric_mean(returns: pl.Series) -> float:
     if returns.is_empty():
         return 0.0
 
-    returns = to_float_series(returns)
-    n = len(returns)
+    growth = 1 + to_float_series(returns)
 
-    # Calculate product of (1 + returns)
-    product = (1 + returns).product()
-
-    if product is None:
-        return 0.0
-    if product == 0:
+    if (growth == 0).any():
         return -1.0  # total loss
-    if product < 0:
+    if (growth < 0).sum() % 2 == 1:
         return float("nan")  # wealth below zero has no real geometric mean
 
-    return float(product ** (1.0 / n) - 1)
+    # Mean log growth instead of product ** (1 / n): the product of a long series
+    # underflows to 0 (read as a total loss) or overflows to inf.
+    log_mean = growth.abs().log().mean()
+    if log_mean is None:
+        return 0.0
+    return float(math.expm1(float(log_mean)))
 
 
 def outliers(

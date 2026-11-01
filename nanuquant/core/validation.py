@@ -90,14 +90,8 @@ def validate_returns(
         raise EmptySeriesError("Returns series is empty")
 
     # A series with no value at all (pl.Series([None, None])) has dtype Null: every
-    # observation is missing, which is not a type error (align_pair accepts it too).
-    if data.dtype == pl.Null:
-        return data.cast(pl.Float64)
-
-    if not data.dtype.is_float() and not data.dtype.is_integer():
-        raise TypeError(f"Expected numeric dtype, got {data.dtype}")
-
-    return data
+    # observation is missing, which is not a type error.
+    return _numeric_or_raise(data)
 
 
 def validate_min_length(data: pl.Series, min_length: int, metric: str = "") -> None:
@@ -236,11 +230,8 @@ def align_pair(
         If either series is not numeric.
     """
     validate_benchmark_match(first, second)
-    a = normalize_missing(first)
-    b = normalize_missing(second)
-    for s in (a, b):
-        if not s.dtype.is_float() and not s.dtype.is_integer() and s.dtype != pl.Null:
-            raise TypeError(f"Expected numeric dtype, got {s.dtype}")
+    a = _numeric_or_raise(normalize_missing(first))
+    b = _numeric_or_raise(normalize_missing(second))
     keep = a.is_not_null() & b.is_not_null()
     a, b = a.filter(keep), b.filter(keep)
     if a.is_empty() and not allow_empty:
@@ -277,12 +268,19 @@ def align_dates(
     """
     if dates is not None and len(dates) != len(returns):
         raise ValueError(f"dates length ({len(dates)}) must match returns length ({len(returns)})")
-    r = normalize_missing(returns)
+    r = _numeric_or_raise(normalize_missing(returns))
     keep = r.is_not_null()
     r = r.filter(keep)
     d = dates.filter(keep) if dates is not None else None
     if r.is_empty() and not allow_empty:
         raise EmptySeriesError("Returns series is empty")
-    if not r.dtype.is_float() and not r.dtype.is_integer() and not r.is_empty():
-        raise TypeError(f"Expected numeric dtype, got {r.dtype}")
     return r, d
+
+
+def _numeric_or_raise(data: pl.Series) -> pl.Series:
+    """Return ``data`` if numeric; an all-missing ``Null`` series becomes Float64."""
+    if data.dtype == pl.Null:
+        return data.cast(pl.Float64)
+    if not data.dtype.is_float() and not data.dtype.is_integer():
+        raise TypeError(f"Expected numeric dtype, got {data.dtype}")
+    return data

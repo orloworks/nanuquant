@@ -432,7 +432,7 @@ def _aggregate_trades_by_period(
 
 
 def _equity_periods_per_year(
-    frequency: str, trading_days: bool, dates: pl.Series | None = None
+    frequency: str, has_prices: bool, dates: pl.Series | None = None
 ) -> int:
     """Annualization for an equity curve.
 
@@ -445,7 +445,7 @@ def _equity_periods_per_year(
     """
     if frequency != "D":
         return _get_periods_per_year(frequency)
-    if not trading_days:
+    if not has_prices:
         return 365
     if dates is not None and not dates.is_empty():
         weekend_share = float((dates.dt.weekday() >= 6).mean())  # type: ignore[arg-type]

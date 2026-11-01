@@ -385,3 +385,15 @@ class TestEdgeCases:
         assert (
             avg_win is None or avg_win == 0 or (isinstance(avg_win, float) and math.isnan(avg_win))
         )
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            [-0.01, -0.02, 0.0, -0.005] * 20,  # no win: kelly_criterion is -inf
+            [0.01, 0.02, 0.0, 0.005] * 20,  # no loss: omega and profit_factor are inf
+        ],
+    )
+    def test_html_report_with_infinite_metrics(self, values: list[float]) -> None:
+        """Infinite metrics are rendered, not passed to int() (which overflows)."""
+        html = generate_html_report(pl.Series("returns", values))
+        assert "inf" in html

@@ -940,6 +940,41 @@ class TestEquityTimeline:
         assert book.at_or_before(date(2024, 1, 5), None) == 12.0
         assert book.at_or_before(date(2024, 1, 1), None) is None
 
+    def test_missing_close_keeps_the_last_price_not_the_entry_price(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 5)],
+                "exit_price": [120.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, d) for d in range(1, 6)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 110.0, None, 115.0, 120.0]})
+        equity = build_equity_curve(trades, 10_000.0, prices)
+
+        assert equity["date"].to_list() == days
+        assert equity["position_value"][2] == pytest.approx(1100.0)  # 10 x the 2nd's close
+
+    def test_short_trading_day_curve_annualizes_at_252(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],  # Monday
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 5)],  # Friday
+                "exit_price": [104.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, d) for d in range(1, 6)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 101.0, 102.0, 103.0, 104.0]})
+        for aggregation in ("equity", "D"):
+            result = trades_to_returns(
+                trades, prices=prices, aggregation=aggregation, initial_capital=10_000.0
+            )
+            assert result.periods_per_year == 252, aggregation
+
     def test_trade_on_a_day_without_prices_is_still_booked(self) -> None:
         from datetime import date
 
@@ -959,3 +994,19 @@ class TestEquityTimeline:
         assert date(2024, 1, 6) in equity["date"].to_list()
         # Both trades closed: 10 profit on the first, 100 on the second
         assert equity["nav"][-1] == pytest.approx(1110.0)
+
+
+def test_daily_series_filled_to_every_calendar_day_annualizes_at_365() -> None:
+    trades = pl.DataFrame(
+        {
+            "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 10)],
+            "entry_price": [100.0, 100.0],
+            "exit_time": [datetime(2024, 1, 3), datetime(2024, 1, 15)],
+            "exit_price": [101.0, 99.0],
+            "quantity": [1.0, 1.0],
+        }
+    )
+    filled = trades_to_returns(trades, aggregation="D", fill_gaps=True)
+    assert filled.periods_per_year == 365
+    sparse = trades_to_returns(trades, aggregation="D", fill_gaps=False)
+    assert sparse.periods_per_year == 252

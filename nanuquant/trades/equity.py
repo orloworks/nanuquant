@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from bisect import bisect_right
 from datetime import date, datetime
 from typing import Any
@@ -308,7 +309,7 @@ def _trade_dates(trades: pl.DataFrame) -> set[date]:
 def _build_price_lookup(prices: pl.DataFrame, has_symbol: bool) -> _PriceBook:
     """Index prices by symbol for exact and most-recent lookups."""
     use_symbol = has_symbol and "symbol" in prices.columns
-    rows: dict[str | None, dict[date, float]] = {}
+    rows: dict[str | None, dict[date, float | None]] = {}
     for row in prices.iter_rows(named=True):
         price_date = row["date"]
         if isinstance(price_date, datetime):
@@ -432,16 +433,23 @@ def _calculate_position_value(
 
 
 class _PriceBook:
-    """Close prices per symbol with O(log n) "on or before" lookups."""
+    """Close prices per symbol with O(log n) "on or before" lookups.
 
-    def __init__(self, rows: dict[str | None, dict[date, float]]) -> None:
+    A missing close (null or NaN) keeps its date on the timeline but is not a price:
+    lookups on that date fall through to the most recent close before it.
+    """
+
+    def __init__(self, rows: dict[str | None, dict[date, float | None]]) -> None:
+        self._dates = {d for by_date in rows.values() for d in by_date}
         self._sorted: dict[str | None, tuple[list[date], list[float]]] = {}
         for symbol, by_date in rows.items():
-            dates = sorted(by_date)
-            self._sorted[symbol] = (dates, [by_date[d] for d in dates])
+            present = sorted(
+                (d, c) for d, c in by_date.items() if c is not None and not math.isnan(c)
+            )
+            self._sorted[symbol] = ([d for d, _ in present], [c for _, c in present])
 
     def dates(self) -> set[date]:
-        return {d for dates, _ in self._sorted.values() for d in dates}
+        return self._dates
 
     def at_or_before(self, target_date: date, symbol: str | None) -> float | None:
         dates, closes = self._sorted.get(symbol, ([], []))

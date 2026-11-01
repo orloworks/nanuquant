@@ -361,3 +361,21 @@ def test_rolling_metric_on_a_short_series_keeps_its_length():
     out = df.with_columns(pl.col("r").metrics.rolling_sharpe(rolling_period=126).alias("s"))
     assert out["s"].null_count() == 3
     assert nq.rolling_volatility(pl.Series([0.01, 0.02]), rolling_period=5).len() == 2
+
+
+@pytest.mark.parametrize("missing", [None, float("nan")])
+def test_cumulative_returns_carry_on_past_a_missing_return(missing):
+    curve = timeseries.cumulative_returns(pl.Series([0.1, missing, -0.2, 0.05]))
+
+    assert curve[1] is None
+    assert curve[3] == pytest.approx(1.1 * 0.8 * 1.05 - 1)
+
+
+def test_all_missing_series_is_missing_not_a_type_error():
+    rolled = nq.rolling_volatility(pl.Series([None] * 5), rolling_period=2)
+
+    assert len(rolled) == 5
+    assert rolled.null_count() == 5
+    assert nq.to_drawdown_series(pl.Series([None, None])).null_count() == 2
+    with pytest.raises(nq.EmptySeriesError):
+        nq.sharpe(pl.Series([None, None]))

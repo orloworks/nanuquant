@@ -89,6 +89,11 @@ def validate_returns(
     if data.is_empty() and not allow_empty:
         raise EmptySeriesError("Returns series is empty")
 
+    # A series with no value at all (pl.Series([None, None])) has dtype Null: every
+    # observation is missing, which is not a type error (align_pair accepts it too).
+    if data.dtype == pl.Null:
+        return data.cast(pl.Float64)
+
     if not data.dtype.is_float() and not data.dtype.is_integer():
         raise TypeError(f"Expected numeric dtype, got {data.dtype}")
 

@@ -158,12 +158,8 @@ def cpc_index(returns: pl.Series) -> float:
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-    pf = profit_factor(returns)
-    wr = win_rate(returns)
-    pr = payoff_ratio(returns)
-    if wr == 0:
-        return 0.0
-    return float(pf * wr * pr)
+    # No winning period makes all three factors 0, so no special case is needed.
+    return float(profit_factor(returns) * win_rate(returns) * payoff_ratio(returns))
 
 
 def serenity_index(returns: pl.Series, *, risk_free_rate: float = 0.0) -> float:

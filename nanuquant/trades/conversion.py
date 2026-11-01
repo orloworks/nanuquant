@@ -387,6 +387,7 @@ def _aggregate_trades_by_period(
     dates = result["exit_date"]
 
     # Fill gaps if requested
+    filled_calendar = False
     if fill_gaps and not result.is_empty():
         min_date = result["exit_date"].min()
         max_date = result["exit_date"].max()
@@ -404,6 +405,7 @@ def _aggregate_trades_by_period(
             )
             returns = result["return"].alias("returns")
             dates = result["exit_date"]
+            filled_calendar = True
 
     # Trade statistics
     n_trades = closed.height
@@ -420,7 +422,10 @@ def _aggregate_trades_by_period(
         n_losing=n_losing,
         total_fees=total_fees,
         aggregation=frequency,
-        periods_per_year=_get_periods_per_year(frequency),
+        periods_per_year=(
+            # A daily series filled to every calendar day is a calendar-day curve.
+            365 if filled_calendar and frequency == "D" else _get_periods_per_year(frequency)
+        ),
         has_mtm=False,
         warnings=["Returns aggregated by exit date. Use equity mode for accurate period returns."],
     )
@@ -432,19 +437,19 @@ def _equity_periods_per_year(
     """Annualization for an equity curve.
 
     Daily curves built on calendar days use 365. A daily curve that follows price
-    dates uses the rate those dates actually have: a 7-day feed (crypto) is 365, a
-    trading-day feed 252, whichever the observed spacing is closer to.
+    dates is 365 when they look like a 7-day (crypto) feed and 252 for a trading-day
+    feed. The test is the share of weekend dates (2/7 on a 7-day feed, 0 on a
+    trading-day feed, split at 1/7): unlike the average spacing, it is right for a
+    curve that spans only a few weekdays, and a stray weekend trade date in a long
+    trading-day curve does not tip it.
     """
     if frequency != "D":
         return _get_periods_per_year(frequency)
     if not trading_days:
         return 365
-    if dates is not None and dates.len() >= 2:
-        days = dates.dt.epoch("d")
-        span_days = int(days.max()) - int(days.min())
-        if span_days > 0:
-            per_year = (dates.len() - 1) * 365.25 / span_days
-            return 365 if abs(per_year - 365) < abs(per_year - 252) else 252
+    if dates is not None and not dates.is_empty():
+        weekend_share = float((dates.dt.weekday() >= 6).mean())  # type: ignore[arg-type]
+        return 365 if weekend_share >= 1 / 7 else 252
     return 252
 
 

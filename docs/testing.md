@@ -219,9 +219,9 @@ def test_empty_series_raises():
     with pytest.raises(EmptySeriesError):
         nq.sharpe(pl.Series([]))
 
-def test_insufficient_data_for_rolling():
+def test_insufficient_data_for_psr():
     with pytest.raises(InsufficientDataError):
-        nq.rolling_sharpe(pl.Series([0.01, 0.02]), window=100)
+        nq.probabilistic_sharpe_ratio(pl.Series([0.01, 0.02]))
 ```
 
 ---

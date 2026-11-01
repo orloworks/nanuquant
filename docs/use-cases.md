@@ -300,18 +300,15 @@ n_variations_tested = 100
 dsr = institutional.deflated_sharpe_ratio(
     returns,
     n_trials=n_variations_tested,
-    benchmark_sr=0.0
 )
 
-min_trl = institutional.minimum_track_record_length(
-    observed_sr=nq.sharpe(returns),
-    benchmark_sr=0.0
-)
+# Observations needed for the Sharpe ratio to beat 0 at 95% confidence (inf if it can't)
+min_trl = institutional.minimum_track_record_length(returns, target_sr=0.0)
 
 print(f"=== Multiple Testing Adjustment ===")
 print(f"Strategies tested: {n_variations_tested}")
 print(f"Deflated Sharpe Probability: {dsr:.2%}")
-print(f"Minimum track record needed: {min_trl} periods")
+print(f"Minimum track record needed: {min_trl:.0f} periods")
 print(f"Current track record: {len(returns)} periods")
 
 if dsr > 0.95:

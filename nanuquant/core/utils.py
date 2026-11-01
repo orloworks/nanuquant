@@ -6,6 +6,7 @@ from datetime import date, timedelta
 
 import polars as pl
 
+from nanuquant.core.validation import normalize_missing
 from nanuquant.exceptions import InvalidFrequencyError
 from nanuquant.types import ANNUALIZATION_PERIODS, FrequencyType
 
@@ -177,7 +178,9 @@ def compound_returns(returns: pl.Series) -> pl.Series:
     Returns
     -------
     pl.Series
-        Cumulative compounded returns.
+        Cumulative compounded returns, same length as ``returns``. A missing return
+        (null or NaN) is null and compounding carries on past it, as in
+        :func:`nanuquant.to_drawdown_series`.
 
     Examples
     --------
@@ -191,7 +194,7 @@ def compound_returns(returns: pl.Series) -> pl.Series:
         0.019898
     ]
     """
-    return (1 + returns).cum_prod() - 1
+    return (1 + normalize_missing(returns)).cum_prod() - 1
 
 
 def log_returns(returns: pl.Series) -> pl.Series:

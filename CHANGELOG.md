@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Indicators subpackage** (`nanuquant.indicators`) — price indicators as Polars expressions: `current_price`, `sma`, `ema`, `rsi` (Wilder), `cumulative_return`, `max_drawdown` (worst-in-window), `current_drawdown` (all-time or rolling peak), `std_dev_return`, `moving_average_return`. Each accepts a `pl.Series` or `pl.Expr` and returns the same kind; platform conventions (`percent=`, `annualize=`, peak window) are explicit arguments
+- **`.ind` expression namespace** — `pl.col("SPY").ind.rsi(10)` alongside the existing `.metrics` namespace
+- **Indicators API docs** (`docs/api/indicators.md`), including the Composer-compatible settings
+- Differential tests pinning every indicator to a frozen reference implementation on SPY/QQQ/BND history and synthetic inception-gap and flat-window series
 - **Benchmark suite** (`benchmarks/run_benchmarks.py`) — automated performance and accuracy comparison against QuantStats
 - **Benchmark documentation** (`docs/benchmarks.md`) — full timing tables and calculation audit results across synthetic and real market data
 - **CONTRIBUTING.md** — development setup, coding standards, PR guidelines
@@ -16,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Minimum Polars version raised to 1.21** — the indicators use the `min_samples` window argument introduced in Polars 1.21
 - **README.md** — rewritten for open-source readiness with benchmark highlights, accuracy audit tables, and cleaner structure
 - **docs/index.md** — added performance highlights and benchmarks section
 - Updated copyright year range to 2024-2026

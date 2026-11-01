@@ -28,6 +28,7 @@ except ImportError:
     __version__ = "0.0.0.dev0"
 
 # Import namespace to register it with Polars
+from nanuquant import indicators
 from nanuquant.advanced import (
     # Trading metrics
     adjusted_sortino,
@@ -125,6 +126,7 @@ from nanuquant.exceptions import (
     InvalidFrequencyError,
     MetricsError,
 )
+from nanuquant.indicators import IndicatorsNamespace  # noqa: F401
 from nanuquant.institutional import (
     # Robustness metrics
     deflated_sharpe_ratio,
@@ -148,8 +150,11 @@ from nanuquant.trades import (
 
 __all__ = [
     "__version__",
-    # Namespace plugin (registered automatically on import)
+    # Namespace plugins (registered automatically on import)
     "MetricsNamespace",
+    "IndicatorsNamespace",
+    # Price indicators subpackage
+    "indicators",
     # Config
     "MetricsConfig",
     "DEFAULT_CONFIG",

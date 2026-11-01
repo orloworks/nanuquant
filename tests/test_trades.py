@@ -289,7 +289,8 @@ class TestEquityAggregation:
         result = trades_to_returns(simple_trades, aggregation="equity", initial_capital=10000)
 
         assert result.aggregation == "equity"
-        assert result.periods_per_year == 252
+        # Without prices the curve is built on calendar days, so it annualizes with 365
+        assert result.periods_per_year == 365
         # Should have returns for date range
         assert len(result.returns) >= 3
 
@@ -367,7 +368,7 @@ class TestCalendarAggregation:
         result = trades_to_returns(trades, aggregation="D", initial_capital=10000)
 
         assert result.aggregation == "D"
-        assert result.periods_per_year == 252
+        assert result.periods_per_year == 365  # calendar-day curve (no prices)
 
 
 # =============================================================================
@@ -881,3 +882,40 @@ class TestTradeResult:
         """Test that returns series is named 'returns'."""
         result = trades_to_returns(simple_trades)
         assert result.returns.name == "returns"
+
+
+class TestEquityTimeline:
+    """The equity curve follows trading days when prices are given."""
+
+    def test_curve_with_prices_skips_non_price_days(self) -> None:
+        from datetime import date
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 5)],  # Friday
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 10)],  # Wednesday
+                "exit_price": [104.0],
+                "quantity": [10.0],
+            }
+        )
+        trading_days = [date(2024, 1, d) for d in (5, 8, 9, 10)]  # no weekend rows
+        prices = pl.DataFrame({"date": trading_days, "close": [100.0, 101.0, 103.0, 104.0]})
+        result = trades_to_returns(
+            trades, prices=prices, aggregation="equity", initial_capital=10_000.0
+        )
+        assert result.dates.to_list() == trading_days
+        assert result.periods_per_year == 252
+
+    def test_most_recent_price_is_used_between_price_rows(self) -> None:
+        from datetime import date
+
+        from nanuquant.trades.equity import _build_price_lookup
+
+        book = _build_price_lookup(
+            pl.DataFrame({"date": [date(2024, 1, 2), date(2024, 1, 5)], "close": [10.0, 12.0]}),
+            has_symbol=False,
+        )
+        assert book.at_or_before(date(2024, 1, 4), None) == 10.0
+        assert book.at_or_before(date(2024, 1, 5), None) == 12.0
+        assert book.at_or_before(date(2024, 1, 1), None) is None

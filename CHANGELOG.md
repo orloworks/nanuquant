@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **One VaR sign convention.** `cornish_fisher_var`, `modified_var`, `historical_var`, `parametric_var` and `entropic_var` now return a signed return (a loss is negative), the same as `var`, `cvar` and QuantStats. They used to return a positive loss. **Breaking:** negate existing callers.
+- **Rolling metrics annualize with the configured `periods_per_year` (252 by default)**, like the core metrics, so `rolling_sharpe` and `sharpe` are on the same scale. QuantStats' rolling default is 365; pass `periods_per_year=365` to reproduce it. Strict rolling parity tests were added.
+- **`garch_volatility` no longer silently fakes an estimate.** Without the optional `arch` package it falls back to fixed alpha=0.10, beta=0.85; it now issues a `UserWarning`, and `GARCHResult.method` reports `"mle"` or `"variance_targeting"`.
+- **Portfolio and systemic functions drop incomplete rows instead of zero-filling them:** `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `portfolio_volatility`, `absorption_ratio`. Zero-filling biased covariances toward zero. They raise if fewer than two complete rows remain.
+- **Trade equity curves:**
+  - with `prices`, the curve follows the price dates (trading days) instead of every calendar day, and annualizes with 252;
+  - without prices, it stays on calendar days and now reports `periods_per_year=365` (it reported 252);
+  - price lookups use binary search instead of scanning every price for every position and day.
+- HTML report footer and `py.typed` still said "polars-metrics"/"polars_metrics".
 - **`probabilistic_sharpe_ratio`, `deflated_sharpe_ratio` and `minimum_track_record_length` overstated significance.** The Bailey & López de Prado standard error is defined on the per-observation Sharpe ratio, but the annualized ratio was plugged in. On SPY this gave PSR = 1.0 and a minimum track record of 18 days; it is now 0.99987 and 1,677 observations (about 6.7 years). `benchmark_sr`, `target_sr` and `var_sharpe` remain **annualized** inputs and are documented as such. `minimum_track_record_length` now returns `float` (`inf` when the target can't be reached), and is exported at the top level along with `newey_west_se`. Tests pin all three to an independent implementation of the papers.
 - **Metrics documented as matching QuantStats now do, checked at `rtol=1e-9` on the full SPY, QQQ and BND histories** (`tests/test_quantstats_parity.py`). The previous integration tests allowed 3% error, and some only checked that the result was finite. **These change values:**
   - `win_rate`, `avg_return` and `kelly_criterion` exclude zero-return periods, like QuantStats. Pass `exclude_zeros=False` to `win_rate` or `avg_return` to count them.

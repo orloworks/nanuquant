@@ -242,7 +242,7 @@ def _aggregate_equity(
             returns=pl.Series("returns", [], dtype=pl.Float64),
             n_trades=0,
             aggregation="equity",
-            periods_per_year=252,
+            periods_per_year=_equity_periods_per_year("D", has_mtm),
             has_mtm=has_mtm,
             warnings=warnings + ["No trades to process"],
         )
@@ -273,7 +273,7 @@ def _aggregate_equity(
         n_losing=n_losing,
         total_fees=total_fees,
         aggregation="equity",
-        periods_per_year=252,
+        periods_per_year=_equity_periods_per_year("D", has_mtm),
         has_mtm=has_mtm,
         warnings=warnings,
     )
@@ -307,7 +307,7 @@ def _aggregate_calendar(
             returns=pl.Series("returns", [], dtype=pl.Float64),
             n_trades=0,
             aggregation=frequency,
-            periods_per_year=_get_periods_per_year(frequency),
+            periods_per_year=_equity_periods_per_year(frequency, has_mtm),
             has_mtm=has_mtm,
             warnings=warnings + ["No trades to process"],
         )
@@ -346,7 +346,7 @@ def _aggregate_calendar(
         n_losing=n_losing,
         total_fees=total_fees,
         aggregation=frequency,
-        periods_per_year=_get_periods_per_year(frequency),
+        periods_per_year=_equity_periods_per_year(frequency, has_mtm),
         has_mtm=has_mtm,
         warnings=warnings,
     )
@@ -424,6 +424,13 @@ def _aggregate_trades_by_period(
         has_mtm=False,
         warnings=["Returns aggregated by exit date. Use equity mode for accurate period returns."],
     )
+
+
+def _equity_periods_per_year(frequency: str, trading_days: bool) -> int:
+    """Annualization for an equity curve: daily curves built on calendar days use 365."""
+    if frequency == "D" and not trading_days:
+        return 365
+    return _get_periods_per_year(frequency)
 
 
 def _get_periods_per_year(frequency: str) -> int:

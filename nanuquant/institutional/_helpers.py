@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import polars as pl
 
 from nanuquant.core.utils import to_float_series
@@ -230,3 +231,25 @@ def _expected_max_sharpe(n_trials: int, var_sharpe: float = 1.0) -> float:
     expected_max = std_sharpe * (sqrt_2_ln_n - correction)
 
     return max(0.0, expected_max)
+
+
+def complete_cases(returns_matrix: pl.DataFrame) -> np.ndarray:
+    """Return the matrix as float numpy, keeping only rows where every column is present.
+
+    Missing values (``null`` or ``NaN``) are dropped row-wise rather than filled with
+    zero: a zero would be read as a flat day and bias covariances toward zero.
+
+    Raises
+    ------
+    ValueError
+        If fewer than two complete rows remain.
+    """
+    clean = returns_matrix.select(
+        [pl.col(c).cast(pl.Float64).fill_nan(None) for c in returns_matrix.columns]
+    ).drop_nulls()
+    if clean.height < 2:
+        raise ValueError(
+            f"Need at least 2 rows with every asset present, got {clean.height} "
+            f"(of {returns_matrix.height})"
+        )
+    return clean.to_numpy()

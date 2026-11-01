@@ -1,23 +1,15 @@
 """Rolling metrics for nanuquant.
 
-This module provides rolling (window-based) metrics that match QuantStats output.
+This module provides rolling (window-based) metrics with QuantStats' formulas.
 
-Note on Annualization Periods
------------------------------
-Rolling metrics in this module default to 365 periods per year to match
-QuantStats' rolling function behavior. This differs from the global config
-default of 252 trading days used by core metrics like `sharpe()` and `volatility()`.
+Annualization
+-------------
+Rolling metrics annualize with ``periods_per_year`` from the global config (252 by
+default), the same as the core metrics such as :func:`nanuquant.sharpe`, so a rolling
+Sharpe ratio and the full-sample one are on the same scale. QuantStats' rolling
+functions default to 365; pass ``periods_per_year=365`` to reproduce them exactly.
 
-The rationale:
-- QuantStats rolling functions use calendar days (365) for consistency with
-  their datetime-indexed calculations
-- Core metrics use trading days (252) as the standard for daily returns
-
-To use trading days for rolling metrics, explicitly pass `periods_per_year=252`:
-
-    >>> rolling_sharpe(returns, periods_per_year=252)
-
-Or use the global config by passing `periods_per_year=get_config().periods_per_year`.
+Missing values keep their position: any window that contains a missing return is null.
 """
 
 from __future__ import annotations
@@ -26,6 +18,7 @@ import math
 
 import polars as pl
 
+from nanuquant.config import get_config
 from nanuquant.core.utils import (
     get_annualization_factor,
     to_float_series,
@@ -65,8 +58,8 @@ def rolling_volatility(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the volatility.
 
@@ -89,8 +82,9 @@ def rolling_volatility(
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Calculate rolling std with ddof=1
     rolling_std = returns.rolling_std(window_size=rolling_period, ddof=1)
@@ -124,8 +118,8 @@ def rolling_sharpe(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the Sharpe ratio.
 
@@ -148,8 +142,9 @@ def rolling_sharpe(
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -197,8 +192,8 @@ def rolling_sortino(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the Sortino ratio.
 
@@ -226,8 +221,9 @@ def rolling_sortino(
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -356,8 +352,8 @@ def rolling_greeks(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
 
     Returns
     -------
@@ -397,8 +393,9 @@ def rolling_greeks(
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
 
-    # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Rolling means
     rolling_mean_ret = returns.rolling_mean(window_size=rolling_period)

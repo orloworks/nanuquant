@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from datetime import date, datetime
 from typing import Any
 
@@ -66,8 +67,6 @@ def build_equity_curve(
         )
 
     # Generate all dates in range
-    all_dates = get_date_range(start_date, end_date)
-
     # Check if we have multi-symbol trades
     has_symbol = "symbol" in trades.columns
     has_prices = prices is not None
@@ -76,6 +75,15 @@ def build_equity_curve(
     price_lookup = None
     if has_prices:
         price_lookup = _build_price_lookup(prices, has_symbol)
+
+    # With prices the curve follows the price dates (trading days) plus the first and
+    # last trade dates; without them it can only use calendar days.
+    if price_lookup is not None:
+        event_dates = {start_date, end_date}
+        event_dates |= {d for d in price_lookup.dates() if start_date <= d <= end_date}
+        all_dates = pl.Series("date", sorted(event_dates), dtype=pl.Date)
+    else:
+        all_dates = get_date_range(start_date, end_date)
 
     # Calculate daily NAV
     nav_data = []
@@ -288,25 +296,17 @@ def _get_trade_date_range(
     return min_date, max_date
 
 
-def _build_price_lookup(
-    prices: pl.DataFrame, has_symbol: bool
-) -> dict[tuple[date, str | None], float]:
-    """Build a price lookup dictionary for fast access."""
-    lookup = {}
-
+def _build_price_lookup(prices: pl.DataFrame, has_symbol: bool) -> _PriceBook:
+    """Index prices by symbol for exact and most-recent lookups."""
+    use_symbol = has_symbol and "symbol" in prices.columns
+    rows: dict[str | None, dict[date, float]] = {}
     for row in prices.iter_rows(named=True):
         price_date = row["date"]
         if isinstance(price_date, datetime):
             price_date = price_date.date()
-
-        if has_symbol and "symbol" in prices.columns:
-            key = (price_date, row.get("symbol"))
-        else:
-            key = (price_date, None)
-
-        lookup[key] = row["close"]
-
-    return lookup
+        symbol = row.get("symbol") if use_symbol else None
+        rows.setdefault(symbol, {})[price_date] = row["close"]
+    return _PriceBook(rows)
 
 
 def _get_entries_on_date(trades: pl.DataFrame, target_date: date) -> list[dict[str, Any]]:
@@ -388,7 +388,7 @@ def _find_matching_position(
 def _calculate_position_value(
     positions: list[dict[str, Any]],
     current_date: date,
-    price_lookup: dict[tuple[date, str | None], float] | None,
+    price_lookup: _PriceBook | None,
     has_symbol: bool,
 ) -> float:
     """Calculate total mark-to-market value of open positions."""
@@ -401,12 +401,7 @@ def _calculate_position_value(
         # Get current price
         if price_lookup is not None:
             symbol = pos.get("symbol") if has_symbol else None
-            key = (current_date, symbol)
-            current_price = price_lookup.get(key)
-
-            if current_price is None:
-                # Try to find most recent price
-                current_price = _get_most_recent_price(price_lookup, current_date, symbol)
+            current_price = price_lookup.at_or_before(current_date, symbol)
 
             if current_price is None:
                 # Fall back to entry price
@@ -427,19 +422,23 @@ def _calculate_position_value(
     return total_value
 
 
-def _get_most_recent_price(
-    price_lookup: dict[tuple[date, str | None], float],
-    target_date: date,
-    symbol: str | None,
-) -> float | None:
-    """Get the most recent price on or before target date."""
-    best_date = None
-    best_price = None
+class _PriceBook:
+    """Close prices per symbol with O(log n) "on or before" lookups."""
 
-    for (price_date, price_symbol), price in price_lookup.items():
-        if price_symbol == symbol and price_date <= target_date:
-            if best_date is None or price_date > best_date:
-                best_date = price_date
-                best_price = price
+    def __init__(self, rows: dict[str | None, dict[date, float]]) -> None:
+        self._exact = rows
+        self._sorted = {
+            symbol: (sorted(by_date), [by_date[d] for d in sorted(by_date)])
+            for symbol, by_date in rows.items()
+        }
 
-    return best_price
+    def dates(self) -> set[date]:
+        return {d for by_date in self._exact.values() for d in by_date}
+
+    def at_or_before(self, target_date: date, symbol: str | None) -> float | None:
+        exact = self._exact.get(symbol, {}).get(target_date)
+        if exact is not None:
+            return exact
+        dates, closes = self._sorted.get(symbol, ([], []))
+        i = bisect_right(dates, target_date)
+        return closes[i - 1] if i > 0 else None

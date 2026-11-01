@@ -146,7 +146,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
 
         <footer>
-            Generated with polars-metrics | Native Polars implementation
+            Generated with nanuquant | Native Polars implementation
         </footer>
     </div>
 </body>

@@ -255,3 +255,47 @@ def test_compare_aligns_rows_and_dates():
 def test_dated_outputs_reject_length_mismatch():
     with pytest.raises(ValueError, match="dates length"):
         timeseries.yearly_returns(pl.Series([0.01, 0.02]), dates=_dates()[:3])
+
+
+def _matrix_with_gaps() -> tuple[pl.DataFrame, pl.DataFrame]:
+    rng = np.random.default_rng(11)
+    full = pl.DataFrame({f"a{i}": rng.normal(0.0005, 0.01 + 0.002 * i, N) for i in range(4)})
+    gaps = full.with_columns(
+        pl.when(pl.int_range(pl.len()) == 10).then(None).otherwise(pl.col("a0")).alias("a0"),
+        pl.when(pl.int_range(pl.len()) == 20)
+        .then(float("nan"))
+        .otherwise(pl.col("a2"))
+        .alias("a2"),
+    )
+    keep = [i for i in range(N) if i not in (10, 20)]
+    return gaps, full[keep]
+
+
+def test_portfolio_functions_drop_incomplete_rows_instead_of_zero_filling():
+    from nanuquant.institutional import (
+        absorption_ratio,
+        ledoit_wolf_covariance,
+        marginal_contribution_to_risk,
+        portfolio_volatility,
+    )
+
+    gaps, clean = _matrix_with_gaps()
+    w = [0.4, 0.3, 0.2, 0.1]
+    assert marginal_contribution_to_risk(gaps, w).mcr == pytest.approx(
+        marginal_contribution_to_risk(clean, w).mcr
+    )
+    np.testing.assert_allclose(
+        ledoit_wolf_covariance(gaps).covariance, ledoit_wolf_covariance(clean).covariance
+    )
+    assert portfolio_volatility(gaps, w) == pytest.approx(portfolio_volatility(clean, w))
+    assert absorption_ratio(gaps).absorption_ratio == pytest.approx(
+        absorption_ratio(clean).absorption_ratio
+    )
+
+
+def test_portfolio_functions_reject_too_few_complete_rows():
+    from nanuquant.institutional import portfolio_volatility
+
+    sparse = pl.DataFrame({"a": [0.01, None, 0.02], "b": [None, 0.01, 0.03]})
+    with pytest.raises(ValueError, match="every asset present"):
+        portfolio_volatility(sparse, [0.5, 0.5])

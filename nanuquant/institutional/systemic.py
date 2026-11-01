@@ -19,6 +19,7 @@ import polars as pl
 
 from nanuquant.core.utils import to_float_series
 from nanuquant.core.validation import align_pair
+from nanuquant.institutional._helpers import complete_cases
 
 
 class AbsorptionRatioResult(NamedTuple):
@@ -120,12 +121,8 @@ def absorption_ratio(
         n_components = max(1, int(fraction * n_assets))
     n_components = min(n_components, n_assets)
 
-    # Convert to numpy for eigenvalue computation
-    returns_np = returns_matrix.to_numpy()
-
-    # Handle missing values
-    if np.any(np.isnan(returns_np)):
-        returns_np = np.nan_to_num(returns_np, nan=0.0)
+    # Rows with a missing return are dropped, never zero-filled
+    returns_np = complete_cases(returns_matrix)
 
     # Compute correlation matrix
     corr_matrix = np.corrcoef(returns_np, rowvar=False)

@@ -19,6 +19,23 @@ from nanuquant.institutional import (
     garch_volatility,
 )
 
+# Without the optional 'arch' package GARCH falls back to fixed parameters and warns;
+# the behaviour itself is checked in test_garch_fallback_is_flagged.
+pytestmark = pytest.mark.filterwarnings("ignore:garch_volatility:UserWarning")
+
+
+def test_garch_fallback_is_flagged() -> None:
+    import importlib.util
+
+    returns = pl.Series(np.random.default_rng(0).normal(0, 0.01, 300))
+    if importlib.util.find_spec("arch") is None:
+        with pytest.warns(UserWarning, match="not estimated"):
+            result = garch_volatility(returns)
+        assert result.method == "variance_targeting"
+        assert (result.alpha, result.beta) == (0.10, 0.85)
+    else:
+        assert garch_volatility(returns).method == "mle"
+
 
 class TestARCHEffectTest:
     """Tests for Engle's LM test for ARCH effects."""

@@ -220,3 +220,37 @@ def test_zero_exclusion_is_optional():
     assert nq.win_rate(r, exclude_zeros=False) == pytest.approx(0.25)
     assert nq.avg_return(r) == pytest.approx(0.0)
     assert nq.avg_return(pl.Series([0.02, 0.0]), exclude_zeros=False) == pytest.approx(0.01)
+
+
+ROLLING = {
+    "rolling_volatility": (
+        lambda p: nq.rolling_volatility(p, rolling_period=126, periods_per_year=365),
+        lambda r: qs.stats.rolling_volatility(r, rolling_period=126, periods_per_year=365),
+    ),
+    "rolling_sharpe": (
+        lambda p: nq.rolling_sharpe(p, rolling_period=126, periods_per_year=365),
+        lambda r: qs.stats.rolling_sharpe(r, rolling_period=126, periods_per_year=365),
+    ),
+    "rolling_sortino": (
+        lambda p: nq.rolling_sortino(p, rolling_period=126, periods_per_year=365),
+        lambda r: qs.stats.rolling_sortino(r, rolling_period=126, periods_per_year=365),
+    ),
+}
+
+
+@pytest.mark.parametrize("dataset", ["SPY", "BND"])
+@pytest.mark.parametrize("name", list(ROLLING))
+def test_rolling_parity_with_quantstats_annualization(name, dataset):
+    returns = DATA[dataset]
+    ours, theirs = ROLLING[name]
+    got = ours(pl.Series(returns.to_numpy())).to_numpy().astype(float)
+    want = theirs(returns).to_numpy(dtype=float)
+    mask = ~np.isnan(want)
+    assert np.array_equal(np.isnan(got), ~mask)
+    np.testing.assert_allclose(got[mask], want[mask], rtol=1e-8, atol=1e-12)
+
+
+def test_rolling_default_annualization_matches_core_metrics():
+    p = pl.Series(DATA["SPY"].to_numpy()[-126:])
+    last = nq.rolling_sharpe(p, rolling_period=126)[-1]
+    assert last == pytest.approx(nq.sharpe(p), rel=1e-9)

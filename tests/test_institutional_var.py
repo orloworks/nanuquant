@@ -11,13 +11,66 @@ import numpy as np
 import polars as pl
 import pytest
 
-from nanuquant.institutional import (
-    cornish_fisher_var,
-    entropic_var,
-    historical_var,
-    modified_var,
-    parametric_var,
-)
+from nanuquant import cvar as _core_cvar
+from nanuquant import var as _core_var
+from nanuquant.institutional import cornish_fisher_var as _cornish_fisher_var
+from nanuquant.institutional import entropic_var as _entropic_var
+from nanuquant.institutional import historical_var as _historical_var
+from nanuquant.institutional import modified_var as _modified_var
+from nanuquant.institutional import parametric_var as _parametric_var
+
+# The VaR functions return a signed return (a loss is negative), like nanuquant.var and
+# QuantStats. Most tests below check properties of the loss magnitude (monotonic in
+# confidence, larger with fat tails, EVaR beyond CVaR), so they read it through these.
+
+
+def cornish_fisher_var(returns: pl.Series, confidence: float = 0.95) -> float:
+    return -_cornish_fisher_var(returns, confidence)
+
+
+def entropic_var(returns: pl.Series, confidence: float = 0.95) -> float:
+    return -_entropic_var(returns, confidence)
+
+
+def historical_var(returns: pl.Series, confidence: float = 0.95) -> float:
+    return -_historical_var(returns, confidence)
+
+
+def modified_var(returns: pl.Series, confidence: float = 0.95) -> float:
+    return -_modified_var(returns, confidence)
+
+
+def parametric_var(returns: pl.Series, confidence: float = 0.95) -> float:
+    return -_parametric_var(returns, confidence)
+
+
+class TestSignConvention:
+    """All nanuquant VaR functions share QuantStats' signed-return convention."""
+
+    def test_losses_are_negative(self) -> None:
+        returns = pl.Series(np.random.default_rng(3).normal(0.0005, 0.02, 1000))
+        for fn in (
+            _cornish_fisher_var,
+            _entropic_var,
+            _historical_var,
+            _modified_var,
+            _parametric_var,
+        ):
+            assert fn(returns, 0.95) < 0, fn.__name__
+
+    def test_parametric_matches_core_var(self) -> None:
+        returns = pl.Series(np.random.default_rng(4).normal(0.0005, 0.02, 1000))
+        assert _parametric_var(returns, 0.95) == pytest.approx(_core_var(returns, confidence=0.95))
+
+    def test_historical_is_the_lower_quantile(self) -> None:
+        returns = pl.Series(np.random.default_rng(5).normal(0.0, 0.02, 1000))
+        assert _historical_var(returns, 0.95) == pytest.approx(
+            returns.quantile(0.05, interpolation="linear")
+        )
+
+    def test_evar_is_beyond_cvar(self) -> None:
+        returns = pl.Series(np.random.default_rng(6).standard_t(4, 2000) * 0.01)
+        assert _entropic_var(returns, 0.95) <= _core_cvar(returns, confidence=0.95)
 
 
 class TestCornishFisherVaR:

@@ -1,5 +1,8 @@
 """Extended Value at Risk metrics.
 
+Sign convention: every VaR in nanuquant (``nanuquant.var``, ``nanuquant.cvar`` and the
+functions here) returns a **signed return**, so a loss is negative, as in QuantStats.
+
 This module provides advanced VaR measures that account for non-normality
 of return distributions, including Cornish-Fisher and Entropic VaR.
 
@@ -43,8 +46,8 @@ def cornish_fisher_var(
     Returns
     -------
     float
-        Cornish-Fisher adjusted VaR (as a positive loss amount).
-        Higher values indicate greater potential loss.
+        Cornish-Fisher adjusted VaR as a signed return: the return not expected to be
+        undercut with probability ``confidence`` (negative values are losses).
 
     Notes
     -----
@@ -57,7 +60,7 @@ def cornish_fisher_var(
     - S is skewness
     - K is excess kurtosis
 
-    VaR_cf = -(μ + z_cf * σ)
+    VaR_cf = μ + z_cf * σ
 
     Examples
     --------
@@ -110,8 +113,8 @@ def cornish_fisher_var(
 
     z_cf = z + (z2 - 1) * skew / 6 + (z3 - 3 * z) * kurt / 24 - (2 * z3 - 5 * z) * skew**2 / 36
 
-    # VaR (negative return at confidence level, expressed as positive loss)
-    var = -(mu + z_cf * sigma)
+    # VaR: the (1 - confidence) quantile of returns, as a signed return
+    var = mu + z_cf * sigma
 
     return float(var)
 
@@ -136,7 +139,8 @@ def entropic_var(
     Returns
     -------
     float
-        Entropic VaR (as a positive loss amount).
+        Entropic VaR as a signed return (negative values are losses). EVaR is the most
+        conservative of the three: ``EVaR <= CVaR <= VaR`` in this sign convention.
 
     Notes
     -----
@@ -145,8 +149,8 @@ def entropic_var(
 
     Where L is the loss (negative return) and α is the confidence level.
 
-    EVaR satisfies:
-        VaR ≤ CVaR ≤ EVaR
+    As loss magnitudes, VaR ≤ CVaR ≤ EVaR; the function returns ``-EVaR`` so that all
+    nanuquant VaR functions share one sign convention.
 
     Examples
     --------
@@ -196,7 +200,7 @@ def entropic_var(
         )
 
         if result.success:
-            return float(result.fun)
+            return -float(result.fun)
         else:
             # Fallback to CVaR if optimization fails
             return _fallback_cvar(returns, confidence)
@@ -214,7 +218,7 @@ def _fallback_cvar(returns: pl.Series, confidence: float) -> float:
     if len(tail_losses) == 0:
         return 0.0
 
-    return float(np.mean(tail_losses))
+    return -float(np.mean(tail_losses))
 
 
 def modified_var(
@@ -235,7 +239,7 @@ def modified_var(
     Returns
     -------
     float
-        Modified VaR (positive loss amount).
+        Modified VaR as a signed return (negative values are losses).
     """
     return cornish_fisher_var(returns, confidence)
 
@@ -259,7 +263,8 @@ def historical_var(
     Returns
     -------
     float
-        Historical VaR (positive loss amount).
+        Historical VaR as a signed return: the ``1 - confidence`` quantile of the
+        returns (negative values are losses).
 
     Examples
     --------
@@ -284,8 +289,8 @@ def historical_var(
     if q is None:
         return 0.0
 
-    # Return as positive loss
-    return float(-q)
+    # Signed return: losses are negative
+    return float(q)
 
 
 def parametric_var(
@@ -307,7 +312,7 @@ def parametric_var(
     Returns
     -------
     float
-        Parametric VaR (positive loss amount).
+        Parametric VaR as a signed return (negative values are losses).
 
     Examples
     --------
@@ -336,6 +341,6 @@ def parametric_var(
     z = scipy_stats.norm.ppf(1 - confidence)
 
     # VaR
-    var = -(float(mu) + z * float(sigma))
+    var = float(mu) + z * float(sigma)
 
     return float(var)

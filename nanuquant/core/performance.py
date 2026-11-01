@@ -401,7 +401,8 @@ def kelly_criterion(returns: pl.Series) -> float:
     -------
     float
         Kelly fraction. With no losing periods this is the win rate (the limit as
-        ``R`` grows); with no winning periods it is ``-inf`` (never bet).
+        ``R`` grows); with no winning periods it is ``-inf`` (never bet). With no
+        non-zero periods at all (e.g. fully in cash) there is no edge, so it is 0.
 
     Examples
     --------
@@ -412,7 +413,7 @@ def kelly_criterion(returns: pl.Series) -> float:
     from nanuquant.core.returns import payoff_ratio, win_rate
 
     returns = validate_returns(returns)
-    if returns.is_empty():
+    if returns.is_empty() or (returns != 0).sum() == 0:
         return 0.0
     w = win_rate(returns)
     r = payoff_ratio(returns)

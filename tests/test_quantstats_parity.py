@@ -200,6 +200,11 @@ def test_kelly_without_losses_is_win_rate():
     assert nq.kelly_criterion(pl.Series([0.01, 0.02, 0.0])) == pytest.approx(1.0)
 
 
+def test_kelly_without_any_nonzero_period_is_zero():
+    # Fully in cash: no edge either way, so bet nothing.
+    assert nq.kelly_criterion(pl.Series([0.0, 0.0, 0.0])) == 0.0
+
+
 def test_omega_without_losses_is_infinite():
     assert nq.omega(pl.Series([0.01, 0.02, 0.03])) == float("inf")
 

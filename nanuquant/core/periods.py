@@ -207,10 +207,13 @@ def distribution(
     # Daily - just the raw returns
     result["Daily"] = compute_stats(returns)
 
-    # Weekly - aggregate by ISO week
+    # Weekly - aggregate by ISO week, keyed by ISO year so that late-December days in
+    # week 1 of the next year are not merged with the first week of their own year
     df_weekly = df.with_columns(
         (
-            pl.col("date").dt.year().cast(pl.Utf8) + "-" + pl.col("date").dt.week().cast(pl.Utf8)
+            pl.col("date").dt.iso_year().cast(pl.Utf8)
+            + "-"
+            + pl.col("date").dt.week().cast(pl.Utf8)
         ).alias("week")
     )
     weekly_returns = aggregate_period(df_weekly, "week")

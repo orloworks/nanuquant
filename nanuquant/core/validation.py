@@ -48,8 +48,8 @@ def validate_returns(
     allow_empty : bool, default False
         If True, empty series will not raise an error.
     drop_nulls : bool, default True
-        If True, null values are dropped from the series before validation.
-        This is the default behavior to match QuantStats/pandas conventions.
+        If True, missing values (null or NaN) are dropped before validation. If False,
+        they are kept as null (NaN is converted to null).
 
     Returns
     -------
@@ -65,9 +65,9 @@ def validate_returns(
 
     Notes
     -----
-    Null Handling: Polars uses `null` instead of pandas' `NaN` for missing values.
-    By default, nulls are dropped to ensure consistent calculations. If you need
-    to preserve null positions, set `drop_nulls=False` and handle them manually.
+    Missing values: both ``null`` and float ``NaN`` are missing (see the module
+    docstring). By default they are dropped, never treated as zero returns. To keep
+    their positions, set ``drop_nulls=False`` and handle the nulls yourself.
 
     Examples
     --------

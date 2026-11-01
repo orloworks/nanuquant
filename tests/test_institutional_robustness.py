@@ -261,12 +261,13 @@ class TestProbabilisticSharpeRatio:
 
     def test_constant_returns(self) -> None:
         """Constant returns (zero vol) should handle gracefully."""
-        returns = pl.Series([0.01] * 100)
-        result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
-
-        # Zero volatility is a degenerate case - NaN is mathematically correct
-        # since Sharpe ratio is undefined when volatility is zero
-        assert math.isnan(result.psr) or 0 <= result.psr <= 1
+        # 0.0123 * 252 leaves a ~1e-18 std from rounding; it must still be read as a
+        # constant series (SR = +inf for a positive return), not give NaN.
+        for value, expected in ((0.01, 1.0), (0.0123, 1.0), (-0.0123, 0.0)):
+            returns = pl.Series([value] * 252)
+            result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
+            assert result.psr == expected
+            assert deflated_sharpe_ratio(returns, n_trials=10) == expected
 
     def test_minimum_data_requirement(self) -> None:
         """Should require minimum data points."""

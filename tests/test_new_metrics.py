@@ -141,7 +141,10 @@ class TestRollingGreeks:
 
         greeks = pm.rolling_greeks(returns, benchmark, rolling_period=10)
 
-        assert len(greeks) == 0
+        # Positional: the input's length, all missing.
+        assert len(greeks) == 3
+        assert greeks["rolling_alpha"].null_count() == 3
+        assert greeks["rolling_beta"].null_count() == 3
 
     def test_rolling_greeks_perfect_correlation(self) -> None:
         """Test with perfectly correlated returns."""
@@ -268,6 +271,16 @@ class TestDistribution:
         assert dist["Quarterly"]["count"] == 4
         # Should have 1 yearly value
         assert dist["Yearly"]["count"] == 1
+
+    def test_distribution_weeks_never_span_more_than_seven_days(self) -> None:
+        """2024-12-30/31 are ISO week 1 of 2025, not the first week of 2024."""
+        dates = pl.date_range(date(2024, 1, 1), date(2024, 12, 31), eager=True)
+        returns = pl.Series([0.001] * len(dates))
+
+        weekly = pm.distribution(returns, dates=dates)["Weekly"]
+
+        assert weekly["count"] == 53
+        assert max(weekly["values"]) == pytest.approx(1.001**7 - 1)
 
     def test_distribution_empty(self) -> None:
         """Test distribution with empty series."""

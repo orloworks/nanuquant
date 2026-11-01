@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **One VaR sign convention.** `cornish_fisher_var`, `modified_var`, `historical_var`, `parametric_var` and `entropic_var` now return a signed return (a loss is negative), the same as `var`, `cvar` and QuantStats. They used to return a positive loss. **Breaking:** negate existing callers.
+- **Rolling metrics on a series shorter than the window return all-null output of the input's length** instead of an empty Series, so they work inside the `.metrics` expression namespace (`map_batches` needs the frame's height).
 - **Rolling metrics annualize with the configured `periods_per_year` (252 by default)**, like the core metrics, so `rolling_sharpe` and `sharpe` are on the same scale. QuantStats' rolling default is 365; pass `periods_per_year=365` to reproduce it. Strict rolling parity tests were added.
 - **`garch_volatility` no longer silently fakes an estimate.** Without the optional `arch` package it falls back to fixed alpha=0.10, beta=0.85; it now issues a `UserWarning`, and `GARCHResult.method` reports `"mle"` or `"variance_targeting"`. `GARCHResult` therefore has eight fields; code that unpacks it positionally into seven names must add one.
 - **Portfolio and systemic functions drop incomplete rows instead of zero-filling them:** `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `portfolio_volatility`, `absorption_ratio`. Zero-filling biased covariances toward zero. They raise if fewer than two complete rows remain (`absorption_ratio`: fewer complete rows than assets).
 - **Trade equity curves:**
-  - with `prices`, the curve follows the price dates (trading days) plus every trade entry and exit date, instead of every calendar day, and annualizes at 252, or 365 when its dates are spaced like a 7-day (crypto) feed;
+  - with `prices`, the curve follows the price dates (trading days) plus every trade entry and exit date, instead of every calendar day, and annualizes at 252, or 365 when its dates are spaced like a 7-day (crypto) feed (for both `aggregation="equity"` and `"D"`);
   - without prices, it stays on calendar days and now reports `periods_per_year=365` (it reported 252);
   - price lookups use binary search instead of scanning every price for every position and day.
 - HTML report footer and `py.typed` still said "polars-metrics"/"polars_metrics".
@@ -44,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `newey_west_se` now validates its input.
 - `drawdown_details` uses `to_drawdown_series`, so a total loss in the first period is reported as a -100% drawdown (it was skipped as NaN).
 - `distribution()`, `monthly_returns()`, `yearly_returns()` and `drawdown_details()` return periods in a deterministic, chronological order (an unordered `group_by` made them random between calls).
+- `distribution()` keys weekly buckets by ISO year, so the last days of December that fall in ISO week 1 of the next year are no longer merged into the first week of their own year (a 9-day "week").
+- `parametric_var` and `cornish_fisher_var` of a zero-volatility series are the constant return itself (it was 0.0, which read as "no loss" under the signed convention).
+- `probabilistic_sharpe_ratio` and `deflated_sharpe_ratio` treat a constant series as zero volatility even when rounding leaves a tiny nonzero standard deviation (they returned NaN), as `minimum_track_record_length` already did.
 
 ### Added
 

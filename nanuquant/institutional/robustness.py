@@ -107,8 +107,11 @@ def probabilistic_sharpe_ratio(
     mean_ret = returns.mean()
     std_ret = returns.std()
 
-    if mean_ret is None or std_ret is None or std_ret == 0:
-        if std_ret == 0 and mean_ret is not None:
+    # Rounding can leave a tiny nonzero std for a constant series, which would give a
+    # huge SR and NaN higher moments; treat it as zero volatility.
+    constant = std_ret == 0 or returns.n_unique() == 1
+    if mean_ret is None or std_ret is None or constant:
+        if constant and mean_ret is not None:
             # For zero volatility, Sharpe Ratio is effectively infinite or -infinite.
             if mean_ret > 0:
                 return PSRResult(psr=1.0, p_value=0.0)  # Infinite SR beats any finite benchmark

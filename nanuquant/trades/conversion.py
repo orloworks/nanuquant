@@ -346,7 +346,7 @@ def _aggregate_calendar(
         n_losing=n_losing,
         total_fees=total_fees,
         aggregation=frequency,
-        periods_per_year=_equity_periods_per_year(frequency, has_mtm),
+        periods_per_year=_equity_periods_per_year(frequency, has_mtm, equity["date"]),
         has_mtm=has_mtm,
         warnings=warnings,
     )

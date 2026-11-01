@@ -232,5 +232,7 @@ def synthetic_dates(n: int) -> pl.Series:
     Used by the period tables when the caller supplies no dates. They are generated
     before missing returns are dropped, so every return keeps its own day.
     """
+    if n == 0:
+        return pl.Series("date", [], dtype=pl.Date)
     start = date(2020, 1, 1)
-    return pl.Series("date", [start + timedelta(days=i) for i in range(n)], dtype=pl.Date)
+    return pl.date_range(start, start + timedelta(days=n - 1), eager=True).alias("date")

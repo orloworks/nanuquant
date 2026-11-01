@@ -88,8 +88,10 @@ def cornish_fisher_var(
     mu = returns.mean()
     sigma = returns.std(ddof=1)
 
-    if mu is None or sigma is None or sigma == 0:
+    if mu is None or sigma is None:
         return 0.0
+    if sigma == 0:
+        return float(mu)  # no dispersion: every quantile is the mean
 
     mu = float(mu)
     sigma = float(sigma)
@@ -334,8 +336,10 @@ def parametric_var(
     mu = returns.mean()
     sigma = returns.std(ddof=1)
 
-    if mu is None or sigma is None or sigma == 0:
+    if mu is None or sigma is None:
         return 0.0
+    if sigma == 0:
+        return float(mu)  # no dispersion: every quantile is the mean
 
     # Standard normal quantile
     z = scipy_stats.norm.ppf(1 - confidence)

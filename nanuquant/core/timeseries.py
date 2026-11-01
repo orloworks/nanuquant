@@ -121,6 +121,10 @@ def drawdown_details(
         - length: Number of periods in drawdown
         - recovery: Number of periods to recover (None if not yet recovered)
 
+        Positions (start/valley/end without dates) refer to the input, gaps
+        included, so they line up with the caller's rows; length and recovery
+        count observed periods only, so a gap inside an episode doesn't add one.
+
     Examples
     --------
     >>> import polars as pl

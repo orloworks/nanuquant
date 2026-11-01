@@ -291,10 +291,12 @@ class TestEdgeCases:
         p_var = parametric_var(constant)
         h_var = historical_var(constant)
 
-        # With constant positive returns, both should handle gracefully
-        # Parametric returns 0 when std=0, historical returns -quantile = -0.01
-        assert math.isfinite(p_var)
-        assert math.isfinite(h_var)
+        # No dispersion: every VaR is the constant return itself (a signed return of
+        # +0.01, i.e. a loss magnitude of -0.01 through the helpers above)
+        assert p_var == pytest.approx(-0.01)
+        assert h_var == pytest.approx(-0.01)
+        assert _parametric_var(pl.Series([-0.01] * 4)) == pytest.approx(-0.01)
+        assert _cornish_fisher_var(pl.Series([-0.01] * 4)) == pytest.approx(-0.01)
 
     def test_all_positive_returns(self, all_positive_returns: pl.Series) -> None:
         """Test with all positive returns."""

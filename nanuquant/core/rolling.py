@@ -78,7 +78,7 @@ def rolling_volatility(
     """
     returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_volatility", [], dtype=pl.Float64)
+        return pl.Series("rolling_volatility", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
@@ -138,7 +138,7 @@ def rolling_sharpe(
     """
     returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_sharpe", [], dtype=pl.Float64)
+        return pl.Series("rolling_sharpe", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
@@ -217,7 +217,7 @@ def rolling_sortino(
     """
     returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_sortino", [], dtype=pl.Float64)
+        return pl.Series("rolling_sortino", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
@@ -296,7 +296,7 @@ def rolling_beta(
     returns, benchmark = _mask_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_beta", [], dtype=pl.Float64)
+        return pl.Series("rolling_beta", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
@@ -385,8 +385,8 @@ def rolling_greeks(
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.DataFrame(
             {
-                "rolling_alpha": pl.Series([], dtype=pl.Float64),
-                "rolling_beta": pl.Series([], dtype=pl.Float64),
+                "rolling_alpha": pl.Series([None] * len(returns), dtype=pl.Float64),
+                "rolling_beta": pl.Series([None] * len(returns), dtype=pl.Float64),
             }
         )
 

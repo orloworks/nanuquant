@@ -353,3 +353,11 @@ def test_min_trl_of_a_constant_series_follows_the_sign_of_its_return():
     assert minimum_track_record_length(pl.Series([0.0] * 10)) == float("inf")
     assert minimum_track_record_length(pl.Series([-0.01] * 10)) == float("inf")
     assert minimum_track_record_length(pl.Series([0.01] * 10)) == 3.0  # ceil(1 + 1.645^2/2)
+
+
+def test_rolling_metric_on_a_short_series_keeps_its_length():
+    # map_batches inside the Polars namespace needs an output as long as the frame.
+    df = pl.DataFrame({"r": [0.01, -0.02, 0.03]})
+    out = df.with_columns(pl.col("r").metrics.rolling_sharpe(rolling_period=126).alias("s"))
+    assert out["s"].null_count() == 3
+    assert nq.rolling_volatility(pl.Series([0.01, 0.02]), rolling_period=5).len() == 2

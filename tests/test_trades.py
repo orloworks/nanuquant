@@ -921,10 +921,11 @@ class TestEquityTimeline:
         )
         days = [date(2024, 1, 1) + timedelta(days=i) for i in range(91)]  # every day
         prices = pl.DataFrame({"date": days, "close": [100.0 + i / 9 for i in range(91)]})
-        result = trades_to_returns(
-            trades, prices=prices, aggregation="equity", initial_capital=10_000.0
-        )
-        assert result.periods_per_year == 365
+        for aggregation in ("equity", "D"):
+            result = trades_to_returns(
+                trades, prices=prices, aggregation=aggregation, initial_capital=10_000.0
+            )
+            assert result.periods_per_year == 365, aggregation
 
     def test_most_recent_price_is_used_between_price_rows(self) -> None:
         from datetime import date

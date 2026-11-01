@@ -815,7 +815,7 @@ nq.rolling_greeks(
 ) -> pl.DataFrame  # columns: rolling_alpha, rolling_beta
 ```
 
-**Returns:** Tuple of (rolling_alpha, rolling_beta) series
+**Returns:** DataFrame with `rolling_alpha` (annualized) and `rolling_beta` columns
 
 ---
 

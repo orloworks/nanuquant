@@ -87,7 +87,7 @@ nq.rar(
 
 ### cpc_index
 
-Combines Profit Factor, Win Rate, and Payoff Ratio.
+Combines Profit Factor, Win Rate, and Payoff Ratio (QuantStats definition).
 
 ```python
 nq.cpc_index(returns: pl.Series) -> float
@@ -106,11 +106,14 @@ nq.cpc_index(returns: pl.Series) -> float
 
 ### serenity_index
 
-Measures the smoothness of equity growth relative to drawdowns.
+Measures the smoothness of equity growth relative to drawdowns (QuantStats definition).
 
 ```python
-nq.serenity_index(returns: pl.Series) -> float
+nq.serenity_index(returns: pl.Series, *, risk_free_rate: float = 0.0) -> float
 ```
+
+**Formula:** `(sum(returns) - rf) / (ulcer_index * pitfall)`, where
+`pitfall = -cvar(drawdown_series) / std(returns)` penalises deep tail drawdowns.
 
 **Returns:** Serenity index (higher = smoother equity curve)
 
@@ -180,20 +183,17 @@ nq.k_ratio(returns: pl.Series) -> float
 
 ### risk_of_ruin
 
-Probability of account depletion based on win rate and payoff ratio.
+QuantStats' risk-of-ruin heuristic.
 
 ```python
-nq.risk_of_ruin(
-    returns: pl.Series,
-    ruin_threshold: float = 0.5
-) -> float
+nq.risk_of_ruin(returns: pl.Series) -> float
 ```
 
-**Parameters:**
-- `returns`: Series of period returns
-- `ruin_threshold`: Fraction of capital loss considered "ruin" (default 50%)
+**Formula:** `((1 - W) / (1 + W)) ** n`, with `W` the win rate (zero periods excluded)
+and `n` the number of periods. Computed in log space, so it cannot overflow.
 
-**Returns:** Probability of reaching ruin threshold (0.0 to 1.0)
+**Returns:** Value in [0, 1]. It tends to 0 for any long series with a positive win
+rate, so treat it as a coarse indicator.
 
 **Warning:** This is a simplified model that assumes:
 - Independent returns
@@ -213,7 +213,7 @@ Financial returns often exhibit autocorrelation (serial correlation), which can 
 
 ### smart_sharpe
 
-Sharpe Ratio adjusted for autocorrelation using Lo (2002) methodology.
+Sharpe Ratio divided by QuantStats' autocorrelation penalty.
 
 ```python
 nq.smart_sharpe(
@@ -230,9 +230,13 @@ nq.smart_sharpe(
 
 **Returns:** Autocorrelation-adjusted Sharpe ratio
 
+**Formula:** `sharpe / penalty`, with
+`penalty = sqrt(1 + 2 * sum_{k=1}^{n-1} ((n - k) / n) * |rho|^k)` and `rho` the lag-1
+autocorrelation (QuantStats `autocorr_penalty`).
+
 **Note:** If returns are positively autocorrelated, traditional Sharpe overestimates risk-adjusted performance. Smart Sharpe provides a more conservative estimate.
 
-**Reference:** Lo, A. W. (2002). "The Statistics of Sharpe Ratios." Financial Analysts Journal.
+**Background:** Lo, A. W. (2002). "The Statistics of Sharpe Ratios." Financial Analysts Journal.
 
 ---
 
@@ -243,38 +247,37 @@ Sortino Ratio adjusted for autocorrelation.
 ```python
 nq.smart_sortino(
     returns: pl.Series,
-    risk_free_rate: float = 0.0,
-    mar: float = 0.0,
-    periods_per_year: int = 252
+    *,
+    risk_free_rate: float | None = None,
+    periods_per_year: int | None = None
 ) -> float
 ```
 
 **Parameters:**
 - `returns`: Series of period returns
 - `risk_free_rate`: Annualized risk-free rate
-- `mar`: Minimum Acceptable Return
 - `periods_per_year`: Annualization factor
 
-**Returns:** Autocorrelation-adjusted Sortino ratio
+**Returns:** `sortino / penalty`, with the same autocorrelation penalty as `smart_sharpe`
 
 ---
 
 ### adjusted_sortino
 
-Sortino Ratio adjusted for skewness and kurtosis.
+Sortino Ratio divided by sqrt(2) (QuantStats / Jack Schwager).
 
 ```python
 nq.adjusted_sortino(
     returns: pl.Series,
-    risk_free_rate: float = 0.0,
-    mar: float = 0.0,
-    periods_per_year: int = 252
+    *,
+    risk_free_rate: float | None = None,
+    periods_per_year: int | None = None
 ) -> float
 ```
 
-**Returns:** Sortino ratio with higher moment adjustments
+**Returns:** `sortino / sqrt(2)`
 
-**Use Case:** Provides a more accurate risk-adjusted measure when returns are non-normal.
+**Use Case:** Makes the Sortino ratio directly comparable with the Sharpe ratio.
 
 ---
 

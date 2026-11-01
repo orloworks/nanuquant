@@ -66,14 +66,16 @@ annual_return = nq.cagr(returns)  # ~10.6% annualized
 
 ### avg_return
 
-Arithmetic mean of returns.
+Arithmetic mean of returns. Zero-return periods are treated as periods without a
+position and excluded by default, as in QuantStats.
 
 ```python
-nq.avg_return(returns: pl.Series) -> float
+nq.avg_return(returns: pl.Series, *, exclude_zeros: bool = True) -> float
 ```
 
 **Parameters:**
 - `returns`: Series of period returns
+- `exclude_zeros`: If False, average every period
 
 **Returns:** Mean return
 
@@ -141,16 +143,17 @@ nq.worst(returns: pl.Series) -> float
 
 ### win_rate
 
-Percentage of positive returns.
+Percentage of positive returns among non-zero periods, as in QuantStats.
 
 ```python
-nq.win_rate(returns: pl.Series) -> float
+nq.win_rate(returns: pl.Series, *, exclude_zeros: bool = True) -> float
 ```
 
 **Parameters:**
 - `returns`: Series of period returns
+- `exclude_zeros`: If False, divide by all periods instead of the non-zero ones
 
-**Returns:** Proportion of returns > 0 (e.g., 0.55 = 55%)
+**Returns:** Proportion of counted periods > 0 (e.g., 0.55 = 55%)
 
 ---
 
@@ -464,7 +467,10 @@ nq.kelly_criterion(returns: pl.Series) -> float
 **Parameters:**
 - `returns`: Series of period returns
 
-**Returns:** Kelly fraction (optimal bet size as fraction of capital)
+**Formula:** `(R * W - (1 - W)) / R`, with `W` the win rate and `R` the payoff ratio.
+
+**Returns:** Kelly fraction (optimal bet size as fraction of capital). With no losing
+periods it equals the win rate; with no winning periods it is `-inf`.
 
 **Note:** Full Kelly sizing is often too aggressive in practice. Many practitioners use fractional Kelly (e.g., half-Kelly).
 
@@ -660,27 +666,30 @@ nq.shapiro_wilk(returns: pl.Series) -> tuple[float, float]
 
 ### outlier_win_ratio
 
-Proportion of large wins among all wins.
+The `quantile` return of the whole series divided by the mean non-negative return
+(QuantStats definition).
 
 ```python
-nq.outlier_win_ratio(returns: pl.Series) -> float
+nq.outlier_win_ratio(returns: pl.Series, quantile: float = 0.99) -> float
 ```
 
 ---
 
 ### outlier_loss_ratio
 
-Proportion of large losses among all losses.
+The `quantile` return of the whole series divided by the mean negative return
+(QuantStats definition).
 
 ```python
-nq.outlier_loss_ratio(returns: pl.Series) -> float
+nq.outlier_loss_ratio(returns: pl.Series, quantile: float = 0.01) -> float
 ```
 
 ---
 
 ### expected_return
 
-Distribution-adjusted expected return.
+Geometric mean return per period, `prod(1 + r) ** (1 / n) - 1` (QuantStats definition).
+For the arithmetic mean use `avg_return(..., exclude_zeros=False)`.
 
 ```python
 nq.expected_return(returns: pl.Series) -> float
@@ -729,10 +738,17 @@ Rolling annualized volatility.
 ```python
 nq.rolling_volatility(
     returns: pl.Series,
-    window: int = 252,
-    periods_per_year: int = 252
+    *,
+    rolling_period: int = 126,
+    periods_per_year: int | None = None,
+    annualize: bool = True
 ) -> pl.Series
 ```
+
+All rolling metrics annualize with `periods_per_year` from the global config (252 by
+default), like the core metrics; QuantStats' rolling functions default to 365, so pass
+`periods_per_year=365` to reproduce them. Output keeps the input length; any window
+containing a missing return is null.
 
 ---
 
@@ -743,9 +759,11 @@ Rolling Sharpe ratio.
 ```python
 nq.rolling_sharpe(
     returns: pl.Series,
-    window: int = 252,
+    *,
     risk_free_rate: float = 0.0,
-    periods_per_year: int = 252
+    rolling_period: int = 126,
+    periods_per_year: int | None = None,
+    annualize: bool = True
 ) -> pl.Series
 ```
 
@@ -758,9 +776,11 @@ Rolling Sortino ratio.
 ```python
 nq.rolling_sortino(
     returns: pl.Series,
-    window: int = 252,
+    *,
     risk_free_rate: float = 0.0,
-    periods_per_year: int = 252
+    rolling_period: int = 126,
+    periods_per_year: int | None = None,
+    annualize: bool = True
 ) -> pl.Series
 ```
 
@@ -774,7 +794,8 @@ Rolling Beta to benchmark.
 nq.rolling_beta(
     returns: pl.Series,
     benchmark: pl.Series,
-    window: int = 252
+    *,
+    rolling_period: int = 126
 ) -> pl.Series
 ```
 
@@ -788,8 +809,10 @@ Rolling Alpha and Beta.
 nq.rolling_greeks(
     returns: pl.Series,
     benchmark: pl.Series,
-    window: int = 252
-) -> tuple[pl.Series, pl.Series]
+    *,
+    rolling_period: int = 126,
+    periods_per_year: int | None = None
+) -> pl.DataFrame  # columns: rolling_alpha, rolling_beta
 ```
 
 **Returns:** Tuple of (rolling_alpha, rolling_beta) series

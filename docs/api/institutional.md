@@ -41,7 +41,7 @@ psr = institutional.probabilistic_sharpe_ratio(
 
 **Parameters:**
 - `returns`: Series of period returns
-- `benchmark_sr`: Benchmark Sharpe ratio to compare against (default 0)
+- `benchmark_sr`: Benchmark Sharpe ratio to compare against, **annualized** (default 0)
 - `periods_per_year`: Annualization factor
 
 **Returns:** `PSRResult` NamedTuple containing:
@@ -54,6 +54,9 @@ result = institutional.probabilistic_sharpe_ratio(returns, benchmark_sr=0.5)
 print(f"Probability SR > 0.5: {result.psr:.2%}")
 print(f"P-value: {result.p_value:.4f}")
 ```
+
+The standard error follows Bailey & López de Prado and is computed on the
+per-observation Sharpe ratio; the annualized benchmark is converted to the same unit.
 
 **Interpretation:**
 - PSR > 0.95: High confidence that true SR exceeds benchmark
@@ -105,36 +108,32 @@ print(f"Deflated SR: {dsr:.4f}")
 
 ### minimum_track_record_length
 
-Minimum number of periods needed for statistical significance.
+Minimum number of observations needed for the Sharpe ratio to exceed a target with the
+given confidence (Bailey & López de Prado).
 
 ```python
 min_trl = institutional.minimum_track_record_length(
-    observed_sr: float,
-    benchmark_sr: float = 0.0,
-    skewness: float = 0.0,
-    kurtosis: float = 3.0,
-    confidence: float = 0.95
-) -> int
+    returns: pl.Series,
+    target_sr: float = 0.0,
+    confidence: float = 0.95,
+    *,
+    periods_per_year: int | None = None
+) -> float
 ```
 
 **Parameters:**
-- `observed_sr`: Observed annualized Sharpe ratio
-- `benchmark_sr`: Benchmark Sharpe ratio
-- `skewness`: Return skewness
-- `kurtosis`: Return kurtosis
+- `returns`: Series of period returns (the Sharpe ratio, skewness and kurtosis are estimated from it)
+- `target_sr`: Target Sharpe ratio to exceed, **annualized**
 - `confidence`: Required confidence level
+- `periods_per_year`: Annualization factor used to convert `target_sr`
 
-**Returns:** Minimum number of periods required
+**Returns:** Minimum number of observations (a whole number), or `inf` if the sample
+Sharpe ratio does not exceed the target. Also available as `nq.minimum_track_record_length`.
 
 **Example:**
 ```python
-# How long a track record do we need?
-min_periods = institutional.minimum_track_record_length(
-    observed_sr=1.5,
-    benchmark_sr=0.0,
-    confidence=0.95
-)
-print(f"Minimum track record: {min_periods} periods")
+min_periods = institutional.minimum_track_record_length(returns, target_sr=0.0)
+print(f"Minimum track record: {min_periods:.0f} periods ({min_periods / 252:.1f} years)")
 ```
 
 ---
@@ -182,13 +181,21 @@ Fit GARCH(1,1) model for conditional volatility estimation.
 ```python
 result = institutional.garch_volatility(
     returns: pl.Series,
-    periods_per_year: int = 252
+    p: int = 1,
+    q: int = 1,
+    *,
+    forecast_horizon: int = 1
 ) -> GARCHResult
 ```
 
 **Parameters:**
 - `returns`: Series of period returns
-- `periods_per_year`: Annualization factor
+- `p`, `q`: GARCH orders (only 1, 1 is supported)
+- `forecast_horizon`: Periods ahead for the volatility forecast
+
+Parameters are estimated by maximum likelihood with the optional `arch` package
+(`pip install arch`). Without it a `UserWarning` is issued and alpha/beta are fixed at
+0.10/0.85 with variance targeting.
 
 **Returns:** `GARCHResult` NamedTuple containing:
 - `omega`: Constant term (long-run variance weight)
@@ -198,6 +205,7 @@ result = institutional.garch_volatility(
 - `persistence`: alpha + beta (should be < 1 for stationarity)
 - `long_run_variance`: omega / (1 - persistence)
 - `forecast`: One-step-ahead volatility forecast
+- `method`: `"mle"` (estimated with `arch`) or `"variance_targeting"` (fixed parameters)
 
 **Example:**
 ```python
@@ -248,6 +256,9 @@ var = institutional.historical_var(
 ) -> float
 ```
 
+**Returns:** The `1 - confidence` quantile of returns, as a signed return (a loss is
+negative), like `nq.var` and QuantStats.
+
 **Advantage:** No distributional assumptions
 **Disadvantage:** Requires sufficient historical data
 
@@ -264,7 +275,7 @@ cf_var = institutional.cornish_fisher_var(
 ) -> float
 ```
 
-**Returns:** Cornish-Fisher adjusted VaR
+**Returns:** Cornish-Fisher adjusted VaR as a signed return (a loss is negative)
 
 **Advantage:** Accounts for non-normal distribution features
 **Use Case:** More accurate VaR when returns exhibit fat tails or skewness
@@ -294,6 +305,9 @@ e_var = institutional.entropic_var(
     confidence: float = 0.95
 ) -> float
 ```
+
+**Returns:** `-EVaR` as a signed return (a loss is negative), so it can be compared
+directly with `nq.var` and `nq.cvar`; EVaR is the most conservative of the three.
 
 **Advantage:** Coherent risk measure (satisfies subadditivity)
 **Use Case:** Portfolio optimization where VaR's non-coherence causes issues

@@ -2,7 +2,9 @@
 
 The differential tests pin every indicator to the TC engine's frozen pandas reference
 (tests/indicator_reference.py) on real SPY/QQQ/BND history and on synthetic series with
-the edge cases strategy engines hit: a pre-inception gap, an interior gap, and a flat run.
+the edge cases strategy engines hit: a pre-inception gap and a flat run. Interior gaps are
+pinned separately: there nanuquant deliberately departs from the reference, which pads
+returns across the gap and keeps reporting EMA/RSI at the missing price.
 """
 
 from __future__ import annotations
@@ -40,6 +42,7 @@ def inception_prices() -> pd.Series:
 
 def _assert_matches(actual: pl.Series, expected: pd.Series, *, label: str) -> None:
     """Null in ``actual`` must line up with NaN in ``expected``; values within TIGHT."""
+    assert not actual.is_nan().any(), f"{label}: NaN leaked (missing must be null)"
     got = actual.to_numpy().astype(float)
     want = expected.to_numpy(dtype=float)
     assert got.shape == want.shape, label
@@ -153,6 +156,28 @@ def test_nan_and_null_are_both_missing():
     assert ind.sma(with_nan, 2).to_list() == [None, 1.5, None, None, 4.5, 5.5]
 
 
+@pytest.mark.parametrize("ref,call", CASES, ids=[c[0] for c in CASES])
+def test_interior_gap_is_missing_not_padded(ref, call):
+    prices = pl.Series("x", [10.0, 11.0, 12.0, None, 13.0, 12.5, 14.0, 13.0, 15.0])
+    out = call(prices, 2)
+    assert out[3] is None, f"{ref}: a missing price must give a missing indicator"
+    if ref in ("sma", "max_drawdown", "std_dev_return", "moving_average_return"):
+        # Windows reaching across the gap stay missing (no padding over it).
+        assert out[4] is None, ref
+    assert out[-1] is not None, f"{ref}: must recover after the gap"
+
+
+def test_zero_price_gives_null_not_nan():
+    prices = pl.Series("x", [1.0, 0.0, 0.0, 2.0, 2.0])
+    for _, call in CASES:
+        assert not call(prices, 2).is_nan().any()
+
+
+def test_numpy_integer_period_accepted():
+    prices = pl.Series("x", [1.0, 2.0, 3.0, 4.0])
+    assert ind.sma(prices, np.int64(2)).equals(ind.sma(prices, 2))
+
+
 def test_rsi_extremes():
     rising = pl.Series("x", [1.0, 2.0, 3.0, 4.0])
     flat = pl.Series("x", [5.0, 5.0, 5.0])
@@ -189,3 +214,24 @@ def test_empty_series_returns_empty():
     empty = pl.Series("x", [], dtype=pl.Float64)
     for _, call in CASES:
         assert call(empty, 5).len() == 0
+
+
+def test_rsi_with_an_interior_gap_equals_rsi_with_the_row_removed() -> None:
+    prices = [100.0, 101.0, 100.5, 102.0, 101.0, 103.0, 104.0, 102.5, 103.5, 105.0]
+    gappy = prices[:4] + [None] + prices[4:]
+    with_gap = ind.rsi(pl.Series(gappy), 3)
+    without = ind.rsi(pl.Series(prices), 3)
+    assert with_gap[4] is None
+    observed = with_gap.drop_nulls().to_list()
+    assert observed == pytest.approx(without.drop_nulls().to_list(), rel=1e-12)
+
+
+def test_non_numeric_prices_raise() -> None:
+    from datetime import date
+
+    df = pl.DataFrame({"d": [date(2024, 1, 1), date(2024, 1, 2)], "p": [1.0, 2.0]})
+    with pytest.raises((TypeError, pl.exceptions.ComputeError)):
+        df.select(ind.sma(pl.col("d"), 2))
+    with pytest.raises(TypeError):
+        ind.sma(df["d"], 2)
+    assert df.select(ind.sma(pl.col("p"), 2))["p"].to_list() == [None, 1.5]

@@ -8,6 +8,7 @@ any number of columns).
 from __future__ import annotations
 
 import math
+import numbers
 from collections.abc import Callable
 from typing import Literal, TypeVar
 
@@ -24,23 +25,44 @@ _MDD_BLOCK = 4096
 
 
 def _apply(prices: PriceInput, build: Callable[[pl.Expr], pl.Expr]) -> PriceInput:
-    """Run ``build`` on a cleaned price expression, eagerly for a Series."""
+    """Run ``build`` on a cleaned price expression, eagerly for a Series.
+
+    NaN in the output (e.g. 0/0 from a zero price) is normalised to null, so every
+    indicator reports a missing value one way.
+    """
     if isinstance(prices, pl.Series):
+        _require_numeric(prices)
         frame = pl.DataFrame({"_x": prices})
-        return frame.select(build(_clean(pl.col("_x")))).to_series().alias(prices.name)
+        out = build(_clean(pl.col("_x"))).fill_nan(None)
+        return frame.select(out).to_series().alias(prices.name)
     if isinstance(prices, pl.Expr):
-        return build(_clean(prices))
+        return build(_clean(prices)).fill_nan(None)
     raise TypeError(f"prices must be a polars Series or Expr, got {type(prices).__name__}")
 
 
+def _require_numeric(s: pl.Series) -> pl.Series:
+    """Prices as Float64; non-numeric input raises (a Date column would otherwise be
+    averaged as days-since-epoch)."""
+    if not (s.dtype.is_numeric() or s.dtype == pl.Null):
+        raise TypeError(f"prices must be numeric, got {s.dtype} for {s.name!r}")
+    return s.cast(pl.Float64)
+
+
 def _clean(x: pl.Expr) -> pl.Expr:
-    """Float prices with NaN normalised to null, so every op treats both as missing."""
-    return x.cast(pl.Float64).fill_nan(None)
+    """Float prices with NaN normalised to null, so every op treats both as missing.
+
+    The type is checked when the expression runs (an expression doesn't know its
+    column's dtype until then).
+    """
+    checked = x.map_batches(_require_numeric, return_dtype=pl.Float64, is_elementwise=True)
+    return checked.fill_nan(None)
 
 
-def _check_period(period: int, name: str = "period") -> None:
-    if isinstance(period, bool) or not isinstance(period, int) or period < 1:
+def _check_period(period: int, name: str = "period") -> int:
+    """Validate a positive integer (numpy integers included) and return it as ``int``."""
+    if isinstance(period, bool) or not isinstance(period, numbers.Integral) or period < 1:
         raise ValueError(f"{name} must be a positive integer, got {period!r}")
+    return int(period)
 
 
 def _scale(percent: bool) -> float:
@@ -83,7 +105,7 @@ def sma(prices: PriceInput, period: int) -> PriceInput:
     pl.Series or pl.Expr
         Same kind as the input.
     """
-    _check_period(period)
+    period = _check_period(period)
     return _apply(prices, lambda x: x.rolling_mean(window_size=period, min_samples=period))
 
 
@@ -106,7 +128,7 @@ def ema(prices: PriceInput, period: int, *, adjust: bool = False) -> PriceInput:
     pl.Series or pl.Expr
         Same kind as the input.
     """
-    _check_period(period)
+    period = _check_period(period)
     return _apply(
         prices,
         lambda x: x.ewm_mean(span=period, adjust=adjust, min_samples=period, ignore_nulls=False),
@@ -124,31 +146,40 @@ def rsi(prices: PriceInput, period: int, *, method: Literal["wilder"] = "wilder"
         Smoothing length; Wilder smoothing uses ``alpha = 1 / period``.
     method : {"wilder"}, default "wilder"
         Gains and losses are smoothed recursively from the first observation, with the
-        first (undefined) change counted as zero. There is no warm-up cut, so early
+        first (undefined) change counted as zero. After a missing price the change is
+        taken from the last valid price and the missing row is skipped, so a gap has
+        the same effect as removing that row. There is no warm-up cut, so early
         values are defined but unsettled; callers needing a settled value should
         discard roughly ``3 * period`` observations.
 
     Returns
     -------
     pl.Series or pl.Expr
-        Same kind as the input. Null where both average gain and loss are zero
-        (e.g. before the first price); 100 where only the average loss is zero.
+        Same kind as the input. Null where the price is missing or where both average
+        gain and loss are zero (e.g. before the first price); 100 where only the
+        average loss is zero.
     """
-    _check_period(period)
+    period = _check_period(period)
     if method != "wilder":
         raise ValueError(f"unsupported RSI method {method!r}; only 'wilder' is implemented")
     alpha = 1.0 / period
 
     def build(x: pl.Expr) -> pl.Expr:
-        delta = x.diff()
-        gain = pl.when(delta > 0).then(delta).otherwise(0.0)
-        loss = pl.when(delta < 0).then(-delta).otherwise(0.0)
-        avg_gain = gain.ewm_mean(alpha=alpha, adjust=False, min_samples=1, ignore_nulls=False)
-        avg_loss = loss.ewm_mean(alpha=alpha, adjust=False, min_samples=1, ignore_nulls=False)
+        # The change from the last valid price, so the move across a gap is measured
+        # rather than lost; the first observation has no change and counts as zero.
+        delta = x - x.forward_fill().shift(1)
+        observed = x.is_not_null()
+        gain = pl.when(observed).then(pl.when(delta > 0).then(delta).otherwise(0.0))
+        loss = pl.when(observed).then(pl.when(delta < 0).then(-delta).otherwise(0.0))
+        # A missing price is skipped in the smoothing, not counted as a flat day, so
+        # RSI on a series with gaps equals RSI on the series with the gaps removed.
+        avg_gain = gain.ewm_mean(alpha=alpha, adjust=False, min_samples=1, ignore_nulls=True)
+        avg_loss = loss.ewm_mean(alpha=alpha, adjust=False, min_samples=1, ignore_nulls=True)
         rs = avg_gain / avg_loss
         # 100 - 100 / (1 + rs), written expression-first so the output keeps the
         # input column's name (a literal on the left would rename it "literal").
-        return ((rs + 1.0).pow(-1.0) * -100.0 + 100.0).fill_nan(None)
+        value = (rs + 1.0).pow(-1.0) * -100.0 + 100.0
+        return pl.when(observed).then(value)
 
     return _apply(prices, build)
 
@@ -170,14 +201,14 @@ def cumulative_return(prices: PriceInput, period: int, *, percent: bool = False)
     pl.Series or pl.Expr
         Same kind as the input.
     """
-    _check_period(period)
+    period = _check_period(period)
     scale = _scale(percent)
     return _apply(prices, lambda x: (x / x.shift(period) - 1.0) * scale)
 
 
 def _worst_drawdowns(s: pl.Series, period: int) -> pl.Series:
     """Worst peak-to-trough decline inside each trailing window, as a positive fraction."""
-    arr: npt.NDArray[np.float64] = s.cast(pl.Float64).fill_null(np.nan).to_numpy()
+    arr: npt.NDArray[np.float64] = s.to_numpy()  # Float64 from _clean; null -> NaN
     out = np.full(arr.shape[0], np.nan)
     if arr.shape[0] >= period:
         windows = sliding_window_view(arr, period)
@@ -191,7 +222,7 @@ def _worst_drawdowns(s: pl.Series, period: int) -> pl.Series:
             worst[np.isneginf(worst) | np.isnan(w).any(axis=1)] = np.nan
             first = start + period - 1
             out[first : first + w.shape[0]] = worst
-    return pl.Series(s.name, out, dtype=pl.Float64).fill_nan(None)
+    return pl.Series(s.name, out, dtype=pl.Float64)
 
 
 def max_drawdown(prices: PriceInput, period: int, *, percent: bool = False) -> PriceInput:
@@ -215,7 +246,7 @@ def max_drawdown(prices: PriceInput, period: int, *, percent: bool = False) -> P
     pl.Series or pl.Expr
         Same kind as the input. A positive magnitude: 0.2 means a 20% decline.
     """
-    _check_period(period)
+    period = _check_period(period)
     scale = _scale(percent)
     return _apply(
         prices,
@@ -246,7 +277,7 @@ def current_drawdown(
         Same kind as the input. A positive magnitude: 0.1 means 10% below the peak.
     """
     if period is not None:
-        _check_period(period)
+        period = _check_period(period)
     scale = _scale(percent)
 
     def build(x: pl.Expr) -> pl.Expr:
@@ -254,7 +285,7 @@ def current_drawdown(
             peak = x.cum_max()
         else:
             peak = x.rolling_max(window_size=period, min_samples=period)
-        return ((peak - x) / peak * scale).fill_nan(None)
+        return (peak - x) / peak * scale
 
     return _apply(prices, build)
 
@@ -288,8 +319,8 @@ def std_dev_return(
     pl.Series or pl.Expr
         Same kind as the input.
     """
-    _check_period(period)
-    _check_period(periods_per_year, "periods_per_year")
+    period = _check_period(period)
+    periods_per_year = _check_period(periods_per_year, "periods_per_year")
     factor = _scale(percent) * (math.sqrt(periods_per_year) if annualize else 1.0)
 
     def build(x: pl.Expr) -> pl.Expr:
@@ -320,7 +351,7 @@ def moving_average_return(prices: PriceInput, period: int, *, percent: bool = Fa
     pl.Series or pl.Expr
         Same kind as the input.
     """
-    _check_period(period)
+    period = _check_period(period)
     scale = _scale(percent)
     return _apply(
         prices,

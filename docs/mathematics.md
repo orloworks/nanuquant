@@ -486,4 +486,3 @@ drawdown indicators differ in what they measure:
 **RSI (Wilder):** with `d_t = p_t - p_{t-1}` (the first change taken as 0),
 `G_t = (1-a) G_{t-1} + a max(d_t, 0)`, `L_t = (1-a) L_{t-1} + a max(-d_t, 0)`, `a = 1/n`,
 and `RSI_t = 100 - 100 / (1 + G_t / L_t)`.
-

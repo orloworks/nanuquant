@@ -25,7 +25,7 @@ df.select(ind.rsi(pl.col("SPY", "QQQ"), 2))          # one pass over both column
 df.select(pl.col("SPY").ind.max_drawdown(3))         # `.ind` expression namespace
 ```
 
-- A missing price (null **or** NaN) is missing. Windows that include one produce null.
+- A missing price (null **or** NaN) is missing: the indicator is null there, and windows that include one produce null. NaN never appears in the output.
 - Output keeps the input column's name.
 - Platform conventions are explicit keyword arguments, never silent defaults:
   `percent=` (x100 units), `annualize=` (volatility), `period=None` vs an integer
@@ -41,7 +41,7 @@ df.select(pl.col("SPY").ind.max_drawdown(3))         # `.ind` expression namespa
 | `current_price(p)` | `p_t` | NaN normalised to null |
 | `sma(p, period)` | mean of the last `period` prices | |
 | `ema(p, period, *, adjust=False)` | `y_t = (1-a) y_{t-1} + a p_t`, `a = 2/(period+1)`, seeded at the first price | Null until `period` prices seen. `adjust=False` is the full-history recursion (Composer convention) |
-| `rsi(p, period, *, method="wilder")` | `100 - 100/(1 + G/L)`; `G`, `L` Wilder-smoothed gains/losses, `a = 1/period` | First change counts as zero; no warm-up cut. 100 when `L = 0`; null when `G = L = 0` |
+| `rsi(p, period, *, method="wilder")` | `100 - 100/(1 + G/L)`; `G`, `L` Wilder-smoothed gains/losses, `a = 1/period` | First change counts as zero; no warm-up cut. After a gap the change is from the last valid price and the missing row is skipped (same as removing it). 100 when `L = 0`; null when `G = L = 0` or the price is missing |
 | `cumulative_return(p, period, *, percent=False)` | `p_t / p_{t-period} - 1` | |
 | `max_drawdown(p, period, *, percent=False)` | `max_u (P_u - p_u) / P_u` over the window, `P_u` the running peak *within* the window | Positive magnitude. Counts a mid-window spike and drop even after recovery |
 | `current_drawdown(p, period=None, *, percent=False)` | `(P - p_t) / P`; `P` all-time running peak (`None`) or trailing `period` max | Positive magnitude |

@@ -47,7 +47,7 @@ def exposure(returns: pl.Series) -> float:
     >>> exposure(returns)
     0.6
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -84,7 +84,7 @@ def ghpr(returns: pl.Series) -> float:
     >>> ghpr(returns)
     0.0123...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -128,7 +128,7 @@ def rar(
     """
     from nanuquant.core.returns import cagr
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -170,7 +170,7 @@ def cpc_index(returns: pl.Series) -> float:
     >>> cpc_index(returns)
     1.2...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -215,7 +215,7 @@ def serenity_index(returns: pl.Series) -> float:
     from nanuquant.core.returns import cagr
     from nanuquant.core.risk import ulcer_index
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -264,7 +264,7 @@ def risk_of_ruin(
     >>> risk_of_ruin(returns)
     0.0...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 1.0
 
@@ -326,7 +326,7 @@ def adjusted_sortino(
     from nanuquant.core.distribution import kurtosis
     from nanuquant.core.performance import sortino
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -381,7 +381,7 @@ def smart_sharpe(
     """
     from nanuquant.core.performance import sharpe
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 
@@ -444,7 +444,7 @@ def smart_sortino(
     """
     from nanuquant.core.performance import sortino
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 
@@ -530,7 +530,7 @@ def sqn(returns: pl.Series) -> float:
     >>> sqn(returns)
     2.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 2:
         return 0.0
 
@@ -570,7 +570,7 @@ def expectancy(returns: pl.Series) -> float:
     >>> expectancy(returns)
     0.008...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -606,7 +606,7 @@ def k_ratio(returns: pl.Series) -> float:
     >>> k_ratio(returns)
     0.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 

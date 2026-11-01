@@ -90,7 +90,7 @@ def probabilistic_sharpe_ratio(
     >>> result.p_value
     0.14...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="probabilistic_sharpe_ratio")
 
     returns = to_float_series(returns)
@@ -224,7 +224,7 @@ def deflated_sharpe_ratio(
     >>> deflated_sharpe_ratio(returns, n_trials=1000)
     0.45...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="deflated_sharpe_ratio")
 
     if n_trials < 1:
@@ -297,7 +297,7 @@ def minimum_track_record_length(
     >>> minimum_track_record_length(returns, target_sr=0.0, confidence=0.95)
     156
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="minimum_track_record_length")
 
     if not 0 < confidence < 1:

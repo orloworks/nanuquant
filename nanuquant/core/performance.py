@@ -20,7 +20,7 @@ from nanuquant.core.utils import (
     safe_divide,
     to_float_series,
 )
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.validation import align_pair, validate_returns
 
 
 def sharpe(
@@ -56,7 +56,7 @@ def sharpe(
     >>> sharpe(returns, risk_free_rate=0.0, periods_per_year=252)
     2.54...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -123,7 +123,7 @@ def sortino(
     >>> sortino(returns, risk_free_rate=0.0, periods_per_year=252)
     3.60...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -200,7 +200,7 @@ def calmar(
     >>> calmar(returns, periods_per_year=252)
     5.0...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -256,7 +256,7 @@ def omega(
     >>> omega(returns, threshold=0.0)
     2.0
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if len(returns) < 2:
         return float("nan")
 
@@ -318,7 +318,7 @@ def gain_to_pain_ratio(returns: pl.Series) -> float:
     >>> gain_to_pain_ratio(returns)
     1.0
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -366,7 +366,7 @@ def ulcer_performance_index(
     >>> ulcer_performance_index(returns, risk_free_rate=0.0)
     5.0...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -409,7 +409,7 @@ def kelly_criterion(returns: pl.Series) -> float:
     >>> kelly_criterion(returns)
     0.40...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -474,7 +474,7 @@ def tail_ratio(returns: pl.Series) -> float:
     >>> tail_ratio(returns)
     2.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -515,7 +515,7 @@ def common_sense_ratio(returns: pl.Series) -> float:
     """
     from nanuquant.core.returns import profit_factor as pf
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -550,7 +550,7 @@ def risk_return_ratio(
     >>> risk_return_ratio(returns)
     0.65...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -591,7 +591,7 @@ def recovery_factor(returns: pl.Series) -> float:
     >>> recovery_factor(returns)
     3.6...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -650,11 +650,7 @@ def greeks(
     >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
     >>> alpha, beta = greeks(returns, benchmark)
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns)
-    validate_returns(benchmark)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:
         return (0.0, 0.0)
@@ -724,11 +720,7 @@ def information_ratio(
     >>> information_ratio(returns, benchmark)
     0.25...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns)
-    validate_returns(benchmark)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:
         return 0.0
@@ -780,11 +772,7 @@ def r_squared(
     >>> r_squared(returns, benchmark)
     0.60...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns)
-    validate_returns(benchmark)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:
         return 0.0
@@ -860,11 +848,8 @@ def treynor_ratio(
     0.50...
     """
     from nanuquant.core.returns import cagr
-    from nanuquant.core.validation import validate_benchmark_match
 
-    validate_returns(returns)
-    validate_returns(benchmark)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:
         return 0.0
@@ -912,11 +897,7 @@ def benchmark_correlation(
     >>> benchmark_correlation(returns, benchmark)
     0.77...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns)
-    validate_returns(benchmark)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = align_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < 2:
         return 0.0

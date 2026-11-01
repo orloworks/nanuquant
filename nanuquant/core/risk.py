@@ -51,7 +51,7 @@ def volatility(
     >>> volatility(returns, periods_per_year=252)
     0.248...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -111,7 +111,7 @@ def var(
     >>> var(returns, confidence=0.95)
     -0.058...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -163,7 +163,7 @@ def cvar(
     >>> cvar(returns, confidence=0.95)
     -0.10
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -219,7 +219,7 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
         -0.105454...
     ]
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty():
         return pl.Series("drawdown", [], dtype=pl.Float64)
 
@@ -257,7 +257,7 @@ def max_drawdown(returns: pl.Series) -> float:
     >>> max_drawdown(returns)
     -0.134...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -297,7 +297,7 @@ def ulcer_index(returns: pl.Series) -> float:
     >>> ulcer_index(returns)
     0.015...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -358,7 +358,7 @@ def downside_deviation(
     >>> downside_deviation(returns, mar=0.0)
     0.18...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 

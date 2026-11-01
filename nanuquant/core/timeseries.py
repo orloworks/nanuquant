@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import polars as pl
 
 from nanuquant.core.utils import compound_returns, to_float_series
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.validation import align_dates, validate_returns
 
 
 def yearly_returns(
@@ -57,7 +57,7 @@ def yearly_returns(
     │ 2022 ┆ ...      │
     └──────┴──────────┘
     """
-    validate_returns(returns, allow_empty=True)
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         empty_df = pl.DataFrame({"year": [], "return": []})
         return empty_df.cast({"year": pl.Int32, "return": pl.Float64})
@@ -86,9 +86,13 @@ def yearly_returns(
 
     # Aggregate returns by year
     if compounded:
-        yearly = df.group_by("year").agg(((pl.col("returns") + 1).product() - 1).alias("return"))
+        yearly = df.group_by("year", maintain_order=True).agg(
+            ((pl.col("returns") + 1).product() - 1).alias("return")
+        )
     else:
-        yearly = df.group_by("year").agg(pl.col("returns").sum().alias("return"))
+        yearly = df.group_by("year", maintain_order=True).agg(
+            pl.col("returns").sum().alias("return")
+        )
 
     return yearly.sort("year")
 
@@ -140,7 +144,7 @@ def drawdown_details(
     │ ...   ┆ ...    ┆ ... ┆ ...    ┆ ...    ┆ ...      │
     └───────┴────────┴─────┴────────┴────────┴──────────┘
     """
-    validate_returns(returns, allow_empty=True)
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         if dates is not None:
             return pl.DataFrame(
@@ -230,7 +234,7 @@ def drawdown_details(
         )
 
     # Aggregate each drawdown period to find start, valley, end, depth
-    period_stats = dd_periods.group_by("period_id").agg(
+    period_stats = dd_periods.group_by("period_id", maintain_order=True).agg(
         [
             pl.col("idx").min().alias("first_dd_idx"),
             pl.col("idx").max().alias("last_dd_idx"),
@@ -270,7 +274,7 @@ def drawdown_details(
     )
 
     # Sort by depth (most negative first) and take top N
-    period_stats = period_stats.sort("depth").head(top_n)
+    period_stats = period_stats.sort("depth", maintain_order=True).head(top_n)
 
     # Map indices to dates if provided
     if dates is not None:
@@ -339,7 +343,7 @@ def histogram(
     shape: (20, 2)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.DataFrame(
             {

@@ -11,6 +11,7 @@ import math
 import polars as pl
 
 from nanuquant.core.utils import to_float_series
+from nanuquant.core.validation import validate_returns
 
 
 def _autocorrelation(returns: pl.Series, lag: int = 1) -> float:
@@ -113,7 +114,7 @@ def newey_west_se(
     >>> newey_west_se(returns)
     0.002...
     """
-    returns = to_float_series(returns)
+    returns = to_float_series(validate_returns(returns, allow_empty=True))
     n = len(returns)
 
     if n < 2:

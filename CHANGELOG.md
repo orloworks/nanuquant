@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Missing data is now handled consistently, and never as a zero return.** A missing observation is a Polars `null` or a float `NaN`. Previously most metrics called `validate_returns()` and discarded its cleaned result, so nulls were still counted by `len()`, fed to numpy and scipy, and broke `win_rate`, `cagr`, `sortino`, `skewness`, `kurtosis`, `geometric_mean`, VaR and others. QuantStats, for comparison, fills missing returns with 0. Now:
+  - single-series metrics drop missing observations;
+  - paired metrics (`greeks`, `information_ratio`, `r_squared`, `treynor_ratio`, `benchmark_correlation`, the tail-dependence and regime correlations, `compare`) use only the rows where both series are present (`align_pair`);
+  - dated outputs (`yearly_returns`, `monthly_returns`, `distribution`, `drawdown_details`) drop a missing return together with its date (`align_dates`), and reject a `dates` series of a different length;
+  - positional outputs (`to_drawdown_series`, rolling metrics) keep their length and are null where the input is missing. For rolling metrics, any window containing a missing value is null.
+- `newey_west_se` now validates its input.
+- `distribution()`, `monthly_returns()`, `yearly_returns()` and `drawdown_details()` return periods in a deterministic, chronological order (an unordered `group_by` made them random between calls).
+
 ### Added
 
 - **Benchmark suite** (`benchmarks/run_benchmarks.py`) — automated performance and accuracy comparison against QuantStats

@@ -18,10 +18,7 @@ import numpy as np
 import polars as pl
 
 from nanuquant.core.utils import to_float_series
-from nanuquant.core.validation import (
-    validate_benchmark_match,
-    validate_returns,
-)
+from nanuquant.core.validation import align_pair
 
 
 class AbsorptionRatioResult(NamedTuple):
@@ -222,9 +219,7 @@ def lower_tail_dependence(
     >>> 0 <= ltd <= 1
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     if not 0 < threshold_quantile < 0.5:
         raise ValueError("threshold_quantile must be between 0 and 0.5")
@@ -299,9 +294,7 @@ def downside_correlation(
     >>> -1 <= dc <= 1 or np.isnan(dc)
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     returns1 = to_float_series(returns1)
     returns2 = to_float_series(returns2)
@@ -361,9 +354,7 @@ def upside_correlation(
     >>> -1 <= uc <= 1 or np.isnan(uc)
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     returns1 = to_float_series(returns1)
     returns2 = to_float_series(returns2)

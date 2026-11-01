@@ -73,7 +73,7 @@ def cornish_fisher_var(
     ----------
     Cornish, E. A., & Fisher, R. A. (1937)
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 4, "cornish_fisher_var")
 
     if not 0 < confidence < 1:
@@ -162,7 +162,7 @@ def entropic_var(
     ----------
     Ahmadi-Javid, A. (2012). "Entropic Value-at-Risk: A New Coherent Risk Measure"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 10, "entropic_var")
 
     if not 0 < confidence < 1:
@@ -271,7 +271,7 @@ def historical_var(
     >>> hvar > 0
     True
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
 
     if not 0 < confidence < 1:
         raise ValueError("confidence must be between 0 and 1")
@@ -319,7 +319,7 @@ def parametric_var(
     >>> pvar > 0
     True
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
 
     if not 0 < confidence < 1:
         raise ValueError("confidence must be between 0 and 1")

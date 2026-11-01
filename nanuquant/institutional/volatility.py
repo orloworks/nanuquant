@@ -125,7 +125,7 @@ def arch_effect_test(
     Engle, R. F. (1982). "Autoregressive Conditional Heteroskedasticity with
     Estimates of the Variance of United Kingdom Inflation"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, lags + 2, "arch_effect_test")
 
     returns = to_float_series(returns)
@@ -251,7 +251,7 @@ def garch_volatility(
     ----------
     Bollerslev, T. (1986). "Generalized Autoregressive Conditional Heteroskedasticity"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 20, "garch_volatility")
 
     if p != 1 or q != 1:

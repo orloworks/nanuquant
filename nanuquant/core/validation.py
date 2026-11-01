@@ -3,12 +3,18 @@
 This module provides validation utilities for returns data with explicit policies
 for null handling and dtype enforcement.
 
-Null Handling Policy
---------------------
-By default, nanuquant drops null values before calculations. This matches
-the behavior of QuantStats and pandas-based libraries where NaN values are
-typically excluded. Users can override this behavior by passing `drop_nulls=False`
-to validation functions.
+Missing-Data Policy
+-------------------
+A missing observation is either a Polars ``null`` or a float ``NaN``; both are treated
+the same way. QuantStats fills missing returns with 0, which silently turns a missing
+day into a flat day and biases every count, mean and annualization. nanuquant instead:
+
+- **single-series metrics** drop missing observations (:func:`validate_returns`);
+- **paired metrics** (strategy vs benchmark, two assets) keep only the rows where both
+  sides are present (:func:`align_pair`), so the series stay aligned;
+- **dated metrics** drop a missing return together with its date (:func:`align_dates`);
+- **positional outputs** (rolling metrics, drawdown series) keep their length and are
+  null wherever the input is missing (:func:`normalize_missing`).
 
 Dtype Enforcement
 -----------------
@@ -75,7 +81,8 @@ def validate_returns(
     shape: (4,)
     ...
     """
-    # Drop nulls if requested (default behavior)
+    data = normalize_missing(data)
+    # Drop missing observations if requested (default behavior)
     if drop_nulls:
         data = data.drop_nulls()
 
@@ -174,3 +181,103 @@ def validate_probability(value: float, name: str = "probability") -> None:
     """
     if not 0 <= value <= 1:
         raise ValueError(f"{name} must be between 0 and 1, got {value}")
+
+
+def normalize_missing(data: pl.Series) -> pl.Series:
+    """Return ``data`` with float ``NaN`` converted to ``null``, keeping every position.
+
+    Parameters
+    ----------
+    data : pl.Series
+        Series to normalise.
+
+    Returns
+    -------
+    pl.Series
+        Same length as ``data``; ``NaN`` replaced by ``null``.
+    """
+    if data.dtype.is_float():
+        return data.fill_nan(None)
+    return data
+
+
+def align_pair(
+    first: pl.Series,
+    second: pl.Series,
+    *,
+    allow_empty: bool = False,
+) -> tuple[pl.Series, pl.Series]:
+    """Validate two same-length series and keep only rows where both are present.
+
+    Parameters
+    ----------
+    first, second : pl.Series
+        Series observed on the same periods (e.g. strategy and benchmark returns).
+    allow_empty : bool, default False
+        If True, an empty result is returned instead of raising.
+
+    Returns
+    -------
+    tuple[pl.Series, pl.Series]
+        The two series restricted to the rows where neither is missing.
+
+    Raises
+    ------
+    BenchmarkMismatchError
+        If the inputs have different lengths.
+    EmptySeriesError
+        If no row has both values present and ``allow_empty`` is False.
+    TypeError
+        If either series is not numeric.
+    """
+    validate_benchmark_match(first, second)
+    a = normalize_missing(first)
+    b = normalize_missing(second)
+    for s in (a, b):
+        if not s.dtype.is_float() and not s.dtype.is_integer() and s.dtype != pl.Null:
+            raise TypeError(f"Expected numeric dtype, got {s.dtype}")
+    keep = a.is_not_null() & b.is_not_null()
+    a, b = a.filter(keep), b.filter(keep)
+    if a.is_empty() and not allow_empty:
+        raise EmptySeriesError("No periods with both series present")
+    return a, b
+
+
+def align_dates(
+    returns: pl.Series,
+    dates: pl.Series | None,
+    *,
+    allow_empty: bool = False,
+) -> tuple[pl.Series, pl.Series | None]:
+    """Drop missing returns together with their dates.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Period returns.
+    dates : pl.Series or None
+        Dates for each return, same length as ``returns``; None if not supplied.
+    allow_empty : bool, default False
+        If True, an empty result is returned instead of raising.
+
+    Returns
+    -------
+    tuple[pl.Series, pl.Series | None]
+        Returns and dates restricted to the periods with a return.
+
+    Raises
+    ------
+    ValueError
+        If ``dates`` is given and its length differs from ``returns``.
+    """
+    if dates is not None and len(dates) != len(returns):
+        raise ValueError(f"dates length ({len(dates)}) must match returns length ({len(returns)})")
+    r = normalize_missing(returns)
+    keep = r.is_not_null()
+    r = r.filter(keep)
+    d = dates.filter(keep) if dates is not None else None
+    if r.is_empty() and not allow_empty:
+        raise EmptySeriesError("Returns series is empty")
+    if not r.dtype.is_float() and not r.dtype.is_integer() and not r.is_empty():
+        raise TypeError(f"Expected numeric dtype, got {r.dtype}")
+    return r, d

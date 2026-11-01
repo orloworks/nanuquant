@@ -30,7 +30,21 @@ from nanuquant.core.utils import (
     get_annualization_factor,
     to_float_series,
 )
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.validation import validate_benchmark_match, validate_returns
+
+
+def _mask_pair(returns: pl.Series, benchmark: pl.Series) -> tuple[pl.Series, pl.Series]:
+    """Null both series wherever either is missing, keeping every position."""
+    validate_benchmark_match(returns, benchmark)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
+    benchmark = validate_returns(benchmark, allow_empty=True, drop_nulls=False)
+    both = returns.is_not_null() & benchmark.is_not_null()
+    frame = pl.DataFrame({"r": returns, "b": benchmark, "keep": both})
+    masked = frame.select(
+        pl.when(pl.col("keep")).then(pl.col("r")).alias("r"),
+        pl.when(pl.col("keep")).then(pl.col("b")).alias("b"),
+    )
+    return masked["r"].alias(returns.name), masked["b"].alias(benchmark.name)
 
 
 def rolling_volatility(
@@ -69,7 +83,7 @@ def rolling_volatility(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.Series("rolling_volatility", [], dtype=pl.Float64)
 
@@ -128,7 +142,7 @@ def rolling_sharpe(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.Series("rolling_sharpe", [], dtype=pl.Float64)
 
@@ -206,7 +220,7 @@ def rolling_sortino(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.Series("rolling_sortino", [], dtype=pl.Float64)
 
@@ -283,11 +297,7 @@ def rolling_beta(
     shape: (250,)
     ...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = _mask_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.Series("rolling_beta", [], dtype=pl.Float64)
@@ -374,11 +384,7 @@ def rolling_greeks(
     >>> greeks.columns
     ['rolling_alpha', 'rolling_beta']
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = _mask_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.DataFrame(

@@ -36,7 +36,7 @@ def comp(returns: pl.Series) -> float:
     >>> comp(returns)
     0.1319
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -74,7 +74,7 @@ def cagr(
     >>> cagr(returns, periods_per_year=252)
     11.346...  # ~1134.6% annualized
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -121,7 +121,7 @@ def avg_return(returns: pl.Series) -> float:
     >>> avg_return(returns)
     0.0125
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -150,7 +150,7 @@ def avg_win(returns: pl.Series) -> float:
     >>> avg_win(returns)
     0.02
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -185,7 +185,7 @@ def avg_loss(returns: pl.Series) -> float:
     >>> avg_loss(returns)
     -0.015
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -219,7 +219,7 @@ def best(returns: pl.Series) -> float:
     >>> best(returns)
     0.05
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -248,7 +248,7 @@ def worst(returns: pl.Series) -> float:
     >>> worst(returns)
     -0.02
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -277,7 +277,7 @@ def win_rate(returns: pl.Series) -> float:
     >>> win_rate(returns)
     0.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -307,7 +307,7 @@ def payoff_ratio(returns: pl.Series) -> float:
     >>> payoff_ratio(returns)
     2.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -342,7 +342,7 @@ def profit_factor(returns: pl.Series) -> float:
     >>> profit_factor(returns)
     2.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -381,7 +381,7 @@ def consecutive_wins(returns: pl.Series) -> int:
     >>> consecutive_wins(returns)
     3
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0
 
@@ -431,7 +431,7 @@ def consecutive_losses(returns: pl.Series) -> int:
     >>> consecutive_losses(returns)
     3
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0
 

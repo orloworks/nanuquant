@@ -42,7 +42,7 @@ def skewness(returns: pl.Series) -> float:
     >>> skewness(returns)
     0.53...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -83,7 +83,7 @@ def kurtosis(returns: pl.Series) -> float:
     >>> kurtosis(returns)
     -1.38...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -119,7 +119,7 @@ def jarque_bera(returns: pl.Series) -> tuple[float, float]:
     >>> returns = pl.Series([0.01, -0.02, 0.03, -0.01, 0.05] * 20)
     >>> stat, pval = jarque_bera(returns)
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 4:
         return (0.0, 1.0)
 
@@ -153,7 +153,7 @@ def shapiro_wilk(returns: pl.Series) -> tuple[float, float]:
     >>> returns = pl.Series([0.01, -0.02, 0.03, -0.01, 0.05])
     >>> stat, pval = shapiro_wilk(returns)
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return (0.0, 1.0)
 
@@ -194,7 +194,7 @@ def outlier_win_ratio(returns: pl.Series, quantile: float = 0.99) -> float:
     >>> outlier_win_ratio(returns, quantile=0.95)
     2.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -245,7 +245,7 @@ def outlier_loss_ratio(returns: pl.Series, quantile: float = 0.99) -> float:
     >>> outlier_loss_ratio(returns, quantile=0.95)
     2.0...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -296,7 +296,7 @@ def expected_return(returns: pl.Series) -> float:
     >>> expected_return(returns)
     0.0125
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -331,7 +331,7 @@ def geometric_mean(returns: pl.Series) -> float:
     >>> geometric_mean(returns)
     0.0123...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -379,7 +379,7 @@ def outliers(
         0.15
     ]
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.Series([], dtype=pl.Float64)
 
@@ -422,7 +422,7 @@ def remove_outliers(
     >>> len(clean)  # One value removed
     6
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.Series([], dtype=pl.Float64)
 
@@ -464,7 +464,7 @@ def outliers_iqr(
     shape: (2,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.Series([], dtype=pl.Float64)
 
@@ -511,7 +511,7 @@ def remove_outliers_iqr(
     >>> len(clean) < 7  # Some values removed
     True
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.Series([], dtype=pl.Float64)
 

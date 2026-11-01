@@ -11,7 +11,11 @@ from typing import Any
 import polars as pl
 
 from nanuquant.core.utils import to_float_series
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.validation import (
+    align_dates,
+    normalize_missing,
+    validate_benchmark_match,
+)
 
 
 def monthly_returns(
@@ -50,7 +54,7 @@ def monthly_returns(
     shape: (10, 2)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return pl.DataFrame()
 
@@ -85,12 +89,12 @@ def monthly_returns(
     # Aggregate returns by month/year
     if compounded:
         # Compound: (1 + r1) * (1 + r2) * ... - 1
-        monthly = df.group_by(["year", "month"]).agg(
+        monthly = df.group_by(["year", "month"], maintain_order=True).agg(
             ((pl.col("returns") + 1).product() - 1).alias("monthly_return")
         )
     else:
         # Simple sum
-        monthly = df.group_by(["year", "month"]).agg(
+        monthly = df.group_by(["year", "month"], maintain_order=True).agg(
             pl.col("returns").sum().alias("monthly_return")
         )
 
@@ -151,7 +155,7 @@ def distribution(
     >>> dist.keys()
     dict_keys(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'])
     """
-    validate_returns(returns, allow_empty=True)
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return {}
 
@@ -180,11 +184,13 @@ def distribution(
     ) -> pl.Series:
         """Aggregate returns by period."""
         if compounded:
-            agg = data.group_by(period_col).agg(
+            agg = data.group_by(period_col, maintain_order=True).agg(
                 ((pl.col("returns") + 1).product() - 1).alias("period_return")
             )
         else:
-            agg = data.group_by(period_col).agg(pl.col("returns").sum().alias("period_return"))
+            agg = data.group_by(period_col, maintain_order=True).agg(
+                pl.col("returns").sum().alias("period_return")
+            )
         return agg["period_return"]
 
     def identify_outliers_iqr(series: pl.Series) -> pl.Series:
@@ -289,11 +295,15 @@ def compare(
     shape: (3, 5)
     ...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
     validate_benchmark_match(returns, benchmark)
+    if dates is not None and len(dates) != len(returns):
+        raise ValueError(f"dates length ({len(dates)}) must match returns length ({len(returns)})")
+    returns = normalize_missing(returns)
+    benchmark = normalize_missing(benchmark)
+    keep = returns.is_not_null() & benchmark.is_not_null()
+    returns, benchmark = returns.filter(keep), benchmark.filter(keep)
+    if dates is not None:
+        dates = dates.filter(keep)
 
     if returns.is_empty():
         return pl.DataFrame()

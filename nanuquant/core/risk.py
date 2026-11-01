@@ -203,7 +203,10 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
 
     Notes
     -----
-    Drawdown at time t = (cumulative_wealth[t] - running_max[t]) / running_max[t]
+    Drawdown at time t = wealth[t] / peak[t] - 1, where the peak is the running
+    maximum of wealth starting from the starting capital of 1.0. This deliberately
+    differs from QuantStats, whose peak starts at the first period's wealth and so
+    reports no drawdown for a series that has only lost since inception.
 
     Examples
     --------
@@ -214,9 +217,9 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     Series: '' [f64]
     [
         0.0
-        -0.045454...
-        -0.027272...
-        -0.105454...
+        -0.05
+        -0.031
+        -0.10852
     ]
     """
     returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
@@ -228,20 +231,16 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     # Calculate cumulative wealth (1 + cumulative return)
     cumulative = (1 + returns).cum_prod()
 
-    # Running maximum
-    running_max = cumulative.cum_max()
-
-    # Drawdown as percentage from peak. A total loss in the first observed period
-    # leaves the peak at 0: that is a -100% drawdown, not 0/0 (NaN would read as a
-    # missing return). Missing returns stay null.
+    # Running peak, starting from the starting capital (1.0): a loss from day one is
+    # a drawdown. (QuantStats starts the peak at the first period's wealth, so it
+    # reports no drawdown for a series that has only lost since inception.) Missing
+    # returns stay null.
     drawdown = (
-        pl.DataFrame({"c": cumulative, "m": running_max})
+        pl.DataFrame({"c": cumulative})
         .select(
-            pl.when(pl.col("m") > 0)
-            .then((pl.col("c") - pl.col("m")) / pl.col("m"))
-            .when(pl.col("m").is_not_null())
-            .then(-1.0)
-            .otherwise(None)
+            pl.when(pl.col("c").is_not_null()).then(
+                pl.col("c") / pl.max_horizontal(pl.col("c").cum_max(), pl.lit(1.0)) - 1.0
+            )
         )
         .to_series()
     )

@@ -97,12 +97,48 @@ SINGLE = {
 }
 
 
+# Metrics built on the drawdown series. nanuquant measures drawdown from the starting
+# capital; QuantStats starts the peak at the first period's wealth. The two agree
+# exactly once the series starts with a non-negative return, so parity for these is
+# checked from there (and the deviation itself is pinned below).
+DRAWDOWN_FAMILY = {
+    "max_drawdown",
+    "ulcer_index",
+    "ulcer_performance_index",
+    "recovery_factor",
+    "serenity_index",
+    "calmar",
+}
+
+
+def _from_first_gain(returns: pd.Series) -> pd.Series:
+    start = int(np.argmax(returns.to_numpy() >= 0))
+    return returns.iloc[start:]
+
+
 @pytest.mark.parametrize("dataset", list(DATA))
 @pytest.mark.parametrize("name", list(SINGLE))
 def test_single_series_parity(name, dataset):
     returns = DATA[dataset]
+    if name in DRAWDOWN_FAMILY:
+        returns = _from_first_gain(returns)
     ours, theirs = SINGLE[name]
     np.testing.assert_allclose(ours(pl.Series(returns.to_numpy())), theirs(returns), **STRICT)
+
+
+def test_drawdown_counts_from_starting_capital_unlike_quantstats():
+    # Only losses since inception: QuantStats reports no drawdown at the first period
+    # and -5% after two -5% days; measured from the capital put in, it is -5% then -9.75%.
+    r = pd.Series([-0.05, -0.05])
+    assert nq.to_drawdown_series(pl.Series(r.to_numpy())).to_list() == pytest.approx(
+        [-0.05, -0.0975]
+    )
+    assert qs.stats.to_drawdown_series(r).to_list() == pytest.approx([0.0, -0.05])
+    # Equivalent to QuantStats with the starting capital as an explicit first point.
+    with_capital = qs.stats.to_drawdown_series(pd.Series([0.0, -0.05, -0.05])).to_numpy()[1:]
+    np.testing.assert_allclose(
+        nq.to_drawdown_series(pl.Series(r.to_numpy())).to_numpy(), with_capital, **STRICT
+    )
 
 
 PAIRED = {

@@ -293,7 +293,10 @@ class TestRiskVsQuantStats:
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test drawdown series on synthetic data."""
-        expected = qs.stats.to_drawdown_series(sample_returns).values
+        # QuantStats with the starting capital as an explicit first point (nanuquant
+        # measures drawdown from the starting capital; QuantStats from the first period).
+        with_capital = pd.concat([pd.Series([0.0]), sample_returns], ignore_index=True)
+        expected = qs.stats.to_drawdown_series(with_capital).values[1:]
         actual = pm.to_drawdown_series(polars_returns).to_numpy()
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
@@ -633,8 +636,10 @@ class TestUlcerMetrics:
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test ulcer index on synthetic data."""
-        expected = qs.stats.ulcer_index(sample_returns)
-        actual = pm.ulcer_index(polars_returns)
+        # Compared from the first non-negative return, where the drawdown conventions agree.
+        start = int(np.argmax(sample_returns.to_numpy() >= 0))
+        expected = qs.stats.ulcer_index(sample_returns.iloc[start:])
+        actual = pm.ulcer_index(polars_returns[start:])
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration
@@ -648,8 +653,10 @@ class TestUlcerMetrics:
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
         """Test ulcer performance index on synthetic data."""
-        expected = qs.stats.ulcer_performance_index(sample_returns, rf=0.0)
-        actual = pm.ulcer_performance_index(polars_returns, risk_free_rate=0.0)
+        # Compared from the first non-negative return, where the drawdown conventions agree.
+        start = int(np.argmax(sample_returns.to_numpy() >= 0))
+        expected = qs.stats.ulcer_performance_index(sample_returns.iloc[start:], rf=0.0)
+        actual = pm.ulcer_performance_index(polars_returns[start:], risk_free_rate=0.0)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
     @pytest.mark.integration

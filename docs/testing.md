@@ -338,6 +338,7 @@ NanuQuant intentionally differs from QuantStats in some areas:
 | **Omega** | Fixed implementation; `inf` with no losses | QuantStats has a bug in some versions and returns NaN |
 | **Exposure** | Exact | QuantStats rounds up to 2 decimals |
 | **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0 |
+| **Drawdown** | Measured from the starting capital (peak starts at 1.0) | QuantStats starts the peak at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the series starts with a non-negative return; parity tests compare from there |
 
 These differences are documented and tests use appropriate tolerances.
 

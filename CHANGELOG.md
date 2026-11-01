@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Drawdown is measured from the starting capital.** The running peak starts at 1.0 instead of the first period's wealth (the QuantStats convention), so a series that has only lost since inception now shows its drawdown: two -5% days give -9.75%, where QuantStats reports -5%, and `[-10%, +5%]` gives -5.5% instead of 0. This affects `to_drawdown_series`, `max_drawdown`, `drawdown_details` and everything built on them (Calmar, recovery factor, ulcer index, serenity) only for series that start with a loss; from a non-negative first return the two conventions agree exactly.
 - **One VaR sign convention.** `cornish_fisher_var`, `modified_var`, `historical_var`, `parametric_var` and `entropic_var` now return a signed return (a loss is negative), the same as `var`, `cvar` and QuantStats. They used to return a positive loss. **Breaking:** negate existing callers.
 - **Rolling metrics on a series shorter than the window return all-null output of the input's length** instead of an empty Series, so they work inside the `.metrics` expression namespace (`map_batches` needs the frame's height).
 - **Rolling metrics annualize with the configured `periods_per_year` (252 by default)**, like the core metrics, so `rolling_sharpe` and `sharpe` are on the same scale. QuantStats' rolling default is 365; pass `periods_per_year=365` to reproduce it. Strict rolling parity tests were added.

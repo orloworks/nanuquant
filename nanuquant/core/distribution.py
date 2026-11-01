@@ -173,111 +173,73 @@ def shapiro_wilk(returns: pl.Series) -> tuple[float, float]:
 
 
 def outlier_win_ratio(returns: pl.Series, quantile: float = 0.99) -> float:
-    """Calculate ratio of outlier wins to mean win.
+    """Calculate the outlier win ratio.
+
+    Matches QuantStats ``outlier_win_ratio``: the ``quantile`` return of the whole
+    series divided by the mean of the non-negative returns. It measures how far the
+    best periods stand above a typical up period.
 
     Parameters
     ----------
     returns : pl.Series
         Period returns.
     quantile : float, default 0.99
-        Quantile threshold for outliers.
+        Upper-tail quantile of all returns used as the outlier level.
 
     Returns
     -------
     float
-        Ratio of outlier wins (above quantile) to average win.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.01, 0.02, 0.03, 0.10, -0.01])
-    >>> outlier_win_ratio(returns, quantile=0.95)
-    2.5...
+        Outlier win ratio. 0.0 if there are no non-negative returns or their mean is 0.
     """
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
     returns = to_float_series(returns)
-    wins = returns.filter(returns > 0)
-
-    if wins.is_empty():
+    level = returns.quantile(quantile, interpolation="linear")
+    up = returns.filter(returns >= 0)
+    mean_up = up.mean() if not up.is_empty() else None
+    if level is None or mean_up is None or mean_up == 0:
         return 0.0
-
-    mean_win = wins.mean()
-    if mean_win is None or mean_win == 0:
-        return 0.0
-
-    threshold = wins.quantile(quantile, interpolation="linear")
-    if threshold is None:
-        return 0.0
-
-    outliers = wins.filter(wins >= threshold)
-    if outliers.is_empty():
-        return 0.0
-
-    mean_outlier = outliers.mean()
-    if mean_outlier is None:
-        return 0.0
-
-    return float(mean_outlier / mean_win)
+    return float(level / mean_up)
 
 
-def outlier_loss_ratio(returns: pl.Series, quantile: float = 0.99) -> float:
-    """Calculate ratio of outlier losses to mean loss.
+def outlier_loss_ratio(returns: pl.Series, quantile: float = 0.01) -> float:
+    """Calculate the outlier loss ratio.
+
+    Matches QuantStats ``outlier_loss_ratio``: the ``quantile`` return of the whole
+    series divided by the mean of the negative returns. It measures how far the worst
+    periods stand below a typical down period.
 
     Parameters
     ----------
     returns : pl.Series
         Period returns.
-    quantile : float, default 0.99
-        Quantile threshold for outliers (applied to absolute losses).
+    quantile : float, default 0.01
+        Lower-tail quantile of all returns used as the outlier level.
 
     Returns
     -------
     float
-        Ratio of outlier losses (absolute) to absolute average loss.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.01, -0.02, -0.03, -0.15, 0.02])
-    >>> outlier_loss_ratio(returns, quantile=0.95)
-    2.0...
+        Outlier loss ratio (positive when the tail quantile is a loss). 0.0 if there
+        are no negative returns.
     """
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
     returns = to_float_series(returns)
-    losses = returns.filter(returns < 0).abs()
-
-    if losses.is_empty():
+    level = returns.quantile(quantile, interpolation="linear")
+    down = returns.filter(returns < 0)
+    mean_down = down.mean() if not down.is_empty() else None
+    if level is None or mean_down is None or mean_down == 0:
         return 0.0
-
-    mean_loss = losses.mean()
-    if mean_loss is None or mean_loss == 0:
-        return 0.0
-
-    threshold = losses.quantile(quantile, interpolation="linear")
-    if threshold is None:
-        return 0.0
-
-    outliers = losses.filter(losses >= threshold)
-    if outliers.is_empty():
-        return 0.0
-
-    mean_outlier = outliers.mean()
-    if mean_outlier is None:
-        return 0.0
-
-    return float(mean_outlier / mean_loss)
+    return float(level / mean_down)
 
 
 def expected_return(returns: pl.Series) -> float:
-    """Calculate expected return (mean).
+    """Calculate the expected (geometric mean) return per period.
 
-    Matches QuantStats expected_return function.
+    Matches QuantStats ``expected_return``: ``prod(1 + r) ** (1 / n) - 1``. For the
+    arithmetic mean use :func:`nanuquant.avg_return` with ``exclude_zeros=False``.
 
     Parameters
     ----------
@@ -287,22 +249,9 @@ def expected_return(returns: pl.Series) -> float:
     Returns
     -------
     float
-        Expected (mean) return.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.01, 0.02, -0.01, 0.03])
-    >>> expected_return(returns)
-    0.0125
+        Geometric mean return per period.
     """
-    returns = validate_returns(returns)
-    if returns.is_empty():
-        return 0.0
-
-    returns = to_float_series(returns)
-    result = returns.mean()
-    return float(result) if result is not None else 0.0
+    return geometric_mean(returns)
 
 
 def geometric_mean(returns: pl.Series) -> float:
@@ -341,8 +290,12 @@ def geometric_mean(returns: pl.Series) -> float:
     # Calculate product of (1 + returns)
     product = (1 + returns).product()
 
-    if product is None or product <= 0:
+    if product is None:
         return 0.0
+    if product == 0:
+        return -1.0  # total loss
+    if product < 0:
+        return float("nan")  # wealth below zero has no real geometric mean
 
     return float(product ** (1.0 / n) - 1)
 

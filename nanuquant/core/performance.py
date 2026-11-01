@@ -289,7 +289,9 @@ def omega(
     sum_losses = abs(losses.sum()) if not losses.is_empty() else 0.0
 
     if sum_losses == 0:
-        return float("nan")
+        # All periods at or above the threshold: unbounded upside ratio. QuantStats
+        # returns NaN here; nanuquant reports the limit instead of hiding it.
+        return float("inf") if sum_gains > 0 else float("nan")
 
     return float(safe_divide(sum_gains, sum_losses, default=float("nan")))
 
@@ -385,7 +387,10 @@ def ulcer_performance_index(
 
 
 def kelly_criterion(returns: pl.Series) -> float:
-    """Calculate Kelly criterion (optimal bet sizing).
+    """Calculate the Kelly criterion (optimal fraction of capital to risk).
+
+    Matches QuantStats ``kelly_criterion``: ``(R * W - (1 - W)) / R`` where ``W`` is
+    :func:`win_rate` (zero periods excluded) and ``R`` is :func:`payoff_ratio`.
 
     Parameters
     ----------
@@ -395,58 +400,27 @@ def kelly_criterion(returns: pl.Series) -> float:
     Returns
     -------
     float
-        Optimal fraction of capital to risk per trade.
-
-    Notes
-    -----
-    Kelly = W - (1-W)/R
-    Where W = win rate, R = payoff ratio (avg win / avg loss)
+        Kelly fraction. With no losing periods this is the win rate (the limit as
+        ``R`` grows); with no winning periods it is ``-inf`` (never bet).
 
     Examples
     --------
     >>> import polars as pl
-    >>> returns = pl.Series([0.02, -0.01, 0.03, -0.01, 0.02])
-    >>> kelly_criterion(returns)
-    0.40...
+    >>> round(kelly_criterion(pl.Series([0.02, -0.01, 0.03, -0.01, 0.01])), 4)
+    0.4
     """
+    from nanuquant.core.returns import payoff_ratio, win_rate
+
     returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
-    returns = to_float_series(returns)
-
-    # Win rate
-    wins = returns.filter(returns > 0)
-    losses = returns.filter(returns < 0)
-
-    n_trades = len(returns)
-    n_wins = len(wins)
-
-    if n_trades == 0:
-        return 0.0
-
-    w = n_wins / n_trades
-
-    # Calculate payoff ratio
-    avg_win = wins.mean() if not wins.is_empty() else 0.0
-    avg_loss = losses.mean() if not losses.is_empty() else 0.0
-
-    if avg_win is None:
-        avg_win = 0.0
-    if avg_loss is None or avg_loss == 0:
-        return w if w > 0 else 0.0
-
-    # Payoff ratio (avg_loss is negative, so take abs)
-    r = avg_win / abs(avg_loss)
-
-    # Handle edge case where payoff ratio is 0 (no wins)
+    w = win_rate(returns)
+    r = payoff_ratio(returns)
+    if math.isinf(r):
+        return float(w)
     if r == 0:
-        return 0.0  # No winning trades means no edge — Kelly says don't bet
-
-    # Kelly formula
-    kelly = w - (1 - w) / r
-
-    return float(kelly)
+        return float("-inf") if w < 1 else 0.0
+    return float((r * w - (1 - w)) / r)
 
 
 def tail_ratio(returns: pl.Series) -> float:
@@ -816,7 +790,9 @@ def treynor_ratio(
 ) -> float:
     """Calculate Treynor ratio.
 
-    Matches QuantStats treynor_ratio implementation.
+    Deliberately differs from QuantStats, which divides the *total* compounded return
+    over the whole sample by beta. The standard definition, used here, divides the
+    annualized excess return (CAGR minus the risk-free rate) by beta.
 
     Parameters
     ----------

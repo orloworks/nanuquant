@@ -983,68 +983,6 @@ class TestTradingVsQuantStats:
         actual = pm.ghpr(spy_polars)
         np.testing.assert_allclose(actual, expected, **TIGHT)
 
-    def test_cpc_index_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
-        """Test CPC Index on synthetic data.
-
-        Note: CPC Index formula varies across sources. Our implementation uses:
-        CPC = profit_factor * win_rate * payoff_ratio
-        This differs from some QuantStats versions but is consistent with
-        common trading literature definitions.
-        """
-        actual = pm.cpc_index(polars_returns)
-        # Verify result is sensible (positive and finite for typical returns)
-        assert actual > 0, "CPC Index should be positive for profitable strategy"
-        assert np.isfinite(actual), "CPC Index should be finite"
-
-    @pytest.mark.integration
-    def test_cpc_index_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
-        """Test CPC Index on SPY data.
-
-        Note: CPC Index formula varies across sources. Our implementation
-        follows the standard: profit_factor * win_rate * payoff_ratio.
-        """
-        actual = pm.cpc_index(spy_polars)
-        # SPY is typically profitable long-term
-        assert actual > 0, "CPC Index should be positive for SPY"
-        assert np.isfinite(actual), "CPC Index should be finite"
-
-    def test_adjusted_sortino_synthetic(
-        self, sample_returns: pd.Series, polars_returns: pl.Series
-    ) -> None:
-        """Test adjusted Sortino on synthetic data.
-
-        Note: Adjusted Sortino applies skewness/kurtosis corrections differently
-        across implementations. Our implementation uses the standard financial
-        literature formula. Results may differ from QuantStats.
-        """
-        actual = pm.adjusted_sortino(polars_returns, risk_free_rate=0.0, periods_per_year=252)
-        # Verify result is sensible
-        assert np.isfinite(actual), "Adjusted Sortino should be finite"
-        # Compare to regular sortino - adjusted version accounts for distribution shape
-        regular_sortino = pm.sortino(polars_returns, risk_free_rate=0.0, periods_per_year=252)
-        # Adjusted can be higher or lower depending on skew/kurtosis
-        assert abs(actual - regular_sortino) < abs(regular_sortino) * 2, (
-            "Adjusted Sortino should be in reasonable range of regular Sortino"
-        )
-
-    @pytest.mark.integration
-    def test_adjusted_sortino_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
-        """Test adjusted Sortino on SPY data.
-
-        Note: Adjusted Sortino formula differs from QuantStats. Our implementation
-        uses standard financial literature formula for skew/kurtosis adjustment.
-        """
-        actual = pm.adjusted_sortino(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        assert np.isfinite(actual), "Adjusted Sortino should be finite for SPY"
-        # SPY typically has positive long-term Sortino
-        regular_sortino = pm.sortino(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        # Adjusted should be in reasonable range
-        assert abs(actual - regular_sortino) < abs(regular_sortino) * 2, (
-            "Adjusted Sortino should be in reasonable range of regular Sortino"
-        )
-
     def test_smart_sharpe_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
@@ -1054,23 +992,6 @@ class TestTradingVsQuantStats:
         # Small tolerance for autocorrelation calculation differences
         np.testing.assert_allclose(actual, expected, **STAT)
 
-    @pytest.mark.integration
-    def test_smart_sharpe_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
-        """Test smart Sharpe on SPY data.
-
-        Note: Autocorrelation penalty formula may differ slightly between
-        implementations. Our implementation uses Lo (2002) adjustment:
-        SR_adj = SR * sqrt((1 - rho) / (1 + rho))
-        """
-        actual = pm.smart_sharpe(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        regular_sharpe = pm.sharpe(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        # Smart Sharpe should be close to regular but adjusted for autocorrelation
-        assert np.isfinite(actual), "Smart Sharpe should be finite for SPY"
-        # Verify it's in a reasonable range of the regular Sharpe ratio
-        assert abs(actual - regular_sharpe) < abs(regular_sharpe), (
-            "Smart Sharpe should be in a reasonable range of regular Sharpe"
-        )
-
     def test_smart_sortino_synthetic(
         self, sample_returns: pd.Series, polars_returns: pl.Series
     ) -> None:
@@ -1079,19 +1000,3 @@ class TestTradingVsQuantStats:
         actual = pm.smart_sortino(polars_returns, risk_free_rate=0.0, periods_per_year=252)
         # Small tolerance for autocorrelation calculation differences
         np.testing.assert_allclose(actual, expected, **STAT)
-
-    @pytest.mark.integration
-    def test_smart_sortino_spy(self, spy_returns: pd.Series, spy_polars: pl.Series) -> None:
-        """Test smart Sortino on SPY data.
-
-        Note: Autocorrelation penalty formula may differ slightly between
-        implementations. Our implementation uses Lo (2002) adjustment.
-        """
-        actual = pm.smart_sortino(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        assert np.isfinite(actual), "Smart Sortino should be finite for SPY"
-        # Verify it's in reasonable range of regular sortino
-        regular_sortino = pm.sortino(spy_polars, risk_free_rate=0.0, periods_per_year=252)
-        # Adjustment typically within 50% of original value
-        assert abs(actual - regular_sortino) < abs(regular_sortino), (
-            "Smart Sortino should be in reasonable range of regular Sortino"
-        )

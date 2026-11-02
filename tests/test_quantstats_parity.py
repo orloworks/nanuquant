@@ -107,7 +107,6 @@ DRAWDOWN_FAMILY = {
     "ulcer_performance_index",
     "recovery_factor",
     "serenity_index",
-    "calmar",
 }
 
 
@@ -124,6 +123,73 @@ def test_single_series_parity(name, dataset):
         returns = _from_first_gain(returns)
     ours, theirs = SINGLE[name]
     np.testing.assert_allclose(ours(pl.Series(returns.to_numpy())), theirs(returns), **STRICT)
+
+
+def _with_capital(returns: pd.Series) -> pd.Series:
+    """The starting capital as an explicit first point: a 0% first period."""
+    return pd.concat([pd.Series([0.0]), returns.reset_index(drop=True)], ignore_index=True)
+
+
+# Series that start with a loss, where the two drawdown conventions differ. BND's first
+# return is a small loss. SPY_crash_first opens with a 50% and a 30% loss: -65% from
+# the starting capital, deeper than 2008, so its deepest drawdown starts at inception.
+LOSS_FIRST = {
+    "BND": DATA["BND"],
+    "SPY_crash_first": pd.concat(
+        [pd.Series([-0.5, -0.3]), DATA["SPY"].reset_index(drop=True)], ignore_index=True
+    ),
+}
+
+
+@pytest.mark.parametrize("dataset", list(LOSS_FIRST))
+def test_drawdown_family_on_loss_first_series_matches_quantstats_with_starting_capital(dataset):
+    # QuantStats given the starting capital as a 0% first point measures drawdown the
+    # way nanuquant does, so it is an exact oracle for the loss-first case.
+    r = LOSS_FIRST[dataset]
+    w = _with_capital(r)
+    p = pl.Series(r.to_numpy())
+    n = len(r)
+    np.testing.assert_allclose(nq.max_drawdown(p), qs.stats.max_drawdown(w), **STRICT)
+    np.testing.assert_allclose(nq.recovery_factor(p), qs.stats.recovery_factor(w), **STRICT)
+    # Ulcer divides by its own count minus one; the extra 0% point changes that count.
+    np.testing.assert_allclose(
+        nq.ulcer_index(p), qs.stats.ulcer_index(w) * math.sqrt(n / (n - 1)), **STRICT
+    )
+    # Built on those: pin their formulas.
+    np.testing.assert_allclose(
+        nq.ulcer_performance_index(p, risk_free_rate=0.0), nq.comp(p) / nq.ulcer_index(p), **STRICT
+    )
+    np.testing.assert_allclose(
+        nq.calmar(p, periods_per_year=P),
+        nq.cagr(p, periods_per_year=P) / abs(nq.max_drawdown(p)),
+        **STRICT,
+    )
+
+
+def test_crash_first_series_tells_the_conventions_apart():
+    # Guards the oracle above: on this series the QuantStats convention gives a
+    # different (smaller) max drawdown, so the test can't pass under it.
+    r = LOSS_FIRST["SPY_crash_first"]
+    assert nq.max_drawdown(pl.Series(r.to_numpy())) < qs.stats.max_drawdown(r) - 0.01
+
+
+def test_risk_free_rate_is_converted_arithmetically():
+    # nanuquant takes rf per period as rf / periods; QuantStats as (1 + rf)^(1/periods) - 1.
+    # The same per-period rate gives the same ratio exactly.
+    r = DATA["SPY"]
+    p = pl.Series(r.to_numpy())
+    rf = 0.04
+    rf_qs = (1 + rf / P) ** P - 1  # the annual rate QuantStats turns into rf / P
+    np.testing.assert_allclose(
+        nq.sharpe(p, risk_free_rate=rf, periods_per_year=P),
+        qs.stats.sharpe(r, rf=rf_qs, periods=P),
+        **STRICT,
+    )
+    np.testing.assert_allclose(
+        nq.sortino(p, risk_free_rate=rf, periods_per_year=P),
+        qs.stats.sortino(r, rf=rf_qs, periods=P),
+        **STRICT,
+    )
 
 
 def test_drawdown_counts_from_starting_capital_unlike_quantstats():

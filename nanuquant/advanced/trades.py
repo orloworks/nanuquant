@@ -168,9 +168,13 @@ def cpc_index(returns: pl.Series) -> float:
 def serenity_index(returns: pl.Series, *, risk_free_rate: float = 0.0) -> float:
     """Calculate the Serenity index.
 
-    Matches QuantStats ``serenity_index``: ``(sum(r) - rf) / (ulcer_index * pitfall)``,
+    QuantStats' ``serenity_index`` formula: ``(sum(r) - rf) / (ulcer_index * pitfall)``,
     where ``pitfall = -cvar(drawdowns) / std(r)`` penalises deep tail drawdowns
     relative to everyday volatility. Higher is better.
+
+    Matches QuantStats for series that start with a non-negative return. Drawdown is
+    measured from the starting capital (see :func:`to_drawdown_series`), so a series that
+    starts with a loss can differ from QuantStats.
 
     Parameters
     ----------

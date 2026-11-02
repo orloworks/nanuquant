@@ -31,7 +31,9 @@ def sample_returns() -> pd.Series:
     """Generate deterministic test data as pandas Series.
 
     Returns 1000 daily returns with specific patterns injected for edge case testing:
-    - Day 0: -5% drawdown (tests first-day drawdown handling)
+    - Day 0: -5% (a loss from the first period; wealth is back above 1.0 by day 6, so
+      the deepest drawdown is the same under either drawdown convention. The
+      loss-first case is pinned in test_quantstats_parity's LOSS_FIRST tests)
     - Days 100-104: Win streak [3%, 2%, 1%, 2%, 3%]
     - Days 200-206: Loss streak [-2%] * 7
     - Day 500: +15% outlier win

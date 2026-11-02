@@ -339,6 +339,7 @@ NanuQuant intentionally differs from QuantStats in some areas:
 | **Exposure** | Exact | QuantStats rounds up to 2 decimals |
 | **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0 |
 | **Drawdown** | Measured from the starting capital (peak starts at 1.0) | QuantStats starts the peak at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the series starts with a non-negative return; parity tests compare from there |
+| **Risk-free rate** | Per period: `rf / periods` | QuantStats converts geometrically, `(1 + rf)^(1/periods) - 1`; about 1% apart for Sharpe/Sortino at rf = 4%. Pinned exactly in the parity tests |
 
 These differences are documented and tests use appropriate tolerances.
 

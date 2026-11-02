@@ -41,7 +41,7 @@ df.select(pl.col("SPY").ind.max_drawdown(3))         # `.ind` expression namespa
 | `current_price(p)` | `p_t` | NaN normalised to null |
 | `sma(p, period)` | mean of the last `period` prices | |
 | `ema(p, period, *, adjust=False)` | `y_t = (1-a) y_{t-1} + a p_t`, `a = 2/(period+1)`, seeded at the first price | Null until `period` prices seen. `adjust=False` is the full-history recursion (Composer convention) |
-| `rsi(p, period, *, method="wilder")` | `100 - 100/(1 + G/L)`; `G`, `L` Wilder-smoothed gains/losses, `a = 1/period` | First change counts as zero; no warm-up cut. After a gap the change is from the last valid price and the missing row is skipped (same as removing it). 100 when `L = 0`; null when `G = L = 0` or the price is missing |
+| `rsi(p, period, *, method="wilder", seed="zero")` | `100 - 100/(1 + G/L)`; `G`, `L` Wilder-smoothed gains/losses, `a = 1/period` | `seed="zero"`: smoothing starts at the first price, whose change counts as zero. `seed="first_change"`: starts at the first real change, as pandas-ta does; null at the first price. The two differ for roughly `3 * period` observations. No warm-up cut. After a gap the change is from the last valid price and the missing row is skipped (same as removing it). 100 when `L = 0`; null when `G = L = 0` or the price is missing |
 | `cumulative_return(p, period, *, percent=False)` | `p_t / p_{t-period} - 1` | |
 | `max_drawdown(p, period, *, percent=False)` | `max_u (P_u - p_u) / P_u` over the window, `P_u` the running peak *within* the window | Positive magnitude. Counts a mid-window spike and drop even after recovery |
 | `current_drawdown(p, period=None, *, percent=False)` | `(P - p_t) / P`; `P` all-time running peak (`None`) or trailing `period` max | Positive magnitude |
@@ -65,7 +65,7 @@ The settings a strategy engine uses to reproduce Composer's indicator values:
 | Current price | `current_price(p)` |
 | Moving average of price | `sma(p, n)` |
 | Exponential moving average of price | `ema(p, n)` |
-| Relative strength index | `rsi(p, n)` |
+| Relative strength index | `rsi(p, n, seed="first_change")` |
 | Cumulative return | `cumulative_return(p, n, percent=True)` |
 | Max drawdown | `max_drawdown(p, n, percent=True)` |
 | Standard deviation of return | `std_dev_return(p, n, percent=True)` |
@@ -73,3 +73,8 @@ The settings a strategy engine uses to reproduce Composer's indicator values:
 
 These are pinned by differential tests against a reference implementation that has been
 checked against Composer's own allocations (`tests/test_indicators.py`).
+
+For RSI, `seed="first_change"` matches the Composer parser (pandas-ta). The seed only
+matters while it hasn't decayed, roughly `3 * period` observations. On a short history and a
+long period (RSI-200 on two years of prices) that is most of the series, and the two seeds
+can pick different branches.

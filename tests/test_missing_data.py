@@ -51,11 +51,16 @@ def _with_missing(values: np.ndarray, missing: list[int], *, as_nan: bool) -> pl
 
 
 def _same(a: object, b: object) -> bool:
+    """Equal to 1e-12. A NaN never matches, so a metric that degenerates to NaN on
+    both inputs fails instead of passing; infinities match only themselves."""
     if isinstance(a, tuple):
-        return all(_same(x, y) for x, y in zip(a, b))  # type: ignore[arg-type]
+        assert isinstance(b, tuple) and len(a) == len(b), (a, b)
+        return all(_same(x, y) for x, y in zip(a, b, strict=True))
     fa, fb = float(a), float(b)  # type: ignore[arg-type]
-    if math.isnan(fa) and math.isnan(fb):
-        return True
+    if math.isnan(fa) or math.isnan(fb):
+        return False
+    if math.isinf(fa) or math.isinf(fb):
+        return fa == fb
     return math.isclose(fa, fb, rel_tol=1e-12, abs_tol=1e-15)
 
 

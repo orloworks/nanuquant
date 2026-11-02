@@ -114,7 +114,8 @@ def drawdown_details(
     -------
     pl.DataFrame
         DataFrame with columns:
-        - start: Start date/index of drawdown
+        - start: Date/index of the peak the drawdown fell from; null when that peak
+          is the starting capital (the series lost from its first period)
         - valley: Date/index of maximum drawdown point
         - end: End date/index of drawdown (when recovered)
         - depth: Maximum drawdown depth (negative value)
@@ -204,10 +205,13 @@ def drawdown_details(
         ]
     )
 
-    # Start is one index before first_dd_idx (the peak), clamped to 0
+    # Start is the peak, one index before the first drawdown period. For a series
+    # that is in drawdown from its first period, that peak is the starting capital,
+    # a virtual row at -1: its start is null ("inception") and its length counts
+    # from it, as [0.0, -0.1, 0.2] does from its flat first day.
     period_stats = period_stats.with_columns(
         [
-            (pl.col("first_dd_idx") - 1).clip(lower_bound=0).alias("start_idx"),
+            (pl.col("first_dd_idx") - 1).alias("start_idx"),
         ]
     )
 
@@ -240,7 +244,9 @@ def drawdown_details(
     dates_list = dates.to_list()
     result = pl.DataFrame(
         {
-            "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
+            "start": [
+                dates_list[int(i)] if i >= 0 else None for i in period_stats["start_idx"].to_list()
+            ],
             "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
             "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
             "depth": period_stats["depth"].to_list(),

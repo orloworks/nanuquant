@@ -27,7 +27,18 @@ Known Differences from QuantStats
    nanuquant implements the correct Omega ratio formula:
    Omega = (sum of returns above threshold) / abs(sum of returns below threshold)
 
-4. **No longer different: CPC Index, Adjusted Sortino, Smart Sharpe / Smart Sortino**
+4. **Drawdown is measured from the starting capital**
+   nanuquant's running peak starts at 1.0; QuantStats starts it at the first period's
+   wealth. They agree exactly once a series starts with a non-negative return. Loss-first
+   series are pinned in test_quantstats_parity against QuantStats given the starting
+   capital as an explicit 0% first point.
+
+5. **Risk-free rate per period: rf / periods**
+   nanuquant converts an annual rate arithmetically; QuantStats geometrically,
+   ``(1 + rf) ** (1 / periods) - 1``. Sharpe and Sortino with rf = 4% differ by about 1%;
+   test_quantstats_parity pins the exact relationship.
+
+6. **No longer different: CPC Index, Adjusted Sortino, Smart Sharpe / Smart Sortino**
    These now match QuantStats exactly and are pinned at rtol=1e-9 in
    ``tests/test_quantstats_parity.py``.
 

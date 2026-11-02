@@ -54,7 +54,7 @@ def sharpe(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.01, 0.015, 0.005])
     >>> sharpe(returns, risk_free_rate=0.0, periods_per_year=252)
-    2.54...
+    11.03...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -121,7 +121,7 @@ def sortino(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.01, 0.015, 0.005])
     >>> sortino(returns, risk_free_rate=0.0, periods_per_year=252)
-    3.60...
+    28.39...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -198,7 +198,7 @@ def calmar(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.05, 0.03, 0.02])
     >>> calmar(returns, periods_per_year=252)
-    5.0...
+    61.28...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -318,7 +318,7 @@ def gain_to_pain_ratio(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.02, 0.01, -0.01, 0.03, -0.02])
     >>> gain_to_pain_ratio(returns)
-    1.0
+    0.99999...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -343,7 +343,9 @@ def ulcer_performance_index(
 ) -> float:
     """Calculate Ulcer Performance Index (UPI).
 
-    Matches QuantStats implementation.
+    Matches QuantStats for series that start with a non-negative return. Drawdown is
+    measured from the starting capital (see :func:`to_drawdown_series`), so a series that
+    starts with a loss can differ from QuantStats.
 
     Parameters
     ----------
@@ -366,7 +368,7 @@ def ulcer_performance_index(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.01, 0.015, 0.005])
     >>> ulcer_performance_index(returns, risk_free_rate=0.0)
-    5.0...
+    8.074...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -445,7 +447,7 @@ def tail_ratio(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.01, 0.05, -0.02])
     >>> tail_ratio(returns)
-    2.5...
+    2.444...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -484,7 +486,7 @@ def common_sense_ratio(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.02, -0.01, 0.03, -0.01, 0.02])
     >>> common_sense_ratio(returns)
-    6.25...
+    9.8...
     """
     from nanuquant.core.returns import profit_factor as pf
 
@@ -521,7 +523,7 @@ def risk_return_ratio(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, 0.02, -0.01, 0.015, 0.005])
     >>> risk_return_ratio(returns)
-    0.65...
+    0.6949...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -541,7 +543,11 @@ def risk_return_ratio(
 def recovery_factor(returns: pl.Series) -> float:
     """Calculate recovery factor.
 
-    Matches QuantStats implementation: sum(returns) / |max_drawdown|.
+    QuantStats' formula, sum(returns) / |max_drawdown|.
+
+    Matches QuantStats for series that start with a non-negative return. Drawdown is
+    measured from the starting capital (see :func:`to_drawdown_series`), so a series that
+    starts with a loss can differ from QuantStats.
 
     Parameters
     ----------
@@ -562,7 +568,7 @@ def recovery_factor(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.10, -0.05, 0.08, 0.05])
     >>> recovery_factor(returns)
-    3.6...
+    3.59999...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -691,7 +697,7 @@ def information_ratio(
     >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
     >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
     >>> information_ratio(returns, benchmark)
-    0.25...
+    0.4472...
     """
     returns, benchmark = align_pair(returns, benchmark)
 
@@ -743,7 +749,7 @@ def r_squared(
     >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
     >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
     >>> r_squared(returns, benchmark)
-    0.60...
+    0.8277...
     """
     returns, benchmark = align_pair(returns, benchmark)
 
@@ -820,7 +826,7 @@ def treynor_ratio(
     >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
     >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
     >>> treynor_ratio(returns, benchmark)
-    0.50...
+    2.896...
     """
     returns, benchmark = align_pair(returns, benchmark)
 
@@ -868,7 +874,7 @@ def benchmark_correlation(
     >>> returns = pl.Series([0.02, -0.01, 0.03, 0.01, -0.02])
     >>> benchmark = pl.Series([0.01, -0.02, 0.02, 0.01, -0.01])
     >>> benchmark_correlation(returns, benchmark)
-    0.77...
+    0.9097...
     """
     returns, benchmark = align_pair(returns, benchmark)
 

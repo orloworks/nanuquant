@@ -1,6 +1,7 @@
 """Risk metrics for nanuquant.
 
-This module provides risk-based metrics that match QuantStats output.
+This module provides risk-based metrics that match QuantStats output, except that
+drawdown is measured from the starting capital (see :func:`to_drawdown_series`).
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def volatility(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, -0.02, 0.015, -0.01, 0.02])
     >>> volatility(returns, periods_per_year=252)
-    0.248...
+    0.2726...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -109,7 +110,7 @@ def var(
     >>> import polars as pl
     >>> returns = pl.Series([-0.05, -0.02, 0.01, 0.03, -0.01])
     >>> var(returns, confidence=0.95)
-    -0.058...
+    -0.0578...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -161,7 +162,7 @@ def cvar(
     >>> import polars as pl
     >>> returns = pl.Series([-0.10, -0.05, -0.02, 0.01, 0.03])
     >>> cvar(returns, confidence=0.95)
-    -0.10
+    -0.1
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -212,15 +213,8 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     --------
     >>> import polars as pl
     >>> returns = pl.Series([0.10, -0.05, 0.02, -0.08])
-    >>> to_drawdown_series(returns)
-    shape: (4,)
-    Series: '' [f64]
-    [
-        0.0
-        -0.05
-        -0.031
-        -0.10852
-    ]
+    >>> to_drawdown_series(returns).round(5).to_list()
+    [0.0, -0.05, -0.031, -0.10852]
     """
     returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty():
@@ -234,16 +228,13 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     # Running peak, starting from the starting capital (1.0): a loss from day one is
     # a drawdown. (QuantStats starts the peak at the first period's wealth, so it
     # reports no drawdown for a series that has only lost since inception.) Missing
-    # returns stay null.
-    drawdown = (
-        pl.DataFrame({"c": cumulative})
-        .select(
-            pl.when(pl.col("c").is_not_null()).then(
-                pl.col("c") / pl.max_horizontal(pl.col("c").cum_max(), pl.lit(1.0)) - 1.0
-            )
-        )
-        .to_series()
-    )
+    # returns stay null (a null wealth gives a null quotient).
+    drawdown = cumulative / cumulative.cum_max().clip(lower_bound=1.0) - 1.0
+    # Wealth at or below zero is ruin: the drawdown is -100% from then on. Compounding
+    # further returns on non-positive wealth (possible with returns below -100%)
+    # would report drawdowns beyond -100% that shrink as the "losses" continue.
+    ruined = (cumulative <= 0).fill_null(False).cum_max()
+    drawdown = pl.select(pl.when(ruined).then(pl.lit(-1.0)).otherwise(drawdown)).to_series()
 
     return drawdown.alias("drawdown")
 
@@ -266,7 +257,7 @@ def max_drawdown(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.10, -0.05, 0.02, -0.15, 0.05])
     >>> max_drawdown(returns)
-    -0.134...
+    -0.1763...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -284,7 +275,9 @@ def max_drawdown(returns: pl.Series) -> float:
 def ulcer_index(returns: pl.Series) -> float:
     """Calculate the Ulcer Index (drawdown severity measure).
 
-    Matches QuantStats implementation.
+    Matches QuantStats for series that start with a non-negative return. Drawdown is
+    measured from the starting capital (see :func:`to_drawdown_series`), so a series that
+    starts with a loss can differ from QuantStats.
 
     Parameters
     ----------
@@ -306,7 +299,7 @@ def ulcer_index(returns: pl.Series) -> float:
     >>> import polars as pl
     >>> returns = pl.Series([0.01, -0.02, 0.015, -0.03, 0.02])
     >>> ulcer_index(returns)
-    0.015...
+    0.0218...
     """
     returns = validate_returns(returns)
     if returns.is_empty():
@@ -367,7 +360,7 @@ def downside_deviation(
     >>> import polars as pl
     >>> returns = pl.Series([0.01, -0.02, 0.015, -0.03, 0.02])
     >>> downside_deviation(returns, mar=0.0)
-    0.18...
+    0.2559...
     """
     returns = validate_returns(returns)
     if returns.is_empty():

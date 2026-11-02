@@ -14,6 +14,7 @@ from datetime import date, timedelta
 
 import numpy as np
 import polars as pl
+import pytest
 
 import nanuquant as pm
 from nanuquant.core.timeseries import (
@@ -88,6 +89,49 @@ class TestYearlyReturns:
 
 class TestDrawdownDetails:
     """Tests for drawdown_details function."""
+
+    def test_values_of_a_recovered_episode(self):
+        # +10%, then -15% and -10% to the trough, then back above the peak.
+        # Peak at 0, valley at 2, recovered at 4 (1.1*0.85*0.9*1.1*1.2 > 1.1).
+        r = pl.Series([0.10, -0.15, -0.10, 0.10, 0.20])
+        row = drawdown_details(r, top_n=1).row(0, named=True)
+        assert (row["start"], row["valley"], row["end"]) == (0, 2, 4)
+        assert row["depth"] == pytest.approx(0.85 * 0.9 - 1)
+        assert row["length"] == 5  # peak to recovery, inclusive
+        assert row["recovery"] == 2  # valley to recovery
+
+    def test_a_loss_from_the_first_period_falls_from_the_starting_capital(self):
+        # Same episode with or without a flat first day: the peak is the starting
+        # capital (start null) and the length counts from it.
+        loss_first = drawdown_details(pl.Series([-0.1, 0.2]), top_n=1).row(0, named=True)
+        assert loss_first["start"] is None
+        assert (loss_first["valley"], loss_first["end"]) == (0, 1)
+        assert (loss_first["length"], loss_first["recovery"]) == (3, 1)
+        flat_first = drawdown_details(pl.Series([0.0, -0.1, 0.2]), top_n=1).row(0, named=True)
+        assert (flat_first["start"], flat_first["valley"], flat_first["end"]) == (0, 1, 2)
+        assert (flat_first["length"], flat_first["recovery"]) == (3, 1)
+
+    def test_an_unrecovered_episode_has_no_recovery(self):
+        row = drawdown_details(pl.Series([0.1, -0.2, 0.05]), top_n=1).row(0, named=True)
+        assert (row["start"], row["valley"], row["end"]) == (0, 1, 2)
+        assert row["recovery"] is None
+
+    def test_length_counts_observed_periods_across_a_gap(self):
+        # Positions include the gap; length and recovery count observed periods only.
+        clean = drawdown_details(pl.Series([0.10, -0.15, -0.10, 0.10, 0.20]), top_n=1).row(
+            0, named=True
+        )
+        gappy = drawdown_details(pl.Series([0.10, -0.15, None, -0.10, 0.10, 0.20]), top_n=1).row(
+            0, named=True
+        )
+        assert (gappy["start"], gappy["valley"], gappy["end"]) == (0, 3, 5)
+        assert (gappy["length"], gappy["recovery"]) == (clean["length"], clean["recovery"])
+
+    def test_wealth_at_or_below_zero_is_ruin(self):
+        # A return below -100% (leverage) leaves wealth negative: -100% from then on,
+        # not a drawdown beyond -100% that shrinks as further "losses" compound.
+        assert pm.to_drawdown_series(pl.Series([-1.5, -0.5, 0.2])).to_list() == [-1.0] * 3
+        assert pm.max_drawdown(pl.Series([0.1, -1.2, 0.5])) == -1.0
 
     def test_basic_drawdown_detection(self):
         """Test basic drawdown period detection."""

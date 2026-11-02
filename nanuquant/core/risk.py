@@ -233,8 +233,12 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     # Wealth at or below zero is ruin: the drawdown is -100% from then on. Compounding
     # further returns on non-positive wealth (possible with returns below -100%)
     # would report drawdowns beyond -100% that shrink as the "losses" continue.
-    ruined = (cumulative <= 0).fill_null(False).cum_max()
-    drawdown = pl.select(pl.when(ruined).then(pl.lit(-1.0)).otherwise(drawdown)).to_series()
+    # (Checked with the native min() first: the masking query costs more than the
+    # rest of the function, and ruin is rare.)
+    lowest = cumulative.min()
+    if lowest is not None and lowest <= 0:
+        ruined = (cumulative <= 0).fill_null(False).cum_max()
+        drawdown = pl.select(pl.when(ruined).then(pl.lit(-1.0)).otherwise(drawdown)).to_series()
 
     return drawdown.alias("drawdown")
 

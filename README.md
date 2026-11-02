@@ -22,39 +22,51 @@ In Inuktitut, the language of the Inuit people, **"nanuq"** means **polar bear**
 
 ## Why NanuQuant?
 
-NanuQuant is a drop-in QuantStats replacement built natively on Polars. Zero Pandas dependency in production, 13x median speedup, and institutional-grade metrics that go well beyond standard libraries.
+NanuQuant is a drop-in QuantStats replacement built natively on Polars. Zero Pandas dependency in production, a 33x median speedup, missing data handled as missing rather than as zero, and institutional-grade metrics that go well beyond standard libraries.
 
-### Performance: 3x–56x Faster Than QuantStats
+### Performance: 33x Median Speedup Over QuantStats
 
-Benchmarked on 24 metrics across synthetic and real market data (SPY, 8,298 observations):
+Benchmarked on 24 metrics on real market data (SPY, 8,298 observations):
 
 | Metric | NanuQuant | QuantStats | Speedup |
 |--------|----------:|----------:|--------:|
-| avg_return | 0.017 ms | 0.386 ms | **22x** |
-| win_rate | 0.019 ms | 0.406 ms | **22x** |
-| kelly_criterion | 0.030 ms | 1.686 ms | **56x** |
-| sharpe | 0.023 ms | 0.301 ms | **13x** |
-| sortino | 0.096 ms | 0.380 ms | **4x** |
-| max_drawdown | 0.136 ms | 0.473 ms | **4x** |
-| gain_to_pain | 0.023 ms | 0.654 ms | **28x** |
+| avg_return | 0.010 ms | 0.471 ms | **45x** |
+| win_rate | 0.011 ms | 0.560 ms | **50x** |
+| kelly_criterion | 0.038 ms | 2.453 ms | **64x** |
+| sharpe | 0.011 ms | 0.370 ms | **33x** |
+| sortino | 0.156 ms | 0.547 ms | **4x** |
+| max_drawdown | 0.267 ms | 0.639 ms | **2x** |
+| gain_to_pain | 0.011 ms | 1.300 ms | **119x** |
 
-> Median **13x** speedup across all metrics. See the [full benchmark results](https://launchstack-dev.github.io/nanuquant/benchmarks/).
+> Median **33x** across the 24 metrics, from 1.3x (kurtosis) to 119x. Timings vary by hardware; see the [full benchmark results](https://launchstack-dev.github.io/nanuquant/benchmarks/).
 
 ### Calculation Accuracy: Verified Against QuantStats
 
-Every metric is differentially tested against QuantStats to verify correctness. On synthetic data, **21 of 24 metrics match within 1e-8 tolerance** — the 3 differences are intentional improvements (documented below).
+Every metric that is meant to match QuantStats is checked against [quantstats-lumi](https://github.com/Lumiwealth/quantstats_lumi) at a relative tolerance of **1e-9**:
 
-| Metric | NanuQuant | QuantStats | Rel. Diff | Status |
-|--------|----------:|----------:|----------:|--------|
-| sharpe | 0.639751 | 0.639751 | 0% | PASS |
-| sortino | 0.910049 | 0.910049 | <0.001% | PASS |
-| volatility | 0.186220 | 0.186220 | <0.001% | PASS |
-| max_drawdown | -0.551894 | -0.551894 | <0.001% | PASS |
-| var (95%) | -0.018823 | -0.018823 | <0.001% | PASS |
-| skewness | -0.010854 | -0.010854 | 0% | PASS |
-| kurtosis | 11.8540 | 11.8540 | <0.001% | PASS |
+- **Data:** the full SPY (1993–2026, 8,298 days), QQQ and BND histories, plus SPY with every seventh day flat, so zero-return handling is exercised.
+- **Coverage:**
+  - 38 single-series metrics, from `comp` and `sharpe` to `serenity_index`, `cpc_index`, `smart_sortino` and `risk_of_ruin`;
+  - alpha, beta, information ratio and R² against QQQ;
+  - rolling volatility, Sharpe and Sortino.
+- **Deliberate differences** (below) are pinned to their exact relationship with QuantStats rather than skipped. For example, drawdown metrics on a series that starts with a loss must equal QuantStats run with the starting capital as an explicit first point.
 
-> Full audit tables for all metrics and dataset sizes in [Benchmarks](https://launchstack-dev.github.io/nanuquant/benchmarks/).
+| Metric (SPY) | NanuQuant | QuantStats |
+|--------|----------:|----------:|
+| sharpe | 0.639751 | 0.639751 |
+| sortino | 0.910049 | 0.910049 |
+| volatility | 0.186220 | 0.186220 |
+| max_drawdown | -0.551894 | -0.551894 |
+| var (95%) | -0.018823 | -0.018823 |
+| skewness | -0.010854 | -0.010854 |
+| kurtosis | 11.8540 | 11.8540 |
+
+**Missing data is missing, never zero.** QuantStats fills missing returns with 0, which reads a missing day as a flat day. In NanuQuant:
+- a metric on a series with gaps equals the metric on the series with the gaps removed;
+- a paired metric uses only the periods where both series are present;
+- a positional output (drawdown series, rolling metrics) keeps its length and is null at the gap.
+
+This is pinned by its own test suite (`tests/test_missing_data.py`).
 
 ### Beyond QuantStats
 
@@ -157,7 +169,7 @@ if arch.has_arch_effects:
 | Category | Metrics |
 |----------|---------|
 | **Returns** | `comp`, `cagr`, `avg_return`, `avg_win`, `avg_loss`, `best`, `worst`, `win_rate`, `payoff_ratio`, `profit_factor`, `consecutive_wins`, `consecutive_losses` |
-| **Risk** | `volatility`, `var`, `cvar`, `max_drawdown`, `to_drawdown_series`, `ulcer_index`, `downside_deviation` |
+| **Risk** | `volatility`, `var`, `cvar`, `max_drawdown`, `to_drawdown_series`, `drawdown_details`, `ulcer_index`, `downside_deviation` |
 | **Performance** | `sharpe`, `sortino`, `calmar`, `omega`, `gain_to_pain_ratio`, `ulcer_performance_index`, `kelly_criterion`, `tail_ratio`, `common_sense_ratio`, `risk_return_ratio`, `recovery_factor`, `greeks`, `information_ratio`, `r_squared`, `treynor_ratio`, `benchmark_correlation` |
 | **Distribution** | `skewness`, `kurtosis`, `jarque_bera`, `shapiro_wilk`, `outlier_win_ratio`, `outlier_loss_ratio`, `expected_return`, `geometric_mean` |
 | **Rolling** | `rolling_volatility`, `rolling_sharpe`, `rolling_sortino`, `rolling_beta`, `rolling_greeks` |
@@ -170,21 +182,32 @@ if arch.has_arch_effects:
 
 `probabilistic_sharpe_ratio`, `deflated_sharpe_ratio`, `minimum_track_record_length`, `arch_effect_test`, `garch_volatility`, `cornish_fisher_var`, `modified_var`, `entropic_var`, `marginal_contribution_to_risk`, `ledoit_wolf_covariance`, `absorption_ratio`, `lower_tail_dependence`, `implementation_shortfall`, `market_impact_estimate`
 
+### Indicators
+
+`nanuquant.indicators`: price indicators as Polars expressions. Each one takes a `pl.Series` or a `pl.Expr` (any number of columns, lazily), and there is a `.ind` namespace:
+- `current_price`, `sma`, `ema`, `rsi`;
+- `cumulative_return`, `max_drawdown`, `current_drawdown`;
+- `std_dev_return`, `moving_average_return`.
+
+Platform conventions are explicit arguments (`percent=`, `annualize=`, `rsi(seed=)`), so a strategy engine can pin, for example, Composer's.
+
 ---
 
 ## Known Differences from QuantStats
 
-NanuQuant intentionally differs from QuantStats where we believe the alternative is more correct or more general:
+NanuQuant intentionally differs from QuantStats where we believe the alternative is more correct or more general. Each difference is pinned in `tests/test_quantstats_parity.py` by its exact relationship to QuantStats:
 
-| Aspect | NanuQuant | Rationale |
-|--------|-----------|-----------|
-| **CAGR/Calmar** | Periods-based calculation | Works with any time series, not just datetime-indexed |
-| **Treynor Ratio** | CAGR / Beta | Standard academic definition (annualized, not total return) |
-| **Omega Ratio** | Correct implementation | Fixes bug in some QuantStats versions |
-| **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0, which reads a missing day as a flat one |
-| **Drawdown** | Measured from the starting capital | QuantStats starts the peak at the first period's wealth, so a series that has only lost since inception shows no drawdown |
-
-All differences are documented in tests and in the [benchmark accuracy tables](https://launchstack-dev.github.io/nanuquant/benchmarks/).
+| Aspect | NanuQuant | QuantStats |
+|--------|-----------|------------|
+| **Missing data** | Null/NaN dropped (pairwise for two series; positional outputs are null at the gap) | Filled with 0, so a missing day reads as a flat one |
+| **Drawdown** (and Calmar, recovery factor, ulcer index/UPI, serenity) | Measured from the starting capital | Peak starts at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the first return is non-negative |
+| **CAGR, Calmar, RAR** | Years = periods / `periods_per_year` | Years from the date index (within 0.3% on daily data). Works with any series, dated or not |
+| **Treynor ratio** | CAGR / beta | Total multi-year return / beta |
+| **Exposure** | Exact share of non-zero periods | Rounded up to a whole percent |
+| **Risk-free rate** | Per period = `rf / periods` | `(1 + rf)^(1/periods) - 1`; about 1% apart on Sharpe at rf = 4% |
+| **Rolling metrics** | Annualize with `periods_per_year` (252), like the core metrics | Default 365; pass `periods_per_year=365` to reproduce |
+| **Omega** | QuantStats' formula; +inf with no losses | quantstats-lumi's `omega` fails on a Series |
+| **Kelly criterion** | -inf with no winning periods, 0 with no non-zero periods | NaN |
 
 ---
 
@@ -197,6 +220,7 @@ All differences are documented in tests and in the [benchmark accuracy tables](h
 | [Core API](https://launchstack-dev.github.io/nanuquant/api/core/) | Returns, risk, performance metrics |
 | [Advanced API](https://launchstack-dev.github.io/nanuquant/api/advanced/) | Trading system metrics |
 | [Institutional API](https://launchstack-dev.github.io/nanuquant/api/institutional/) | PSR, DSR, GARCH, VaR extensions |
+| [Indicators API](https://launchstack-dev.github.io/nanuquant/api/indicators/) | Price indicators as Polars expressions |
 | [Benchmarks](https://launchstack-dev.github.io/nanuquant/benchmarks/) | Performance and accuracy vs QuantStats |
 | [Mathematics](https://launchstack-dev.github.io/nanuquant/mathematics/) | Formulas and theory |
 | [Testing](https://launchstack-dev.github.io/nanuquant/testing/) | Validation methodology |

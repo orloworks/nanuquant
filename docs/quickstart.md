@@ -240,10 +240,14 @@ save_html_report(returns, "strategy_report.html", benchmark=benchmark)
 
 ## Null Handling
 
-NanuQuant automatically handles null values by dropping them (consistent with QuantStats):
+Null and NaN are missing, never zero. QuantStats fills missing returns with 0, which reads
+a missing day as a flat day; NanuQuant drops them instead. A metric on a series with gaps
+equals the metric on the series with the gaps removed. Two-series metrics (beta,
+information ratio, ...) use only the periods where both are present. Positional outputs
+(drawdown series, rolling metrics) keep their length and are null at the gap.
 
 ```python
-# Nulls are automatically dropped
+# Missing values (null or NaN) are dropped
 returns_with_nulls = pl.Series([0.01, None, -0.02, None, 0.015, 0.02])
 
 # This works seamlessly

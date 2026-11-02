@@ -287,6 +287,11 @@ nq.max_drawdown(returns: pl.Series) -> float
 
 **Returns:** Maximum drawdown as a negative decimal (e.g., -0.25 = -25%)
 
+Drawdown is measured from the starting capital: the running peak starts at 1.0, so a
+series that has lost since its first period is in drawdown from the start. QuantStats
+starts the peak at the first period's wealth; the two agree once the first return is
+non-negative.
+
 ---
 
 ### to_drawdown_series
@@ -300,7 +305,10 @@ nq.to_drawdown_series(returns: pl.Series) -> pl.Series
 **Parameters:**
 - `returns`: Series of period returns
 
-**Returns:** Series of drawdown values at each point
+**Returns:** Series named `drawdown`, the same length as `returns`: `wealth / peak - 1`,
+where the peak is the running maximum of wealth including the starting capital (1.0).
+Values are <= 0, null where the return is missing, and -1.0 from the first period at
+which wealth reaches zero or below (ruin).
 
 ---
 
@@ -891,7 +899,14 @@ from nanuquant.core.timeseries import drawdown_details
 details = drawdown_details(returns, top_n=5)
 ```
 
-**Returns:** DataFrame with start date, end date, depth, and duration of drawdowns.
+**Returns:** DataFrame of the deepest `top_n` drawdown episodes, with start, valley and
+end positions (or dates when `dates` is given), depth, length and recovery.
+
+- **Start:** a drawdown that fell from the starting capital has a null `start`, the capital
+  before the first period, and its `length` counts from there.
+- **Positions and counts:** positions refer to the input series, while `length` and
+  recovery count observed (non-missing) periods.
+- **Unrecovered episodes:** an episode still open at the end has a null `recovery`.
 
 ---
 

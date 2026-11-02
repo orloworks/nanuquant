@@ -8,27 +8,27 @@ This page shows side-by-side performance timing and calculation accuracy between
 
 **Synthetic (1,000 days)** (1,000 observations):
 
-- Median speedup: **13.4x** faster than QuantStats
-- Peak speedup: **60.8x** (`kelly_criterion`)
+- Median speedup: **52.3x** faster than QuantStats
+- Peak speedup: **143.1x** (`gain_to_pain_ratio`)
 - Calculation accuracy: **21/24** metrics match within tolerance
 
 **Synthetic (5,000 days)** (5,000 observations):
 
-- Median speedup: **13.7x** faster than QuantStats
-- Peak speedup: **54.6x** (`kelly_criterion`)
+- Median speedup: **38.6x** faster than QuantStats
+- Peak speedup: **130.5x** (`gain_to_pain_ratio`)
 - Calculation accuracy: **21/24** metrics match within tolerance
 
 **Synthetic (10,000 days)** (10,000 observations):
 
-- Median speedup: **12.5x** faster than QuantStats
-- Peak speedup: **55.8x** (`kelly_criterion`)
+- Median speedup: **30.1x** faster than QuantStats
+- Peak speedup: **115.6x** (`gain_to_pain_ratio`)
 - Calculation accuracy: **21/24** metrics match within tolerance
 
 **SPY (Real Market Data)** (8,298 observations):
 
-- Median speedup: **13.2x** faster than QuantStats
-- Peak speedup: **55.9x** (`kelly_criterion`)
-- Calculation accuracy: **20/24** metrics match within tolerance
+- Median speedup: **32.8x** faster than QuantStats
+- Peak speedup: **119.2x** (`gain_to_pain_ratio`)
+- Calculation accuracy: **23/24** metrics match within tolerance
 
 ---
 
@@ -38,117 +38,117 @@ This page shows side-by-side performance timing and calculation accuracy between
 
 | Metric | NanuQuant (ms) | QuantStats (ms) | Speedup |
 |--------|---------------:|----------------:|--------:|
-| comp (total return) | 0.018 | 0.023 | **1.3x** |
-| cagr | 0.033 | 0.101 | **3.1x** |
-| avg_return | 0.014 | 0.263 | **19.0x** |
-| avg_win | 0.019 | 0.283 | **15.3x** |
-| avg_loss | 0.019 | 0.285 | **15.3x** |
-| best | 0.014 | 0.190 | **13.4x** |
-| worst | 0.013 | 0.192 | **14.2x** |
-| win_rate | 0.018 | 0.288 | **15.9x** |
-| profit_factor | 0.025 | 0.327 | **13.2x** |
-| payoff_ratio | 0.053 | 0.785 | **14.8x** |
-| volatility | 0.014 | 0.209 | **14.8x** |
-| var (95%) | 0.045 | 0.267 | **6.0x** |
-| cvar (95%) | 0.066 | 0.562 | **8.6x** |
-| max_drawdown | 0.066 | 0.258 | **3.9x** |
-| sharpe | 0.019 | 0.216 | **11.7x** |
-| sortino | 0.083 | 0.302 | **3.6x** |
-| calmar | 0.111 | 0.605 | **5.4x** |
+| comp (total return) | 0.006 | 0.033 | **5.9x** |
+| cagr | 0.008 | 0.146 | **18.5x** |
+| avg_return | 0.006 | 0.401 | **68.1x** |
+| avg_win | 0.006 | 0.397 | **66.3x** |
+| avg_loss | 0.006 | 0.395 | **66.1x** |
+| best | 0.002 | 0.270 | **122.2x** |
+| worst | 0.002 | 0.275 | **124.2x** |
+| win_rate | 0.008 | 0.408 | **48.9x** |
+| profit_factor | 0.011 | 0.451 | **42.0x** |
+| payoff_ratio | 0.013 | 1.108 | **83.8x** |
+| volatility | 0.003 | 0.293 | **110.9x** |
+| var (95%) | 0.039 | 0.391 | **9.9x** |
+| cvar (95%) | 0.050 | 0.797 | **15.8x** |
+| max_drawdown | 0.165 | 0.415 | **2.5x** |
+| sharpe | 0.006 | 0.309 | **52.3x** |
+| sortino | 0.087 | 0.422 | **4.9x** |
+| calmar | 0.189 | 0.989 | **5.2x** |
 | omega | N/A | N/A | N/A |
-| gain_to_pain_ratio | 0.019 | 0.479 | **24.8x** |
-| tail_ratio | 0.020 | 0.473 | **23.4x** |
-| common_sense_ratio | 0.055 | 1.046 | **18.9x** |
-| kelly_criterion | 0.023 | 1.367 | **60.8x** |
-| skewness | 0.182 | 0.211 | **1.2x** |
-| kurtosis | 0.184 | 0.211 | **1.1x** |
+| gain_to_pain_ratio | 0.007 | 0.990 | **143.1x** |
+| tail_ratio | 0.009 | 0.671 | **74.8x** |
+| common_sense_ratio | 0.021 | 1.977 | **93.6x** |
+| kelly_criterion | 0.027 | 1.886 | **70.8x** |
+| skewness | 0.243 | 0.300 | **1.2x** |
+| kurtosis | 0.238 | 0.297 | **1.2x** |
 
 ### Synthetic (5,000 days) (5,000 observations)
 
 | Metric | NanuQuant (ms) | QuantStats (ms) | Speedup |
 |--------|---------------:|----------------:|--------:|
-| comp (total return) | 0.026 | 0.031 | **1.2x** |
-| cagr | 0.037 | 0.108 | **2.9x** |
-| avg_return | 0.014 | 0.282 | **20.6x** |
-| avg_win | 0.020 | 0.332 | **16.6x** |
-| avg_loss | 0.021 | 0.323 | **15.4x** |
-| best | 0.014 | 0.210 | **14.7x** |
-| worst | 0.014 | 0.207 | **14.6x** |
-| win_rate | 0.018 | 0.341 | **18.7x** |
-| profit_factor | 0.028 | 0.399 | **14.5x** |
-| payoff_ratio | 0.052 | 0.880 | **17.0x** |
-| volatility | 0.017 | 0.235 | **13.7x** |
-| var (95%) | 0.049 | 0.298 | **6.1x** |
-| cvar (95%) | 0.068 | 0.611 | **8.9x** |
-| max_drawdown | 0.101 | 0.390 | **3.8x** |
-| sharpe | 0.021 | 0.244 | **11.9x** |
-| sortino | 0.091 | 0.361 | **4.0x** |
-| calmar | 0.151 | 0.802 | **5.3x** |
+| comp (total return) | 0.010 | 0.038 | **3.7x** |
+| cagr | 0.012 | 0.168 | **13.5x** |
+| avg_return | 0.007 | 0.433 | **60.9x** |
+| avg_win | 0.008 | 0.460 | **60.2x** |
+| avg_loss | 0.008 | 0.457 | **58.2x** |
+| best | 0.004 | 0.288 | **75.7x** |
+| worst | 0.004 | 0.288 | **74.0x** |
+| win_rate | 0.010 | 0.491 | **49.4x** |
+| profit_factor | 0.014 | 0.584 | **41.4x** |
+| payoff_ratio | 0.017 | 1.304 | **75.3x** |
+| volatility | 0.008 | 0.313 | **40.0x** |
+| var (95%) | 0.041 | 0.404 | **9.9x** |
+| cvar (95%) | 0.053 | 0.844 | **15.9x** |
+| max_drawdown | 0.233 | 0.513 | **2.2x** |
+| sharpe | 0.009 | 0.329 | **38.6x** |
+| sortino | 0.128 | 0.490 | **3.8x** |
+| calmar | 0.248 | 1.201 | **4.8x** |
 | omega | N/A | N/A | N/A |
-| gain_to_pain_ratio | 0.024 | 0.577 | **23.8x** |
-| tail_ratio | 0.046 | 0.530 | **11.4x** |
-| common_sense_ratio | 0.085 | 1.362 | **16.0x** |
-| kelly_criterion | 0.027 | 1.501 | **54.6x** |
-| skewness | 0.201 | 0.237 | **1.2x** |
-| kurtosis | 0.207 | 0.269 | **1.3x** |
+| gain_to_pain_ratio | 0.009 | 1.136 | **130.5x** |
+| tail_ratio | 0.035 | 0.863 | **24.5x** |
+| common_sense_ratio | 0.052 | 1.930 | **37.5x** |
+| kelly_criterion | 0.033 | 2.132 | **64.0x** |
+| skewness | 0.254 | 0.329 | **1.3x** |
+| kurtosis | 0.255 | 0.333 | **1.3x** |
 
 ### Synthetic (10,000 days) (10,000 observations)
 
 | Metric | NanuQuant (ms) | QuantStats (ms) | Speedup |
 |--------|---------------:|----------------:|--------:|
-| comp (total return) | 0.032 | 0.039 | **1.2x** |
-| cagr | 0.045 | 0.120 | **2.7x** |
-| avg_return | 0.015 | 0.302 | **20.6x** |
-| avg_win | 0.023 | 0.394 | **17.1x** |
-| avg_loss | 0.024 | 0.400 | **16.9x** |
-| best | 0.015 | 0.252 | **16.4x** |
-| worst | 0.015 | 0.222 | **15.0x** |
-| win_rate | 0.019 | 0.401 | **21.3x** |
-| profit_factor | 0.032 | 0.554 | **17.3x** |
-| payoff_ratio | 0.058 | 1.028 | **17.9x** |
-| volatility | 0.020 | 0.254 | **12.5x** |
-| var (95%) | 0.050 | 0.317 | **6.4x** |
-| cvar (95%) | 0.073 | 0.659 | **9.0x** |
-| max_drawdown | 0.149 | 0.528 | **3.5x** |
-| sharpe | 0.024 | 0.274 | **11.2x** |
-| sortino | 0.099 | 0.408 | **4.1x** |
-| calmar | 0.206 | 0.999 | **4.8x** |
+| comp (total return) | 0.015 | 0.044 | **2.9x** |
+| cagr | 0.018 | 0.199 | **10.9x** |
+| avg_return | 0.009 | 0.499 | **55.8x** |
+| avg_win | 0.011 | 0.560 | **52.9x** |
+| avg_loss | 0.011 | 0.539 | **49.1x** |
+| best | 0.006 | 0.308 | **50.6x** |
+| worst | 0.006 | 0.309 | **51.5x** |
+| win_rate | 0.012 | 0.557 | **47.8x** |
+| profit_factor | 0.019 | 0.717 | **38.7x** |
+| payoff_ratio | 0.023 | 1.523 | **64.9x** |
+| volatility | 0.008 | 0.342 | **41.6x** |
+| var (95%) | 0.045 | 0.450 | **10.0x** |
+| cvar (95%) | 0.060 | 1.037 | **17.3x** |
+| max_drawdown | 0.302 | 0.682 | **2.3x** |
+| sharpe | 0.013 | 0.376 | **30.1x** |
+| sortino | 0.183 | 0.571 | **3.1x** |
+| calmar | 0.305 | 1.468 | **4.8x** |
 | omega | N/A | N/A | N/A |
-| gain_to_pain_ratio | 0.027 | 0.726 | **27.2x** |
-| tail_ratio | 0.077 | 0.653 | **8.5x** |
-| common_sense_ratio | 0.122 | 1.539 | **12.6x** |
-| kelly_criterion | 0.032 | 1.777 | **55.8x** |
-| skewness | 0.214 | 0.270 | **1.3x** |
-| kurtosis | 0.214 | 0.269 | **1.3x** |
+| gain_to_pain_ratio | 0.012 | 1.439 | **115.6x** |
+| tail_ratio | 0.068 | 0.925 | **13.7x** |
+| common_sense_ratio | 0.089 | 2.198 | **24.7x** |
+| kelly_criterion | 0.043 | 2.478 | **57.5x** |
+| skewness | 0.267 | 0.362 | **1.4x** |
+| kurtosis | 0.261 | 0.358 | **1.4x** |
 
 ### SPY (Real Market Data) (8,298 observations)
 
 | Metric | NanuQuant (ms) | QuantStats (ms) | Speedup |
 |--------|---------------:|----------------:|--------:|
-| comp (total return) | 0.040 | 0.048 | **1.2x** |
-| cagr | 0.056 | 0.154 | **2.8x** |
-| avg_return | 0.017 | 0.386 | **22.3x** |
-| avg_win | 0.024 | 0.398 | **16.5x** |
-| avg_loss | 0.022 | 0.392 | **17.5x** |
-| best | 0.015 | 0.225 | **15.2x** |
-| worst | 0.015 | 0.225 | **15.5x** |
-| win_rate | 0.019 | 0.406 | **21.9x** |
-| profit_factor | 0.030 | 0.479 | **15.8x** |
-| payoff_ratio | 0.057 | 1.008 | **17.8x** |
-| volatility | 0.019 | 0.248 | **13.0x** |
-| var (95%) | 0.049 | 0.311 | **6.3x** |
-| cvar (95%) | 0.069 | 0.622 | **9.0x** |
-| max_drawdown | 0.136 | 0.473 | **3.5x** |
-| sharpe | 0.023 | 0.301 | **13.2x** |
-| sortino | 0.096 | 0.380 | **4.0x** |
-| calmar | 0.191 | 0.842 | **4.4x** |
+| comp (total return) | 0.014 | 0.045 | **3.3x** |
+| cagr | 0.017 | 0.177 | **10.5x** |
+| avg_return | 0.010 | 0.471 | **45.0x** |
+| avg_win | 0.009 | 0.531 | **56.1x** |
+| avg_loss | 0.009 | 0.584 | **62.1x** |
+| best | 0.005 | 0.317 | **59.6x** |
+| worst | 0.006 | 0.321 | **57.9x** |
+| win_rate | 0.011 | 0.560 | **50.5x** |
+| profit_factor | 0.017 | 0.706 | **42.3x** |
+| payoff_ratio | 0.021 | 1.449 | **69.9x** |
+| volatility | 0.007 | 0.341 | **46.4x** |
+| var (95%) | 0.042 | 0.448 | **10.6x** |
+| cvar (95%) | 0.056 | 0.977 | **17.5x** |
+| max_drawdown | 0.267 | 0.639 | **2.4x** |
+| sharpe | 0.011 | 0.370 | **32.8x** |
+| sortino | 0.156 | 0.547 | **3.5x** |
+| calmar | 0.301 | 1.320 | **4.4x** |
 | omega | N/A | N/A | N/A |
-| gain_to_pain_ratio | 0.023 | 0.654 | **28.3x** |
-| tail_ratio | 0.066 | 0.659 | **10.0x** |
-| common_sense_ratio | 0.108 | 1.516 | **14.0x** |
-| kelly_criterion | 0.030 | 1.686 | **55.9x** |
-| skewness | 0.228 | 0.256 | **1.1x** |
-| kurtosis | 0.210 | 0.271 | **1.3x** |
+| gain_to_pain_ratio | 0.011 | 1.300 | **119.2x** |
+| tail_ratio | 0.056 | 0.913 | **16.4x** |
+| common_sense_ratio | 0.075 | 2.171 | **29.1x** |
+| kelly_criterion | 0.038 | 2.453 | **63.7x** |
+| skewness | 0.257 | 0.349 | **1.4x** |
+| kurtosis | 0.262 | 0.352 | **1.3x** |
 
 ---
 
@@ -179,9 +179,9 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 | calmar | -0.089645 | -0.092945 | 3.55063717% | CALENDAR | DIFF* |
 | omega | 0.994328 | nan | N/A | LOOSE | DIFF* |
 | gain_to_pain_ratio | -0.005672 | -0.005672 | <0.0000001% | TIGHT | PASS |
-| tail_ratio | 0.990317 | 0.990317 | 0% | TIGHT | PASS |
-| common_sense_ratio | 0.984699 | 0.984699 | 0% | TIGHT | PASS |
-| kelly_criterion | -0.002909 | -0.002909 | <0.0000001% | TIGHT | PASS |
+| tail_ratio | 0.990317 | 0.990317 | <0.0000001% | TIGHT | PASS |
+| common_sense_ratio | 0.984699 | 0.984699 | <0.0000001% | TIGHT | PASS |
+| kelly_criterion | -0.002909 | -0.002909 | 0% | TIGHT | PASS |
 | skewness | -0.043754 | -0.043754 | <0.0000001% | TIGHT | PASS |
 | kurtosis | 0.091884 | 0.091884 | <0.0000001% | TIGHT | PASS |
 
@@ -201,15 +201,15 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 | payoff_ratio | 0.988379 | 0.988379 | <0.0000001% | TIGHT | PASS |
 | volatility | 0.237988 | 0.237988 | 0% | TIGHT | PASS |
 | var (95%) | -0.024558 | -0.024558 | 0% | LOOSE | PASS |
-| cvar (95%) | -0.030724 | -0.030724 | <0.0000001% | LOOSE | PASS |
-| max_drawdown | -0.736035 | -0.736035 | 0% | TIGHT | PASS |
+| cvar (95%) | -0.030724 | -0.030724 | 0% | LOOSE | PASS |
+| max_drawdown | -0.736035 | -0.736035 | <0.0000001% | TIGHT | PASS |
 | sharpe | 0.107841 | 0.107841 | <0.0000001% | TIGHT | PASS |
 | sortino | 0.153116 | 0.153116 | <0.0000001% | TIGHT | PASS |
 | calmar | -0.003600 | -0.003728 | 3.44544566% | CALENDAR | DIFF* |
 | omega | 1.0173 | nan | N/A | LOOSE | DIFF* |
 | gain_to_pain_ratio | 0.017261 | 0.017261 | <0.0000001% | TIGHT | PASS |
-| tail_ratio | 0.989797 | 0.989797 | 0% | TIGHT | PASS |
-| common_sense_ratio | 1.0069 | 1.0069 | 0% | TIGHT | PASS |
+| tail_ratio | 0.989797 | 0.989797 | <0.0000001% | TIGHT | PASS |
+| common_sense_ratio | 1.0069 | 1.0069 | <0.0000001% | TIGHT | PASS |
 | kelly_criterion | 0.008606 | 0.008606 | <0.0000001% | TIGHT | PASS |
 | skewness | 0.002143 | 0.002143 | 0% | TIGHT | PASS |
 | kurtosis | 0.037397 | 0.037397 | 0% | TIGHT | PASS |
@@ -220,27 +220,27 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 |--------|----------:|-----------:|----------------:|-----------|--------|
 | comp (total return) | 2.7552 | 2.7552 | 0% | TIGHT | PASS |
 | cagr | 0.033906 | 0.035131 | 3.48680142% | CALENDAR | DIFF* |
-| avg_return | 0.000246 | 0.000246 | <0.0000001% | EXACT | PASS |
+| avg_return | 0.000246 | 0.000246 | 0% | EXACT | PASS |
 | avg_win | 0.012107 | 0.012107 | 0% | EXACT | PASS |
 | avg_loss | -0.011855 | -0.011855 | <0.0000001% | EXACT | PASS |
 | best | 0.060787 | 0.060787 | 0% | EXACT | PASS |
 | worst | -0.065437 | -0.065437 | 0% | EXACT | PASS |
 | win_rate | 0.505000 | 0.505000 | 0% | EXACT | PASS |
-| profit_factor | 1.0420 | 1.0420 | 0% | TIGHT | PASS |
+| profit_factor | 1.0420 | 1.0420 | <0.0000001% | TIGHT | PASS |
 | payoff_ratio | 1.0213 | 1.0213 | <0.0000001% | TIGHT | PASS |
 | volatility | 0.239626 | 0.239626 | 0% | TIGHT | PASS |
 | var (95%) | -0.024583 | -0.024583 | 0% | LOOSE | PASS |
 | cvar (95%) | -0.030885 | -0.030885 | <0.0000001% | LOOSE | PASS |
-| max_drawdown | -0.736035 | -0.736035 | 0% | TIGHT | PASS |
-| sharpe | 0.258968 | 0.258968 | <0.0000001% | TIGHT | PASS |
-| sortino | 0.370827 | 0.370827 | <0.0000001% | TIGHT | PASS |
+| max_drawdown | -0.736035 | -0.736035 | <0.0000001% | TIGHT | PASS |
+| sharpe | 0.258968 | 0.258968 | 0% | TIGHT | PASS |
+| sortino | 0.370827 | 0.370827 | 0% | TIGHT | PASS |
 | calmar | 0.046065 | 0.047729 | 3.48680142% | CALENDAR | DIFF* |
 | omega | 1.0420 | nan | N/A | LOOSE | DIFF* |
 | gain_to_pain_ratio | 0.041965 | 0.041965 | <0.0000001% | TIGHT | PASS |
 | tail_ratio | 1.0133 | 1.0133 | 0% | TIGHT | PASS |
-| common_sense_ratio | 1.0559 | 1.0559 | 0% | TIGHT | PASS |
+| common_sense_ratio | 1.0559 | 1.0559 | <0.0000001% | TIGHT | PASS |
 | kelly_criterion | 0.020339 | 0.020339 | <0.0000001% | TIGHT | PASS |
-| skewness | -0.003358 | -0.003358 | 0% | TIGHT | PASS |
+| skewness | -0.003358 | -0.003358 | <0.0000001% | TIGHT | PASS |
 | kurtosis | 0.053300 | 0.053300 | <0.0000001% | TIGHT | PASS |
 
 ### SPY (Real Market Data)
@@ -249,18 +249,18 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 |--------|----------:|-----------:|----------------:|-----------|--------|
 | comp (total return) | 27.5322 | 27.5322 | 0% | TIGHT | PASS |
 | cagr | 0.107125 | 0.107033 | 0.08604225% | CALENDAR | PASS |
-| avg_return | 0.000473 | 0.000476 | 0.74716799% | EXACT | DIFF* |
+| avg_return | 0.000476 | 0.000476 | 0% | EXACT | PASS |
 | avg_win | 0.007655 | 0.007655 | <0.0000001% | EXACT | PASS |
 | avg_loss | -0.008124 | -0.008124 | 0% | EXACT | PASS |
 | best | 0.145198 | 0.145198 | 0% | EXACT | PASS |
 | worst | -0.109424 | -0.109424 | 0% | EXACT | PASS |
-| win_rate | 0.540974 | 0.545046 | 0.74716799% | EXACT | DIFF* |
+| win_rate | 0.545046 | 0.545046 | 0% | EXACT | PASS |
 | profit_factor | 1.1289 | 1.1289 | <0.0000001% | TIGHT | PASS |
 | payoff_ratio | 0.942282 | 0.942282 | <0.0000001% | TIGHT | PASS |
 | volatility | 0.186220 | 0.186220 | <0.0000001% | TIGHT | PASS |
 | var (95%) | -0.018823 | -0.018823 | <0.0000001% | LOOSE | PASS |
 | cvar (95%) | -0.028731 | -0.028731 | 0% | LOOSE | PASS |
-| max_drawdown | -0.551894 | -0.551894 | <0.0000001% | TIGHT | PASS |
+| max_drawdown | -0.551894 | -0.551894 | 0% | TIGHT | PASS |
 | sharpe | 0.639751 | 0.639751 | 0% | TIGHT | PASS |
 | sortino | 0.910049 | 0.910049 | <0.0000001% | TIGHT | PASS |
 | calmar | 0.194104 | 0.193938 | 0.08604225% | CALENDAR | PASS |
@@ -268,7 +268,7 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 | gain_to_pain_ratio | 0.128877 | 0.128877 | 0% | TIGHT | PASS |
 | tail_ratio | 0.939819 | 0.939819 | <0.0000001% | TIGHT | PASS |
 | common_sense_ratio | 1.0609 | 1.0609 | <0.0000001% | TIGHT | PASS |
-| kelly_criterion | 0.053830 | 0.062225 | 13.49027342% | TIGHT | DIFF* |
+| kelly_criterion | 0.062225 | 0.062225 | <0.0000001% | TIGHT | PASS |
 | skewness | -0.010854 | -0.010854 | 0% | TIGHT | PASS |
 | kurtosis | 11.8540 | 11.8540 | <0.0000001% | TIGHT | PASS |
 
@@ -278,7 +278,7 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 
 ### Timing
 
-- Each metric is called N times after a warmup call (default: 50)
+- Each metric is called 50 times after a warmup call
 - Reported time is the **median** across runs (resistant to outliers)
 - `time.perf_counter()` used for high-resolution timing
 - Both libraries receive identical numerical data
@@ -290,31 +290,20 @@ Side-by-side comparison of calculated values. Tolerance levels: EXACT (<1e-10), 
 - Relative difference = |NQ - QS| / |QS|
 - **PASS** = within tolerance, **DIFF*** = intentional difference (documented)
 
+This page is a quick side-by-side on 24 metrics. The binding validation is the strict parity suite (`tests/test_quantstats_parity.py`): every QuantStats-compatible metric at rtol 1e-9 on the full SPY, QQQ and BND histories, with each deliberate difference below pinned to its exact relationship to QuantStats. See [Testing](testing.md).
+
 ### Known Intentional Differences
 
-Items marked **DIFF*** in the accuracy tables are intentional implementation differences, not bugs:
-
-| Metric | Difference | Rationale |
-|--------|-----------|----------|
-| CAGR/Calmar | Periods-based vs calendar-based | NanuQuant uses `periods_per_year` for annualization instead of datetime index introspection. Works with any time series, not just datetime-indexed. Synthetic data uses business day frequency which creates a ~3.5% difference vs calendar-year calculation. |
-| Omega | Returns a value; QS returns NaN | QuantStats has a bug in some versions where `Series.sum().values[0]` fails on certain inputs. NanuQuant implements the correct formula. |
-| Treynor | CAGR/Beta vs comp/Beta | Standard academic definition uses annualized return, not total return. |
-| avg_return (SPY) | Minor difference on real data | QuantStats applies internal date-based filtering that can exclude/include different observations. On synthetic data with identical arrays, results match exactly. |
-| win_rate (SPY) | Minor difference on real data | Same root cause as avg_return — QuantStats date-index handling. Synthetic data matches exactly. |
-| kelly_criterion (SPY) | Derived metric difference | Compounds the avg_return/win_rate differences above. |
-
-### Reproducing These Benchmarks
-
-```bash
-# Install dev dependencies
-pip install nanuquant[dev]
-
-# Run benchmarks (results written to docs/benchmarks.md)
-python benchmarks/run_benchmarks.py --output docs/benchmarks.md
-
-# Run with more iterations for stable timings
-python benchmarks/run_benchmarks.py --n-runs 100
-```
+| Metric | NanuQuant | QuantStats |
+|--------|-----------|------------|
+| Missing data | Null/NaN dropped (pairwise for two series) | Filled with 0, so a missing day reads as a flat one |
+| Drawdown family | Peak starts at the starting capital (1.0) | Peak starts at the first period's wealth; identical once the first return is non-negative |
+| CAGR, Calmar, RAR | Years = periods / `periods_per_year` | Years from the date index (within 0.3% on daily data; DIFF* above) |
+| Treynor | CAGR / beta | Total return / beta |
+| Exposure | Exact share of non-zero periods | Rounded up to a whole percent |
+| Risk-free rate | Per period = rf / periods | (1 + rf)^(1/periods) - 1 |
+| Rolling metrics | Annualize with `periods_per_year` (252) | Default 365 |
+| Omega | QuantStats' formula; +inf with no losses | quantstats-lumi's `omega` fails on a Series (NaN above) |
 
 ---
 

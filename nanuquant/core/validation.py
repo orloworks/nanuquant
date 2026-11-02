@@ -24,6 +24,8 @@ cast to Float64 during calculations via `to_float_series()` in utils.py.
 
 from __future__ import annotations
 
+import math
+
 import polars as pl
 
 from nanuquant.exceptions import (
@@ -83,7 +85,7 @@ def validate_returns(
     """
     data = normalize_missing(data)
     # Drop missing observations if requested (default behavior)
-    if drop_nulls:
+    if drop_nulls and data.null_count():
         data = data.drop_nulls()
 
     if data.is_empty() and not allow_empty:
@@ -195,7 +197,11 @@ def normalize_missing(data: pl.Series) -> pl.Series:
     pl.Series
         Same length as ``data``; ``NaN`` replaced by ``null``.
     """
-    if data.dtype.is_float():
+    # Series.fill_nan (and is_nan) run a lazy query, ~0.1 ms, which dominated every
+    # metric's cost. Series.sum is native and NaN-propagating (nulls are skipped), so
+    # a series without NaN skips the query; a false positive (inf + -inf) only costs
+    # the slow path.
+    if data.dtype.is_float() and math.isnan(data.sum()):
         return data.fill_nan(None)
     return data
 

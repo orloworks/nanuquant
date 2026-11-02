@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`indicators.rsi(..., seed="first_change")`** seeds Wilder smoothing from the first real change, as pandas-ta (and the Composer parser built on it) does; RSI at the first price is null. The default, `seed="zero"`, is unchanged: it counts the first price's change as zero. The two converge as the seed decays but can differ by several RSI points for about `3 * period` observations, which is most of a two-year history at RSI-200.
 - **Indicators subpackage** (`nanuquant.indicators`) — price indicators as Polars expressions: `current_price`, `sma`, `ema`, `rsi` (Wilder), `cumulative_return`, `max_drawdown` (worst-in-window), `current_drawdown` (all-time or rolling peak), `std_dev_return`, `moving_average_return`. Each accepts a `pl.Series` or `pl.Expr` and returns the same kind; platform conventions (`percent=`, `annualize=`, peak window) are explicit arguments
 - **`.ind` expression namespace** — `pl.col("SPY").ind.rsi(10)` alongside the existing `.metrics` namespace
 - **Indicators API docs** (`docs/api/indicators.md`), including the Composer-compatible settings

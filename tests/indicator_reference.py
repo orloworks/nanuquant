@@ -74,3 +74,16 @@ def current_drawdown_main(series: pd.Series, period: int) -> pd.Series:
     with np.errstate(divide="ignore", invalid="ignore"):
         result = (rolling_max - series) / rolling_max * 100.0
     return result.where(rolling_max > 0, 0.0)
+
+
+def rsi_first_change(series: pd.Series, period: int) -> pd.Series:
+    """``indicators.py::_rsi`` on engine main @ af1199e, which matches pandas-ta's
+    ``ta.rsi`` (the Composer parser's RSI): smoothing seeded from the first real change."""
+    delta = series.diff()
+    positive = delta.copy()
+    negative = delta.copy()
+    positive[positive < 0] = 0
+    negative[negative > 0] = 0
+    avg_pos = positive.ewm(alpha=1.0 / period, adjust=False).mean()
+    avg_neg = negative.ewm(alpha=1.0 / period, adjust=False).mean()
+    return 100.0 * avg_pos / (avg_pos + avg_neg.abs())

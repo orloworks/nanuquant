@@ -468,3 +468,21 @@ Most financial metrics assume one or more of:
 - [API Reference](api/core.md)
 - [Testing Methodology](testing.md)
 - [Use Cases](use-cases.md)
+
+---
+
+## Technical Indicators
+
+Indicators operate on prices `p_t`. Formulas, conventions and the Composer-compatible
+settings are documented in the [Indicators API Reference](api/indicators.md). The two
+drawdown indicators differ in what they measure:
+
+- **Max drawdown (window):** `max_{u in window} (P_u - p_u) / P_u`, where `P_u` is the
+  running peak from the start of the window to `u`. It captures the worst decline that
+  occurred anywhere in the window.
+- **Current drawdown:** `(P - p_t) / P`, the distance from the peak (all-time or the
+  trailing window's maximum) to today.
+
+**RSI (Wilder):** with `d_t = p_t - p_{t-1}` (the first change taken as 0),
+`G_t = (1-a) G_{t-1} + a max(d_t, 0)`, `L_t = (1-a) L_{t-1} + a max(-d_t, 0)`, `a = 1/n`,
+and `RSI_t = 100 - 100 / (1 + G_t / L_t)`.

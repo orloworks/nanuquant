@@ -80,6 +80,7 @@ nav:
       - Core API: api/core.md
       - Advanced API: api/advanced.md
       - Institutional API: api/institutional.md
+      - Indicators API: api/indicators.md
   - Benchmarks: benchmarks.md
   - Development:
       - Testing Methodology: testing.md

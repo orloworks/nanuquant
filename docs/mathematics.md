@@ -131,11 +131,14 @@ Then: $VaR_{CF} = -(\mu + z_{CF} \cdot \sigma)$
 
 ### Maximum Drawdown
 
-$$MDD = \min_{t \in [0,T]} \left(\frac{P_t}{\max_{s \in [0,t]} P_s} - 1\right)$$
+With wealth $W_t = \prod_{s=1}^{t}(1 + r_s)$ and starting capital $W_0 = 1$:
 
-Or equivalently, using a cumulative return series:
+$$DD_t = \frac{W_t}{\max\left(1, \max_{s \leq t} W_s\right)} - 1, \qquad MDD = \min_t DD_t$$
 
-$$MDD = \min_{t}\left(\frac{C_t}{\max_{s \leq t} C_s} - 1\right)$$
+The running peak includes the starting capital, so a series that loses from its first
+period is in drawdown from the start: two -5% periods give -9.75%. QuantStats starts the
+peak at $W_1$ instead, which reports 0 at the first period and -5% after the second; the
+two agree whenever $r_1 \geq 0$. Once $W_t \leq 0$ (ruin), $DD$ is -100% from then on.
 
 ### Ulcer Index
 

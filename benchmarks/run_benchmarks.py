@@ -430,14 +430,28 @@ def generate_markdown(suites: list[BenchmarkSuite]) -> str:
     lines.append("- Both computed from the same underlying NumPy array")
     lines.append("- Relative difference = |NQ - QS| / |QS|")
     lines.append("- **PASS** = within tolerance, **DIFF*** = intentional difference (documented)\n")
+    lines.append(
+        "This page is a quick side-by-side on 24 metrics. The binding validation is the strict"
+        " parity suite (`tests/test_quantstats_parity.py`): every QuantStats-compatible metric at"
+        " rtol 1e-9 on the full SPY, QQQ and BND histories, with each deliberate difference below"
+        " pinned to its exact relationship to QuantStats. See [Testing](testing.md).\n"
+    )
     lines.append("### Known Intentional Differences\n")
     lines.append(
-        "| Metric | Difference | Rationale |\n"
-        "|--------|-----------|----------|\n"
-        "| CAGR/Calmar | Periods-based vs calendar-based |"
-        " Works with any time series |\n"
-        "| Treynor | CAGR/Beta vs comp/Beta | Standard academic definition |\n"
-        "| Omega | Correct implementation | Fixes bug in some QuantStats versions |\n"
+        "| Metric | NanuQuant | QuantStats |\n"
+        "|--------|-----------|------------|\n"
+        "| Missing data | Null/NaN dropped (pairwise for two series) | Filled with 0, so a missing"
+        " day reads as a flat one |\n"
+        "| Drawdown family | Peak starts at the starting capital (1.0) | Peak starts at the first"
+        " period's wealth; identical once the first return is non-negative |\n"
+        "| CAGR, Calmar, RAR | Years = periods / `periods_per_year` | Years from the date index"
+        " (within 0.3% on daily data; DIFF* above) |\n"
+        "| Treynor | CAGR / beta | Total return / beta |\n"
+        "| Exposure | Exact share of non-zero periods | Rounded up to a whole percent |\n"
+        "| Risk-free rate | Per period = rf / periods | (1 + rf)^(1/periods) - 1 |\n"
+        "| Rolling metrics | Annualize with `periods_per_year` (252) | Default 365 |\n"
+        "| Omega | QuantStats' formula; +inf with no losses | quantstats-lumi's `omega` fails on a"
+        " Series (NaN above) |\n"
     )
 
     lines.append("---\n")

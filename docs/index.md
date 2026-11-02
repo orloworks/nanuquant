@@ -14,9 +14,10 @@ In Inuktitut, the language of the Inuit people, **"nanuq"** means **polar bear**
 
 NanuQuant is benchmarked against QuantStats on every release:
 
-- **13x median speedup** over QuantStats across 24 metrics
-- **56x peak speedup** on kelly_criterion
-- **21/24 metrics** match QuantStats within 1e-8 tolerance (3 are intentional improvements)
+- **33x median speedup** over QuantStats across 24 metrics on SPY (timings vary by hardware)
+- **38 single-series metrics, 4 paired and 3 rolling** match QuantStats at rtol 1e-9 on the full SPY, QQQ and BND histories
+- **Missing data is missing, never zero:** QuantStats fills gaps with 0; NanuQuant drops them, pairwise for two series
+- Every deliberate difference (drawdown from the starting capital, periods-based CAGR, and others) is pinned to its exact relationship with QuantStats
 
 See the full [Benchmarks](benchmarks.md) page for detailed timing and accuracy tables.
 

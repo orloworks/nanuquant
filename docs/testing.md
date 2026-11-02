@@ -42,11 +42,15 @@ Rather than just testing against expected values, we compare NanuQuant's output 
 
 ## Test Suite Overview
 
-The test suite consists of 14 test modules with approximately 6,165 lines of test code.
+The test suite consists of 16 test modules with about 7,250 lines of test code.
 
 | Module | Focus | Description |
 |--------|-------|-------------|
-| `test_vs_quantstats.py` | Differential validation | Core metrics compared to QuantStats |
+| `test_quantstats_parity.py` | Strict parity | Every QuantStats-compatible metric at rtol 1e-9 on real market data; each deliberate difference pinned exactly |
+| `test_vs_quantstats.py` | Differential validation | Core metrics against QuantStats on synthetic data, by tolerance tier |
+| `test_missing_data.py` | Missing-data policy | Null and NaN are missing, never zero, across every public function |
+| `test_indicators.py` | Indicators | `nanuquant.indicators` against a frozen strategy-engine reference |
+| `test_doctests.py` | Docstring examples | Runs the examples in the core risk and performance modules |
 | `test_timeseries.py` | Timeseries functions | Equity curves, drawdowns, cumulative returns |
 | `test_trades.py` | Trade conversion | P&L from trade data |
 | `test_new_metrics.py` | Advanced metrics | Trading metrics validation |
@@ -83,37 +87,57 @@ def test_sharpe_matches_quantstats(sample_returns, polars_returns):
     assert np.isclose(nq_sharpe, qs_sharpe, rtol=TOLERANCE)
 ```
 
-### Tolerance Levels
+### Strict Parity on Market Data
 
-Different metrics require different tolerance levels:
+`tests/test_quantstats_parity.py` is the binding check. Every function that documents
+QuantStats-compatible behaviour is compared with quantstats-lumi at `rtol=1e-9`
+(`atol=1e-12`) on four datasets:
+- the full SPY history (1993–2026, 8,298 days), QQQ and BND;
+- SPY with every seventh return set to zero, so flat-period handling is exercised.
+
+| Group | Metrics |
+|-------|---------|
+| Single series (38) | `comp`, `avg_return`, `avg_win`, `avg_loss`, `best`, `worst`, `win_rate`, `payoff_ratio`, `profit_factor`, `consecutive_wins`, `consecutive_losses`, `volatility`, `var`, `cvar`, `max_drawdown`, `ulcer_index`, `sharpe`, `sortino`, `smart_sharpe`, `smart_sortino`, `adjusted_sortino`, `gain_to_pain_ratio`, `ulcer_performance_index`, `kelly_criterion`, `tail_ratio`, `common_sense_ratio`, `risk_return_ratio`, `recovery_factor`, `skewness`, `kurtosis`, `outlier_win_ratio`, `outlier_loss_ratio`, `expected_return`, `geometric_mean`, `ghpr`, `cpc_index`, `serenity_index`, `risk_of_ruin` |
+| Paired, against QQQ | alpha, beta, `information_ratio`, `r_squared` |
+| Rolling (126 periods) | `rolling_volatility`, `rolling_sharpe`, `rolling_sortino`, at QuantStats' 365 annualization (rtol 1e-8) |
+
+**The drawdown family is checked two ways:** `max_drawdown`, `ulcer_index`,
+`ulcer_performance_index`, `recovery_factor` and `serenity_index`.
+- **From the first non-negative return:** there the two drawdown conventions agree exactly.
+- **On series that start with a loss** (BND, and SPY opened with a -50% and a -30% day):
+  nanuquant must equal QuantStats run with the starting capital as an explicit 0% first
+  period.
+- A guard test confirms the crash-first series really tells the two conventions apart.
+
+**Each deliberate difference is pinned by its exact relationship to QuantStats**, not
+skipped:
+- exposure equals QuantStats' value before its round-up;
+- Treynor's QuantStats value equals total return / beta;
+- a per-period risk-free rate gives identical ratios.
+
+### Tolerance Levels (synthetic differential tests)
+
+`tests/test_vs_quantstats.py` compares on synthetic series by tier:
 
 | Tolerance | Value | Use Case |
 |-----------|-------|----------|
-| `EXACT` | 1e-10 | Deterministic calculations (sum, mean) |
-| `TIGHT` | 1e-6 | Standard numerical operations |
-| `LOOSE` | 1e-3 | Complex calculations with accumulated rounding |
-| `STAT` | 0.05 | Statistical tests (p-values) |
-| `CALENDAR_TOL` | 0.02 | Date-sensitive metrics (CAGR, Calmar) |
-| `INTEGRATION_TOL` | 0.05 | Real market data tests |
+| `EXACT` | rtol 1e-10 | Deterministic calculations (sum, mean) |
+| `TIGHT` | rtol 1e-8 | Standard numerical operations |
+| `LOOSE` | rtol 1e-6 | Calculations with accumulated rounding |
+| `STAT` | rtol 1e-4 | Statistical estimates |
+| `CALENDAR_TOL` | rtol 0.3% | Periods-based vs calendar-based years (CAGR, Calmar) |
+| `INTEGRATION_TOL` | rtol 3% | Real market data smoke tests |
 
-### Metrics Tested Against QuantStats
+### Missing Data
 
-**Core Metrics:**
-- `sharpe` - Sharpe ratio
-- `sortino` - Sortino ratio
-- `max_drawdown` - Maximum drawdown
-- `volatility` - Annualized volatility
-- `cagr` - Compound annual growth rate
-- `var` - Value at Risk
-- `cvar` - Conditional VaR
-- `calmar` - Calmar ratio
-- `omega` - Omega ratio
-- `win_rate` - Win rate
-- `avg_win` / `avg_loss` - Average win/loss
-- `profit_factor` - Profit factor
-- `payoff_ratio` - Payoff ratio
-- `skewness` / `kurtosis` - Distribution metrics
-- And more...
+`tests/test_missing_data.py` pins the missing-data policy for every public function.
+QuantStats fills missing returns with 0, so a missing day reads as a flat day. In NanuQuant,
+null and NaN are missing:
+- single-series metrics equal the metric on the series with the missing rows removed;
+- paired metrics use the rows where both series are present;
+- dated outputs drop a missing return together with its date;
+- positional outputs (drawdown series, rolling metrics) keep their length and are null at
+  the gap.
 
 ---
 
@@ -206,11 +230,12 @@ def flat_returns():
 | Edge Case | Expected Behavior |
 |-----------|-------------------|
 | Empty series | Raise `EmptySeriesError` |
-| Single return | Return NaN or raise `InsufficientDataError` |
-| All positive | `avg_loss` returns NaN, `profit_factor` returns inf |
-| All negative | `avg_win` returns NaN, `win_rate` returns 0 |
-| All zeros | `volatility` returns 0, `sharpe` returns NaN |
-| Contains nulls | Nulls dropped automatically |
+| Only missing values | Raise `EmptySeriesError` (missing values are dropped first) |
+| Single return | `volatility` and `sharpe` return 0; `probabilistic_sharpe_ratio` and `minimum_track_record_length` raise `InsufficientDataError` |
+| All positive | `avg_loss` returns 0, `profit_factor` and `omega` return inf |
+| All negative | `avg_win` returns 0, `win_rate` returns 0, `kelly_criterion` returns -inf |
+| All zeros | `volatility` and `sharpe` return 0, `kelly_criterion` returns 0 |
+| Contains nulls or NaN | Treated as missing: dropped, never read as a zero return |
 
 ### Exception Testing
 
@@ -329,19 +354,20 @@ mypy nanuquant --strict
 
 ## Known Differences
 
-NanuQuant intentionally differs from QuantStats in some areas:
+NanuQuant intentionally differs from QuantStats in some areas. Each is pinned in
+`tests/test_quantstats_parity.py` by its exact relationship to QuantStats:
 
-| Metric | Difference | Rationale |
-|--------|------------|-----------|
-| **CAGR/Calmar** | Uses periods-based calculation | Works with any time series, not just datetime-indexed |
-| **Treynor** | Uses CAGR/Beta | Standard academic definition |
-| **Omega** | Fixed implementation; `inf` with no losses | QuantStats has a bug in some versions and returns NaN |
-| **Exposure** | Exact | QuantStats rounds up to 2 decimals |
-| **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0 |
-| **Drawdown** | Measured from the starting capital (peak starts at 1.0) | QuantStats starts the peak at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the series starts with a non-negative return; parity tests compare from there |
-| **Risk-free rate** | Per period: `rf / periods` | QuantStats converts geometrically, `(1 + rf)^(1/periods) - 1`; about 1% apart for Sharpe/Sortino at rf = 4%. Pinned exactly in the parity tests |
-
-These differences are documented and tests use appropriate tolerances.
+| Metric | NanuQuant | QuantStats |
+|--------|-----------|------------|
+| **Missing data** | Null/NaN dropped (pairwise for two series; positional outputs null at the gap) | Filled with 0 |
+| **Drawdown** (and Calmar, recovery factor, ulcer index/UPI, serenity) | Measured from the starting capital (peak starts at 1.0) | Peak starts at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the first return is non-negative |
+| **CAGR, Calmar, RAR** | Years = periods / `periods_per_year` | Years from the date index (within 0.3% on daily data) |
+| **Treynor** | CAGR / beta | Total return / beta |
+| **Exposure** | Exact share of non-zero periods | Rounded up to a whole percent |
+| **Risk-free rate** | Per period: `rf / periods` | `(1 + rf)^(1/periods) - 1`; about 1% apart for Sharpe/Sortino at rf = 4% |
+| **Rolling metrics** | Annualize with `periods_per_year` (252) | Default 365 |
+| **Omega** | QuantStats' formula; `inf` with no losses | quantstats-lumi's `omega` fails on a Series |
+| **Kelly criterion** | `-inf` with no wins, 0 with no non-zero periods | NaN |
 
 ---
 

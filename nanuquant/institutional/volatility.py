@@ -14,6 +14,7 @@ References
 from __future__ import annotations
 
 import math
+import warnings
 from typing import NamedTuple
 
 import numpy as np
@@ -65,6 +66,10 @@ class GARCHResult(NamedTuple):
         highly persistent volatility shocks.
     forecast : float
         One-step-ahead volatility forecast.
+    method : str
+        ``"mle"`` when the parameters were estimated by maximum likelihood with the
+        optional ``arch`` package; ``"variance_targeting"`` when ``arch`` is not
+        installed and alpha/beta are fixed at 0.10/0.85 (not estimated).
     """
 
     omega: float
@@ -74,6 +79,7 @@ class GARCHResult(NamedTuple):
     long_run_variance: float
     persistence: float
     forecast: float
+    method: str = "mle"
 
 
 def arch_effect_test(
@@ -125,7 +131,7 @@ def arch_effect_test(
     Engle, R. F. (1982). "Autoregressive Conditional Heteroskedasticity with
     Estimates of the Variance of United Kingdom Inflation"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, lags + 2, "arch_effect_test")
 
     returns = to_float_series(returns)
@@ -193,9 +199,11 @@ def garch_volatility(
 ) -> GARCHResult:
     """Estimate GARCH(p,q) conditional volatility.
 
-    Estimates time-varying volatility using a GARCH(1,1) model. Will use the
-    `arch` library if available for maximum likelihood estimation, otherwise
-    falls back to a variance targeting method.
+    Estimates time-varying volatility using a GARCH(1,1) model. Parameters are
+    estimated by maximum likelihood with the optional ``arch`` package
+    (``pip install arch``). Without it, a :class:`UserWarning` is issued and alpha and
+    beta are fixed at 0.10 and 0.85 with variance targeting; ``result.method`` records
+    which path ran.
 
     Parameters
     ----------
@@ -251,7 +259,7 @@ def garch_volatility(
     ----------
     Bollerslev, T. (1986). "Generalized Autoregressive Conditional Heteroskedasticity"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 20, "garch_volatility")
 
     if p != 1 or q != 1:
@@ -263,7 +271,14 @@ def garch_volatility(
     try:
         return _garch_arch_library(returns, forecast_horizon)
     except ImportError:
-        pass
+        warnings.warn(
+            "garch_volatility: the 'arch' package is not installed, so GARCH parameters "
+            "are not estimated; using fixed alpha=0.10, beta=0.85 with variance "
+            "targeting (result.method == 'variance_targeting'). Install 'arch' for "
+            "maximum-likelihood estimates.",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # Fallback to variance targeting method
     return _garch_variance_targeting(returns, forecast_horizon)
@@ -310,6 +325,7 @@ def _garch_arch_library(
         long_run_variance=long_run_var,
         persistence=persistence,
         forecast=forecast_vol,
+        method="mle",
     )
 
 
@@ -370,4 +386,5 @@ def _garch_variance_targeting(
         long_run_variance=long_run_var,
         persistence=persistence,
         forecast=forecast_vol,
+        method="variance_targeting",
     )

@@ -282,7 +282,7 @@ class MetricsNamespace:
         return self._apply_metric(kurtosis)
 
     def expected_return(self) -> pl.Expr:
-        """Calculate expected return (arithmetic mean)."""
+        """Calculate expected return (geometric mean per period)."""
         from nanuquant.core import expected_return
 
         return self._apply_metric(expected_return)
@@ -311,7 +311,7 @@ class MetricsNamespace:
         rolling_period : int, default 126
             Window size for rolling calculation.
         periods_per_year : int, optional
-            Periods per year for annualization. If None, uses 365.
+            Periods per year for annualization. If None, uses the global config (252).
         annualize : bool, default True
             If True, annualize the volatility.
 
@@ -346,7 +346,7 @@ class MetricsNamespace:
         rolling_period : int, default 126
             Window size for rolling calculation.
         periods_per_year : int, optional
-            Periods per year for annualization. If None, uses 365.
+            Periods per year for annualization. If None, uses the global config (252).
         annualize : bool, default True
             If True, annualize the ratio.
 
@@ -382,7 +382,7 @@ class MetricsNamespace:
         rolling_period : int, default 126
             Window size for rolling calculation.
         periods_per_year : int, optional
-            Periods per year for annualization. If None, uses 365.
+            Periods per year for annualization. If None, uses the global config (252).
         annualize : bool, default True
             If True, annualize the ratio.
 

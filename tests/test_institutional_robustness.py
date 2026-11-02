@@ -261,12 +261,13 @@ class TestProbabilisticSharpeRatio:
 
     def test_constant_returns(self) -> None:
         """Constant returns (zero vol) should handle gracefully."""
-        returns = pl.Series([0.01] * 100)
-        result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
-
-        # Zero volatility is a degenerate case - NaN is mathematically correct
-        # since Sharpe ratio is undefined when volatility is zero
-        assert math.isnan(result.psr) or 0 <= result.psr <= 1
+        # 0.0123 * 252 leaves a ~1e-18 std from rounding; it must still be read as a
+        # constant series (SR = +inf for a positive return), not give NaN.
+        for value, expected in ((0.01, 1.0), (0.0123, 1.0), (-0.0123, 0.0)):
+            returns = pl.Series([value] * 252)
+            result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
+            assert result.psr == expected
+            assert deflated_sharpe_ratio(returns, n_trials=10) == expected
 
     def test_minimum_data_requirement(self) -> None:
         """Should require minimum data points."""
@@ -636,3 +637,77 @@ class TestStatisticalProperties:
         assert abs(dsr_1 - psr.psr) < abs(dsr_20 - psr.psr)
         # DSR should decrease as trials increase (with enough separation)
         assert dsr_1 >= dsr_5 >= dsr_20
+
+
+# ---------------------------------------------------------------------------
+# Units: the PSR/DSR/MinTRL standard error is defined on the per-observation
+# Sharpe ratio (Bailey & Lopez de Prado 2012/2014). An earlier version plugged the
+# annualized ratio into it, overstating significance (SPY PSR -> 1.0, MinTRL -> 18).
+# These tests pin the functions to an independent implementation of the paper.
+# ---------------------------------------------------------------------------
+
+
+def _reference_psr(r: np.ndarray, benchmark_annual: float, ppy: int = 252) -> float:
+    from scipy import stats
+
+    sr = r.mean() / r.std(ddof=1)
+    sr_star = benchmark_annual / np.sqrt(ppy)
+    g3 = stats.skew(r, bias=False)
+    g4 = stats.kurtosis(r, bias=False, fisher=False)  # raw kurtosis
+    se = np.sqrt((1 - g3 * sr + (g4 - 1) / 4 * sr**2) / (len(r) - 1))
+    return float(stats.norm.cdf((sr - sr_star) / se))
+
+
+def _reference_min_trl(r: np.ndarray, target_annual: float, conf: float, ppy: int = 252) -> float:
+    from scipy import stats
+
+    sr = r.mean() / r.std(ddof=1)
+    sr_star = target_annual / np.sqrt(ppy)
+    g3 = stats.skew(r, bias=False)
+    g4 = stats.kurtosis(r, bias=False, fisher=False)
+    z = stats.norm.ppf(conf)
+    return float(np.ceil(1 + (1 - g3 * sr + (g4 - 1) / 4 * sr**2) * (z / (sr - sr_star)) ** 2))
+
+
+@pytest.mark.parametrize("ticker", ["SPY", "QQQ", "BND"])
+@pytest.mark.parametrize("benchmark_sr", [0.0, 0.25, 0.5])
+def test_psr_matches_paper_reference(ticker, benchmark_sr):
+    from tests.conftest import load_cached_returns
+
+    r = load_cached_returns(ticker).to_numpy()
+    actual = probabilistic_sharpe_ratio(pl.Series(r), benchmark_sr=benchmark_sr).psr
+    assert actual == pytest.approx(_reference_psr(r, benchmark_sr), rel=1e-10, abs=1e-12)
+
+
+@pytest.mark.parametrize("ticker", ["SPY", "QQQ", "BND"])
+@pytest.mark.parametrize("confidence", [0.9, 0.95, 0.99])
+def test_min_trl_matches_paper_reference(ticker, confidence):
+    from tests.conftest import load_cached_returns
+
+    r = load_cached_returns(ticker).to_numpy()
+    actual = minimum_track_record_length(pl.Series(r), target_sr=0.0, confidence=confidence)
+    assert actual == _reference_min_trl(r, 0.0, confidence)
+
+
+def test_min_trl_for_spy_is_years_not_days():
+    from tests.conftest import load_cached_returns
+
+    n = minimum_track_record_length(pl.Series(load_cached_returns("SPY").to_numpy()))
+    assert 2 * 252 < n < 20 * 252
+
+
+def test_dsr_is_psr_against_expected_max_sharpe():
+    from nanuquant.institutional._helpers import _expected_max_sharpe
+    from tests.conftest import load_cached_returns
+
+    r = pl.Series(load_cached_returns("SPY").to_numpy())
+    for trials, var in [(2, 0.05), (10, 0.1), (100, 0.01)]:
+        expected = probabilistic_sharpe_ratio(r, benchmark_sr=_expected_max_sharpe(trials, var)).psr
+        assert deflated_sharpe_ratio(r, n_trials=trials, var_sharpe=var) == pytest.approx(expected)
+
+
+def test_min_trl_is_exported_at_top_level():
+    import nanuquant as nq
+
+    assert nq.minimum_track_record_length is minimum_track_record_length
+    assert callable(nq.newey_west_se)

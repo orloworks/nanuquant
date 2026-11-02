@@ -18,10 +18,8 @@ import numpy as np
 import polars as pl
 
 from nanuquant.core.utils import to_float_series
-from nanuquant.core.validation import (
-    validate_benchmark_match,
-    validate_returns,
-)
+from nanuquant.core.validation import align_pair
+from nanuquant.institutional._helpers import complete_cases
 
 
 class AbsorptionRatioResult(NamedTuple):
@@ -114,21 +112,19 @@ def absorption_ratio(
     if n_assets < 2:
         raise ValueError("At least 2 assets required for absorption ratio")
 
-    n_obs = len(returns_matrix)
+    # Rows with a missing return are dropped, never zero-filled
+    returns_np = complete_cases(returns_matrix)
+
+    n_obs = len(returns_np)
     if n_obs < n_assets:
-        raise ValueError(f"Need at least as many observations ({n_obs}) as assets ({n_assets})")
+        raise ValueError(
+            f"Need at least as many complete observations ({n_obs}) as assets ({n_assets})"
+        )
 
     # Determine number of components
     if n_components is None:
         n_components = max(1, int(fraction * n_assets))
     n_components = min(n_components, n_assets)
-
-    # Convert to numpy for eigenvalue computation
-    returns_np = returns_matrix.to_numpy()
-
-    # Handle missing values
-    if np.any(np.isnan(returns_np)):
-        returns_np = np.nan_to_num(returns_np, nan=0.0)
 
     # Compute correlation matrix
     corr_matrix = np.corrcoef(returns_np, rowvar=False)
@@ -222,9 +218,7 @@ def lower_tail_dependence(
     >>> 0 <= ltd <= 1
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     if not 0 < threshold_quantile < 0.5:
         raise ValueError("threshold_quantile must be between 0 and 0.5")
@@ -299,9 +293,7 @@ def downside_correlation(
     >>> -1 <= dc <= 1 or np.isnan(dc)
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     returns1 = to_float_series(returns1)
     returns2 = to_float_series(returns2)
@@ -361,9 +353,7 @@ def upside_correlation(
     >>> -1 <= uc <= 1 or np.isnan(uc)
     True
     """
-    validate_returns(returns1)
-    validate_returns(returns2)
-    validate_benchmark_match(returns1, returns2)
+    returns1, returns2 = align_pair(returns1, returns2)
 
     returns1 = to_float_series(returns1)
     returns2 = to_float_series(returns2)

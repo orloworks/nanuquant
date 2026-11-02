@@ -219,9 +219,9 @@ def test_empty_series_raises():
     with pytest.raises(EmptySeriesError):
         nq.sharpe(pl.Series([]))
 
-def test_insufficient_data_for_rolling():
+def test_insufficient_data_for_psr():
     with pytest.raises(InsufficientDataError):
-        nq.rolling_sharpe(pl.Series([0.01, 0.02]), window=100)
+        nq.probabilistic_sharpe_ratio(pl.Series([0.01, 0.02]))
 ```
 
 ---
@@ -335,9 +335,10 @@ NanuQuant intentionally differs from QuantStats in some areas:
 |--------|------------|-----------|
 | **CAGR/Calmar** | Uses periods-based calculation | Works with any time series, not just datetime-indexed |
 | **Treynor** | Uses CAGR/Beta | Standard academic definition |
-| **Omega** | Fixed implementation | QuantStats has a bug in some versions |
-| **CPC Index** | Uses `PF × WR × PR` | Standard trading literature formula |
-| **Smart Sharpe/Sortino** | Uses Lo (2002) formula | Established academic reference |
+| **Omega** | Fixed implementation; `inf` with no losses | QuantStats has a bug in some versions and returns NaN |
+| **Exposure** | Exact | QuantStats rounds up to 2 decimals |
+| **Missing data** | Dropped (pairwise for two series) | QuantStats fills missing returns with 0 |
+| **Drawdown** | Measured from the starting capital (peak starts at 1.0) | QuantStats starts the peak at the first period's wealth, so a series that has only lost since inception shows no drawdown. Identical once the series starts with a non-negative return; parity tests compare from there |
 
 These differences are documented and tests use appropriate tolerances.
 

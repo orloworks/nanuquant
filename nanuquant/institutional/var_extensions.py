@@ -1,5 +1,8 @@
 """Extended Value at Risk metrics.
 
+Sign convention: every VaR in nanuquant (``nanuquant.var``, ``nanuquant.cvar`` and the
+functions here) returns a **signed return**, so a loss is negative, as in QuantStats.
+
 This module provides advanced VaR measures that account for non-normality
 of return distributions, including Cornish-Fisher and Entropic VaR.
 
@@ -43,8 +46,8 @@ def cornish_fisher_var(
     Returns
     -------
     float
-        Cornish-Fisher adjusted VaR (as a positive loss amount).
-        Higher values indicate greater potential loss.
+        Cornish-Fisher adjusted VaR as a signed return: the return not expected to be
+        undercut with probability ``confidence`` (negative values are losses).
 
     Notes
     -----
@@ -57,7 +60,7 @@ def cornish_fisher_var(
     - S is skewness
     - K is excess kurtosis
 
-    VaR_cf = -(μ + z_cf * σ)
+    VaR_cf = μ + z_cf * σ
 
     Examples
     --------
@@ -66,14 +69,14 @@ def cornish_fisher_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> cf_var = cornish_fisher_var(returns, confidence=0.95)
-    >>> cf_var > 0
+    >>> cf_var < 0
     True
 
     References
     ----------
     Cornish, E. A., & Fisher, R. A. (1937)
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 4, "cornish_fisher_var")
 
     if not 0 < confidence < 1:
@@ -85,8 +88,10 @@ def cornish_fisher_var(
     mu = returns.mean()
     sigma = returns.std(ddof=1)
 
-    if mu is None or sigma is None or sigma == 0:
+    if mu is None or sigma is None:
         return 0.0
+    if sigma == 0:
+        return float(mu)  # no dispersion: every quantile is the mean
 
     mu = float(mu)
     sigma = float(sigma)
@@ -110,8 +115,8 @@ def cornish_fisher_var(
 
     z_cf = z + (z2 - 1) * skew / 6 + (z3 - 3 * z) * kurt / 24 - (2 * z3 - 5 * z) * skew**2 / 36
 
-    # VaR (negative return at confidence level, expressed as positive loss)
-    var = -(mu + z_cf * sigma)
+    # VaR: the (1 - confidence) quantile of returns, as a signed return
+    var = mu + z_cf * sigma
 
     return float(var)
 
@@ -136,7 +141,8 @@ def entropic_var(
     Returns
     -------
     float
-        Entropic VaR (as a positive loss amount).
+        Entropic VaR as a signed return (negative values are losses). EVaR is the most
+        conservative of the three: ``EVaR <= CVaR <= VaR`` in this sign convention.
 
     Notes
     -----
@@ -145,8 +151,8 @@ def entropic_var(
 
     Where L is the loss (negative return) and α is the confidence level.
 
-    EVaR satisfies:
-        VaR ≤ CVaR ≤ EVaR
+    As loss magnitudes, VaR ≤ CVaR ≤ EVaR; the function returns ``-EVaR`` so that all
+    nanuquant VaR functions share one sign convention.
 
     Examples
     --------
@@ -155,14 +161,14 @@ def entropic_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> evar = entropic_var(returns, confidence=0.95)
-    >>> evar > 0
+    >>> evar < 0
     True
 
     References
     ----------
     Ahmadi-Javid, A. (2012). "Entropic Value-at-Risk: A New Coherent Risk Measure"
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 10, "entropic_var")
 
     if not 0 < confidence < 1:
@@ -196,7 +202,7 @@ def entropic_var(
         )
 
         if result.success:
-            return float(result.fun)
+            return -float(result.fun)
         else:
             # Fallback to CVaR if optimization fails
             return _fallback_cvar(returns, confidence)
@@ -209,12 +215,12 @@ def _fallback_cvar(returns: pl.Series, confidence: float) -> float:
     """Calculate CVaR as fallback for EVaR."""
     returns_np = returns.to_numpy()
     q = np.percentile(returns_np, (1 - confidence) * 100)
-    tail_losses = -returns_np[returns_np <= q]
+    tail = returns_np[returns_np <= q]
 
-    if len(tail_losses) == 0:
+    if len(tail) == 0:
         return 0.0
 
-    return float(np.mean(tail_losses))
+    return float(np.mean(tail))
 
 
 def modified_var(
@@ -235,7 +241,7 @@ def modified_var(
     Returns
     -------
     float
-        Modified VaR (positive loss amount).
+        Modified VaR as a signed return (negative values are losses).
     """
     return cornish_fisher_var(returns, confidence)
 
@@ -259,7 +265,8 @@ def historical_var(
     Returns
     -------
     float
-        Historical VaR (positive loss amount).
+        Historical VaR as a signed return: the ``1 - confidence`` quantile of the
+        returns (negative values are losses).
 
     Examples
     --------
@@ -268,10 +275,10 @@ def historical_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> hvar = historical_var(returns, confidence=0.95)
-    >>> hvar > 0
+    >>> hvar < 0
     True
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
 
     if not 0 < confidence < 1:
         raise ValueError("confidence must be between 0 and 1")
@@ -284,8 +291,8 @@ def historical_var(
     if q is None:
         return 0.0
 
-    # Return as positive loss
-    return float(-q)
+    # Signed return: losses are negative
+    return float(q)
 
 
 def parametric_var(
@@ -307,7 +314,7 @@ def parametric_var(
     Returns
     -------
     float
-        Parametric VaR (positive loss amount).
+        Parametric VaR as a signed return (negative values are losses).
 
     Examples
     --------
@@ -316,10 +323,10 @@ def parametric_var(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0, 0.02, 500))
     >>> pvar = parametric_var(returns, confidence=0.95)
-    >>> pvar > 0
+    >>> pvar < 0
     True
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
 
     if not 0 < confidence < 1:
         raise ValueError("confidence must be between 0 and 1")
@@ -329,13 +336,15 @@ def parametric_var(
     mu = returns.mean()
     sigma = returns.std(ddof=1)
 
-    if mu is None or sigma is None or sigma == 0:
+    if mu is None or sigma is None:
         return 0.0
+    if sigma == 0:
+        return float(mu)  # no dispersion: every quantile is the mean
 
     # Standard normal quantile
     z = scipy_stats.norm.ppf(1 - confidence)
 
     # VaR
-    var = -(float(mu) + z * float(sigma))
+    var = float(mu) + z * float(sigma)
 
     return float(var)

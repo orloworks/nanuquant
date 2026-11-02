@@ -5,6 +5,7 @@ beyond standard QuantStats functionality, including robustness testing,
 volatility modeling, systemic risk measures, and execution quality metrics.
 """
 
+from nanuquant.institutional._helpers import newey_west_se
 from nanuquant.institutional.execution import (
     ImplementationShortfallResult,
     execution_vwap,
@@ -22,7 +23,9 @@ from nanuquant.institutional.portfolio import (
     portfolio_volatility,
 )
 from nanuquant.institutional.robustness import (
+    PSRResult,
     deflated_sharpe_ratio,
+    minimum_track_record_length,
     probabilistic_sharpe_ratio,
 )
 from nanuquant.institutional.systemic import (
@@ -50,6 +53,9 @@ __all__ = [
     # Robustness metrics
     "deflated_sharpe_ratio",
     "probabilistic_sharpe_ratio",
+    "minimum_track_record_length",
+    "newey_west_se",
+    "PSRResult",
     # Volatility metrics
     "arch_effect_test",
     "garch_volatility",

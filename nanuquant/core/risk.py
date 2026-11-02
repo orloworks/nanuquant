@@ -51,7 +51,7 @@ def volatility(
     >>> volatility(returns, periods_per_year=252)
     0.248...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -111,7 +111,7 @@ def var(
     >>> var(returns, confidence=0.95)
     -0.058...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -163,7 +163,7 @@ def cvar(
     >>> cvar(returns, confidence=0.95)
     -0.10
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -203,7 +203,10 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
 
     Notes
     -----
-    Drawdown at time t = (cumulative_wealth[t] - running_max[t]) / running_max[t]
+    Drawdown at time t = wealth[t] / peak[t] - 1, where the peak is the running
+    maximum of wealth starting from the starting capital of 1.0. This deliberately
+    differs from QuantStats, whose peak starts at the first period's wealth and so
+    reports no drawdown for a series that has only lost since inception.
 
     Examples
     --------
@@ -214,12 +217,12 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     Series: '' [f64]
     [
         0.0
-        -0.045454...
-        -0.027272...
-        -0.105454...
+        -0.05
+        -0.031
+        -0.10852
     ]
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty():
         return pl.Series("drawdown", [], dtype=pl.Float64)
 
@@ -228,11 +231,19 @@ def to_drawdown_series(returns: pl.Series) -> pl.Series:
     # Calculate cumulative wealth (1 + cumulative return)
     cumulative = (1 + returns).cum_prod()
 
-    # Running maximum
-    running_max = cumulative.cum_max()
-
-    # Drawdown as percentage from peak
-    drawdown = (cumulative - running_max) / running_max
+    # Running peak, starting from the starting capital (1.0): a loss from day one is
+    # a drawdown. (QuantStats starts the peak at the first period's wealth, so it
+    # reports no drawdown for a series that has only lost since inception.) Missing
+    # returns stay null.
+    drawdown = (
+        pl.DataFrame({"c": cumulative})
+        .select(
+            pl.when(pl.col("c").is_not_null()).then(
+                pl.col("c") / pl.max_horizontal(pl.col("c").cum_max(), pl.lit(1.0)) - 1.0
+            )
+        )
+        .to_series()
+    )
 
     return drawdown.alias("drawdown")
 
@@ -257,7 +268,7 @@ def max_drawdown(returns: pl.Series) -> float:
     >>> max_drawdown(returns)
     -0.134...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -297,7 +308,7 @@ def ulcer_index(returns: pl.Series) -> float:
     >>> ulcer_index(returns)
     0.015...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -358,7 +369,7 @@ def downside_deviation(
     >>> downside_deviation(returns, mar=0.0)
     0.18...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 

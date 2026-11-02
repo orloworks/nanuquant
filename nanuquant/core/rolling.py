@@ -1,23 +1,15 @@
 """Rolling metrics for nanuquant.
 
-This module provides rolling (window-based) metrics that match QuantStats output.
+This module provides rolling (window-based) metrics with QuantStats' formulas.
 
-Note on Annualization Periods
------------------------------
-Rolling metrics in this module default to 365 periods per year to match
-QuantStats' rolling function behavior. This differs from the global config
-default of 252 trading days used by core metrics like `sharpe()` and `volatility()`.
+Annualization
+-------------
+Rolling metrics annualize with ``periods_per_year`` from the global config (252 by
+default), the same as the core metrics such as :func:`nanuquant.sharpe`, so a rolling
+Sharpe ratio and the full-sample one are on the same scale. QuantStats' rolling
+functions default to 365; pass ``periods_per_year=365`` to reproduce them exactly.
 
-The rationale:
-- QuantStats rolling functions use calendar days (365) for consistency with
-  their datetime-indexed calculations
-- Core metrics use trading days (252) as the standard for daily returns
-
-To use trading days for rolling metrics, explicitly pass `periods_per_year=252`:
-
-    >>> rolling_sharpe(returns, periods_per_year=252)
-
-Or use the global config by passing `periods_per_year=get_config().periods_per_year`.
+Missing values keep their position: any window that contains a missing return is null.
 """
 
 from __future__ import annotations
@@ -26,11 +18,26 @@ import math
 
 import polars as pl
 
+from nanuquant.config import get_config
 from nanuquant.core.utils import (
     get_annualization_factor,
     to_float_series,
 )
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.validation import validate_benchmark_match, validate_returns
+
+
+def _mask_pair(returns: pl.Series, benchmark: pl.Series) -> tuple[pl.Series, pl.Series]:
+    """Null both series wherever either is missing, keeping every position."""
+    validate_benchmark_match(returns, benchmark)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
+    benchmark = validate_returns(benchmark, allow_empty=True, drop_nulls=False)
+    both = returns.is_not_null() & benchmark.is_not_null()
+    frame = pl.DataFrame({"r": returns, "b": benchmark, "keep": both})
+    masked = frame.select(
+        pl.when(pl.col("keep")).then(pl.col("r")).alias("r"),
+        pl.when(pl.col("keep")).then(pl.col("b")).alias("b"),
+    )
+    return masked["r"].alias(returns.name), masked["b"].alias(benchmark.name)
 
 
 def rolling_volatility(
@@ -51,8 +58,8 @@ def rolling_volatility(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the volatility.
 
@@ -69,14 +76,15 @@ def rolling_volatility(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_volatility", [], dtype=pl.Float64)
+        return pl.Series("rolling_volatility", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Calculate rolling std with ddof=1
     rolling_std = returns.rolling_std(window_size=rolling_period, ddof=1)
@@ -110,8 +118,8 @@ def rolling_sharpe(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the Sharpe ratio.
 
@@ -128,14 +136,15 @@ def rolling_sharpe(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_sharpe", [], dtype=pl.Float64)
+        return pl.Series("rolling_sharpe", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization in rolling functions
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -183,8 +192,8 @@ def rolling_sortino(
     rolling_period : int, default 126
         Window size for rolling calculation.
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
     annualize : bool, default True
         If True, annualize the Sortino ratio.
 
@@ -206,14 +215,15 @@ def rolling_sortino(
     shape: (250,)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True, drop_nulls=False)
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_sortino", [], dtype=pl.Float64)
+        return pl.Series("rolling_sortino", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
 
-    # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Convert annual risk-free to per-period
     rf_per_period = risk_free_rate / ann_factor
@@ -283,14 +293,10 @@ def rolling_beta(
     shape: (250,)
     ...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = _mask_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
-        return pl.Series("rolling_beta", [], dtype=pl.Float64)
+        return pl.Series("rolling_beta", [None] * len(returns), dtype=pl.Float64)
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
@@ -346,8 +352,8 @@ def rolling_greeks(
     rolling_period : int, default 126
         Window size for rolling calculation (6 months for daily data).
     periods_per_year : int, optional
-        Periods per year for annualization. Default 365 matches QuantStats.
-        Pass ``periods_per_year=252`` for trading-day data.
+        Periods per year for annualization. Defaults to the global config (252).
+        Pass ``periods_per_year=365`` to match QuantStats' default.
 
     Returns
     -------
@@ -374,25 +380,22 @@ def rolling_greeks(
     >>> greeks.columns
     ['rolling_alpha', 'rolling_beta']
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
-    validate_benchmark_match(returns, benchmark)
+    returns, benchmark = _mask_pair(returns, benchmark)
 
     if returns.is_empty() or len(returns) < rolling_period:
         return pl.DataFrame(
             {
-                "rolling_alpha": pl.Series([], dtype=pl.Float64),
-                "rolling_beta": pl.Series([], dtype=pl.Float64),
+                "rolling_alpha": pl.Series([None] * len(returns), dtype=pl.Float64),
+                "rolling_beta": pl.Series([None] * len(returns), dtype=pl.Float64),
             }
         )
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
 
-    # QuantStats uses 365 by default for annualization
-    ann_factor = get_annualization_factor(periods_per_year=periods_per_year or 365)
+    ppy = periods_per_year or get_config().periods_per_year
+
+    ann_factor = get_annualization_factor(periods_per_year=ppy)
 
     # Rolling means
     rolling_mean_ret = returns.rolling_mean(window_size=rolling_period)

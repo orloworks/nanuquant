@@ -52,7 +52,8 @@ def probabilistic_sharpe_ratio(
     returns : pl.Series
         Period returns (not prices).
     benchmark_sr : float, default 0.0
-        Benchmark Sharpe ratio to compare against. Default is 0 (no skill).
+        Benchmark Sharpe ratio to compare against, **annualized** (same units as
+        :func:`nanuquant.sharpe`). Default is 0 (no skill).
     periods_per_year : int, optional
         Number of periods per year for annualization. If None, uses config default.
 
@@ -67,7 +68,8 @@ def probabilistic_sharpe_ratio(
     -----
     The standard error of the Sharpe ratio is adjusted for non-normality:
 
-    SE(SR) = sqrt((1 + 0.5*SR^2 - skew*SR + (kurt-3)/4 * SR^2) / (n-1))
+    SE(SR) = sqrt((1 + 0.5*SR^2 - skew*SR + (kurt-3)/4 * SR^2) / (n-1)), with SR the
+    per-observation (non-annualized) Sharpe ratio and kurt the raw kurtosis.
 
     The PSR is then: Phi((SR - SR*) / SE(SR))
 
@@ -86,11 +88,11 @@ def probabilistic_sharpe_ratio(
     >>> returns = pl.Series(np.random.normal(0.001, 0.02, 252))
     >>> result = probabilistic_sharpe_ratio(returns, benchmark_sr=0.0)
     >>> result.psr  # Probability true SR > 0
-    0.85...
+    0.77...
     >>> result.p_value
-    0.14...
+    0.22...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="probabilistic_sharpe_ratio")
 
     returns = to_float_series(returns)
@@ -105,8 +107,11 @@ def probabilistic_sharpe_ratio(
     mean_ret = returns.mean()
     std_ret = returns.std()
 
-    if mean_ret is None or std_ret is None or std_ret == 0:
-        if std_ret == 0 and mean_ret is not None:
+    # Rounding can leave a tiny nonzero std for a constant series, which would give a
+    # huge SR and NaN higher moments; treat it as zero volatility.
+    constant = std_ret == 0 or returns.n_unique() == 1
+    if mean_ret is None or std_ret is None or constant:
+        if constant and mean_ret is not None:
             # For zero volatility, Sharpe Ratio is effectively infinite or -infinite.
             if mean_ret > 0:
                 return PSRResult(psr=1.0, p_value=0.0)  # Infinite SR beats any finite benchmark
@@ -120,8 +125,10 @@ def probabilistic_sharpe_ratio(
         # Fallback for None values or if both SR and benchmark are 0
         return PSRResult(psr=0.5, p_value=0.5)
 
-    # Sample Sharpe ratio (annualized)
-    sr = float(mean_ret / std_ret) * math.sqrt(ann_factor)
+    # The standard error is defined on the per-observation Sharpe ratio; the
+    # benchmark is given annualized and converted to the same unit.
+    sr = float(mean_ret / std_ret)
+    benchmark_sr = benchmark_sr / math.sqrt(ann_factor)
 
     # Get skewness and excess kurtosis
     skew = skewness(returns)
@@ -179,8 +186,9 @@ def deflated_sharpe_ratio(
         This represents the total number of backtests run during strategy
         development, including variations that were discarded.
     var_sharpe : float, default 1.0
-        Variance of Sharpe ratio estimates under null hypothesis.
-        Default assumes unit variance (standard case).
+        Variance of the **annualized** Sharpe ratios across the trials (under the
+        null hypothesis). The default, 1.0, means a cross-trial standard deviation of
+        one annualized Sharpe unit.
     periods_per_year : int, optional
         Number of periods per year for annualization. If None, uses config default.
 
@@ -218,13 +226,13 @@ def deflated_sharpe_ratio(
     >>> # Strong strategy
     >>> returns = pl.Series(np.random.normal(0.002, 0.02, 252))
     >>> deflated_sharpe_ratio(returns, n_trials=100)
-    0.75...
+    0.14...
 
     >>> # After trying 1000 strategies, a lower DSR is expected
     >>> deflated_sharpe_ratio(returns, n_trials=1000)
-    0.45...
+    0.03...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="deflated_sharpe_ratio")
 
     if n_trials < 1:
@@ -252,7 +260,7 @@ def minimum_track_record_length(
     confidence: float = 0.95,
     *,
     periods_per_year: int | None = None,
-) -> int:
+) -> float:
     """Calculate minimum track record length for statistical significance.
 
     Determines the minimum number of observations needed to conclude that
@@ -264,7 +272,8 @@ def minimum_track_record_length(
     returns : pl.Series
         Period returns (not prices). Used to estimate skewness and kurtosis.
     target_sr : float, default 0.0
-        Target Sharpe ratio to exceed. Default is 0 (testing for positive SR).
+        Target Sharpe ratio to exceed, **annualized**. Default is 0 (testing for a
+        positive Sharpe ratio).
     confidence : float, default 0.95
         Confidence level (0 to 1).
     periods_per_year : int, optional
@@ -272,8 +281,11 @@ def minimum_track_record_length(
 
     Returns
     -------
-    int
-        Minimum number of periods required.
+    float
+        Minimum number of observations required (a whole number), or ``inf`` if the
+        sample Sharpe ratio does not exceed the target. A constant series (zero
+        volatility) takes its Sharpe ratio as +inf, -inf or 0 by the sign of its
+        return.
 
     Notes
     -----
@@ -295,9 +307,9 @@ def minimum_track_record_length(
     >>> np.random.seed(42)
     >>> returns = pl.Series(np.random.normal(0.001, 0.02, 252))
     >>> minimum_track_record_length(returns, target_sr=0.0, confidence=0.95)
-    156
+    1170.0
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     validate_min_length(returns, 3, metric="minimum_track_record_length")
 
     if not 0 < confidence < 1:
@@ -314,15 +326,31 @@ def minimum_track_record_length(
     mean_ret = returns.mean()
     std_ret = returns.std()
 
-    if mean_ret is None or std_ret is None or std_ret == 0:
-        return len(returns)
+    if mean_ret is None or std_ret is None:
+        return float("inf")
 
-    # Sample Sharpe ratio (annualized)
-    sr = float(mean_ret / std_ret) * math.sqrt(ann_factor)
+    # Per-observation target, the units the formula is defined in
+    target_sr = target_sr / math.sqrt(ann_factor)
+
+    if std_ret == 0 or returns.n_unique() == 1:
+        # (Rounding can leave a tiny nonzero std for a constant series.)
+        # A constant series has no higher moments; its Sharpe ratio is +inf for a
+        # positive return, -inf for a negative one and 0 for a zero return.
+        z = float(scipy_stats.norm.ppf(confidence))
+        mean = float(mean_ret)
+        if mean > 0:
+            # Beats any finite target; the formula tends to 1 + z^2 / 2 as SR -> inf.
+            return float(math.ceil(1 + 0.5 * z**2))
+        if mean == 0 and target_sr < 0:
+            # SR = 0 beats a negative target; no dispersion, so the adjustment is 1.
+            return float(math.ceil(1 + (z / target_sr) ** 2))
+        return float("inf")
+
+    sr = float(mean_ret / std_ret)
 
     # If sample SR <= target, we can never achieve significance
     if sr <= target_sr:
-        return float("inf")  # type: ignore
+        return float("inf")
 
     # Get skewness and excess kurtosis
     skew = skewness(returns)
@@ -341,4 +369,4 @@ def minimum_track_record_length(
     sr_diff = sr - target_sr
     min_trl = 1 + adjustment * (z_alpha / sr_diff) ** 2
 
-    return int(math.ceil(min_trl))
+    return float(math.ceil(min_trl))

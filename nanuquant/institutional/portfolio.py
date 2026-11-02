@@ -18,6 +18,8 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
+from nanuquant.institutional._helpers import complete_cases
+
 
 class MCRResult(NamedTuple):
     """Result of marginal contribution to risk calculation.
@@ -123,12 +125,8 @@ def marginal_contribution_to_risk(
 
     asset_names = returns_matrix.columns
 
-    # Convert to numpy
-    returns_np = returns_matrix.to_numpy()
-
-    # Handle missing values
-    if np.any(np.isnan(returns_np)):
-        returns_np = np.nan_to_num(returns_np, nan=0.0)
+    # Rows with a missing return are dropped, never zero-filled
+    returns_np = complete_cases(returns_matrix)
 
     # Calculate covariance matrix
     cov_matrix = np.cov(returns_np, rowvar=False)
@@ -225,16 +223,9 @@ def ledoit_wolf_covariance(
     if returns_matrix.is_empty():
         raise ValueError("Returns matrix is empty")
 
-    # Convert to numpy
-    X = returns_matrix.to_numpy()
+    # Rows with a missing return are dropped, never zero-filled
+    X = complete_cases(returns_matrix)
     n, p = X.shape
-
-    if n < 2:
-        raise ValueError("Need at least 2 observations")
-
-    # Handle missing values
-    if np.any(np.isnan(X)):
-        X = np.nan_to_num(X, nan=0.0)
 
     # Demean
     X = X - X.mean(axis=0)
@@ -372,17 +363,12 @@ def portfolio_volatility(
         return 0.0
 
     weights = np.array(weights, dtype=float)
-    returns_np = returns_matrix.to_numpy()
 
-    if np.any(np.isnan(returns_np)):
-        returns_np = np.nan_to_num(returns_np, nan=0.0)
-
-    # Get covariance matrix
+    # Get covariance matrix (rows with a missing return are dropped, never zero-filled)
     if use_shrinkage:
-        result = ledoit_wolf_covariance(returns_matrix)
-        cov_matrix = result.covariance
+        cov_matrix = ledoit_wolf_covariance(returns_matrix).covariance
     else:
-        cov_matrix = np.cov(returns_np, rowvar=False)
+        cov_matrix = np.cov(complete_cases(returns_matrix), rowvar=False)
 
     # Ensure 2D
     if cov_matrix.ndim == 0:

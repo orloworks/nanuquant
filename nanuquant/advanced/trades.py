@@ -8,12 +8,20 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import polars as pl
 from scipy import stats as scipy_stats
 
 from nanuquant.config import get_config
-from nanuquant.core.distribution import skewness
-from nanuquant.core.returns import avg_loss, avg_win, win_rate
+from nanuquant.core.distribution import geometric_mean
+from nanuquant.core.returns import (
+    avg_loss,
+    avg_win,
+    cagr,
+    payoff_ratio,
+    profit_factor,
+    win_rate,
+)
 from nanuquant.core.utils import (
     safe_divide,
     to_float_series,
@@ -24,7 +32,8 @@ from nanuquant.core.validation import validate_returns
 def exposure(returns: pl.Series) -> float:
     """Calculate market exposure (percent time in market).
 
-    Matches QuantStats exposure implementation.
+    Same definition as QuantStats ``exposure`` (non-zero periods / all periods), but
+    exact: QuantStats rounds the result up to two decimals.
 
     Parameters
     ----------
@@ -47,7 +56,7 @@ def exposure(returns: pl.Series) -> float:
     >>> exposure(returns)
     0.6
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -84,18 +93,7 @@ def ghpr(returns: pl.Series) -> float:
     >>> ghpr(returns)
     0.0123...
     """
-    validate_returns(returns)
-    if returns.is_empty():
-        return 0.0
-
-    returns = to_float_series(returns)
-    n = len(returns)
-
-    product = (1 + returns).product()
-    if product is None or product <= 0:
-        return 0.0
-
-    return float(product ** (1.0 / n) - 1)
+    return geometric_mean(returns)
 
 
 def rar(
@@ -105,7 +103,9 @@ def rar(
 ) -> float:
     """Calculate Risk-Adjusted Return (RAR).
 
-    Matches QuantStats rar implementation.
+    Same definition as QuantStats ``rar`` (CAGR / exposure), using nanuquant's
+    period-count CAGR and exact exposure; QuantStats uses calendar-date CAGR and a
+    rounded-up exposure.
 
     Parameters
     ----------
@@ -126,9 +126,7 @@ def rar(
     >>> rar(returns)
     5.0...
     """
-    from nanuquant.core.returns import cagr
-
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -145,51 +143,10 @@ def rar(
 
 
 def cpc_index(returns: pl.Series) -> float:
-    """Calculate CPC Index (Commodity Producers Index).
+    """Calculate the CPC index.
 
-    Matches QuantStats cpc_index implementation.
-
-    Parameters
-    ----------
-    returns : pl.Series
-        Period returns.
-
-    Returns
-    -------
-    float
-        CPC Index = (win_rate * payoff_ratio - 1) + 1
-
-    Notes
-    -----
-    Also known as Expectunity or Edge Ratio.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.02, -0.01, 0.03, -0.01, 0.01])
-    >>> cpc_index(returns)
-    1.2...
-    """
-    validate_returns(returns)
-    if returns.is_empty():
-        return 0.0
-
-    wr = win_rate(returns)
-    avg_w = avg_win(returns)
-    avg_l = avg_loss(returns)
-
-    if avg_l == 0:
-        return float("inf") if avg_w > 0 else 0.0
-
-    payoff = abs(avg_w / avg_l)
-
-    return float(wr * payoff - (1 - wr) + 1)
-
-
-def serenity_index(returns: pl.Series) -> float:
-    """Calculate Serenity Index.
-
-    Matches QuantStats serenity_index implementation.
+    Matches QuantStats ``cpc_index``: ``profit_factor * win_rate * payoff_ratio``.
+    Values above 1 indicate a robust edge.
 
     Parameters
     ----------
@@ -199,97 +156,78 @@ def serenity_index(returns: pl.Series) -> float:
     Returns
     -------
     float
-        Serenity Index = CAGR / (Ulcer Index * sqrt(periods)).
-
-    Notes
-    -----
-    Lower is better for drawdown-adjusted return.
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.01, 0.02, -0.01, 0.03] * 63)
-    >>> serenity_index(returns)
-    5.0...
+        CPC index. ``inf`` if there are wins but no losses.
     """
-    from nanuquant.core.returns import cagr
-    from nanuquant.core.risk import ulcer_index
-
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
+    # No winning period makes all three factors 0, so no special case is needed.
+    return float(profit_factor(returns) * win_rate(returns) * payoff_ratio(returns))
 
-    config = get_config()
-    ppy = config.periods_per_year
 
-    annual_return = cagr(returns, periods_per_year=ppy)
+def serenity_index(returns: pl.Series, *, risk_free_rate: float = 0.0) -> float:
+    """Calculate the Serenity index.
+
+    Matches QuantStats ``serenity_index``: ``(sum(r) - rf) / (ulcer_index * pitfall)``,
+    where ``pitfall = -cvar(drawdowns) / std(r)`` penalises deep tail drawdowns
+    relative to everyday volatility. Higher is better.
+
+    Parameters
+    ----------
+    returns : pl.Series
+        Period returns.
+    risk_free_rate : float, default 0.0
+        Flat amount subtracted from the summed return (QuantStats convention).
+
+    Returns
+    -------
+    float
+        Serenity index. ``inf``/0.0 when there is no drawdown, by the sign of the
+        excess return.
+    """
+    from nanuquant.core.risk import cvar, to_drawdown_series, ulcer_index
+
+    returns = validate_returns(returns)
+    if returns.is_empty():
+        return 0.0
+    returns = to_float_series(returns)
+    excess = float(returns.sum()) - risk_free_rate
+    std = returns.std()
     ui = ulcer_index(returns)
+    if std is None or std == 0 or ui == 0:
+        return float("inf") if excess > 0 else 0.0
+    pitfall = -cvar(to_drawdown_series(returns)) / float(std)
+    if pitfall == 0:
+        return float("inf") if excess > 0 else 0.0
+    return float(excess / (ui * pitfall))
 
-    if ui == 0:
-        return float("inf") if annual_return > 0 else 0.0
 
-    return float(safe_divide(annual_return, ui, default=0.0))
+def risk_of_ruin(returns: pl.Series) -> float:
+    """Calculate the QuantStats risk-of-ruin heuristic.
 
-
-def risk_of_ruin(
-    returns: pl.Series,
-    *,
-    target_fraction: float = 1.0,
-) -> float:
-    """Calculate probability of reaching ruin.
-
-    Matches QuantStats risk_of_ruin implementation.
+    Matches QuantStats ``risk_of_ruin``: ``((1 - W) / (1 + W)) ** n`` with ``W`` the
+    :func:`win_rate` and ``n`` the number of periods. This is a coarse heuristic that
+    goes to 0 for any long series with a win rate above 0; it is computed in log space
+    so it cannot overflow.
 
     Parameters
     ----------
     returns : pl.Series
         Period returns.
-    target_fraction : float, default 1.0
-        Fraction of capital loss defining ruin (1.0 = total loss).
 
     Returns
     -------
     float
-        Probability of ruin (0 to 1).
-
-    Notes
-    -----
-    Uses the formula: ROR = ((1 - E) / (1 + E))^n
-    Where E = Edge = win_rate * payoff - (1 - win_rate)
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.02, -0.01, 0.03, -0.01, 0.01] * 50)
-    >>> risk_of_ruin(returns)
-    0.0...
+        Probability-like value in [0, 1].
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 1.0
-
-    wr = win_rate(returns)
-    avg_w = avg_win(returns)
-    avg_l = avg_loss(returns)
-
-    if avg_l == 0:
-        return 0.0 if avg_w > 0 else 1.0
-
-    payoff = abs(avg_w / avg_l)
-
-    # Edge = win_rate * payoff - (1 - win_rate)
-    edge = wr * payoff - (1 - wr)
-
-    if edge >= 1:
-        return 0.0
-    if edge <= -1:
+    w = win_rate(returns)
+    if w <= 0:
         return 1.0
-
-    # Risk of ruin formula
-    n = len(returns)
-    ror = ((1 - edge) / (1 + edge)) ** n
-
-    return float(min(1.0, max(0.0, ror)))
+    log_ratio = math.log((1 - w) / (1 + w)) if w < 1 else float("-inf")
+    return float(math.exp(len(returns) * log_ratio))
 
 
 def adjusted_sortino(
@@ -298,9 +236,10 @@ def adjusted_sortino(
     risk_free_rate: float | None = None,
     periods_per_year: int | None = None,
 ) -> float:
-    """Calculate Sortino ratio adjusted for skewness.
+    """Calculate the Sortino ratio divided by sqrt(2).
 
-    Matches QuantStats adjusted_sortino implementation.
+    Matches QuantStats ``adjusted_sortino`` (Jack Schwager's adjustment): dividing by
+    ``sqrt(2)`` makes the Sortino ratio directly comparable with the Sharpe ratio.
 
     Parameters
     ----------
@@ -314,34 +253,17 @@ def adjusted_sortino(
     Returns
     -------
     float
-        Adjusted Sortino = Sortino * (1 + skew/6 * Sortino - kurt/24 * Sortino^2)
-
-    Examples
-    --------
-    >>> import polars as pl
-    >>> returns = pl.Series([0.01, 0.02, -0.01, 0.03] * 50)
-    >>> adjusted_sortino(returns)
-    2.5...
+        ``sortino / sqrt(2)``.
     """
-    from nanuquant.core.distribution import kurtosis
     from nanuquant.core.performance import sortino
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
-    config = get_config()
-    rf = risk_free_rate if risk_free_rate is not None else config.risk_free_rate
-    ppy = periods_per_year or config.periods_per_year
-
-    sort_ratio = sortino(returns, risk_free_rate=rf, periods_per_year=ppy)
-    skew = skewness(returns)
-    kurt = kurtosis(returns)
-
-    # Adjusted Sortino formula
-    adj = sort_ratio * (1 + (skew / 6) * sort_ratio - (kurt / 24) * sort_ratio**2)
-
-    return float(adj)
+    return float(
+        sortino(returns, risk_free_rate=risk_free_rate, periods_per_year=periods_per_year)
+        / math.sqrt(2)
+    )
 
 
 def smart_sharpe(
@@ -366,7 +288,7 @@ def smart_sharpe(
     Returns
     -------
     float
-        Smart Sharpe = Sharpe / sqrt(1 + autocorr_penalty)
+        Smart Sharpe = Sharpe / autocorr_penalty (QuantStats)
 
     Notes
     -----
@@ -381,7 +303,7 @@ def smart_sharpe(
     """
     from nanuquant.core.performance import sharpe
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 
@@ -391,20 +313,8 @@ def smart_sharpe(
 
     sharpe_ratio = sharpe(returns, risk_free_rate=rf, periods_per_year=ppy)
 
-    # Calculate autocorrelation penalty
     returns = to_float_series(returns)
-    corr = _autocorr(returns)
-
-    if corr is None or corr == 0:
-        return float(sharpe_ratio)
-
-    # Penalty adjustment
-    penalty = _autocorr_penalty(corr)
-
-    if penalty <= -1:
-        return 0.0
-
-    return float(sharpe_ratio / math.sqrt(1 + penalty))
+    return float(sharpe_ratio / _autocorr_penalty(returns))
 
 
 def smart_sortino(
@@ -429,7 +339,7 @@ def smart_sortino(
     Returns
     -------
     float
-        Smart Sortino = Sortino / sqrt(1 + autocorr_penalty)
+        Smart Sortino = Sortino / autocorr_penalty (QuantStats)
 
     Notes
     -----
@@ -444,7 +354,7 @@ def smart_sortino(
     """
     from nanuquant.core.performance import sortino
 
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 
@@ -454,51 +364,29 @@ def smart_sortino(
 
     sortino_ratio = sortino(returns, risk_free_rate=rf, periods_per_year=ppy)
 
-    # Calculate autocorrelation penalty
     returns = to_float_series(returns)
-    corr = _autocorr(returns)
-
-    if corr is None or corr == 0:
-        return float(sortino_ratio)
-
-    # Penalty adjustment
-    penalty = _autocorr_penalty(corr)
-
-    if penalty <= -1:
-        return 0.0
-
-    return float(sortino_ratio / math.sqrt(1 + penalty))
+    return float(sortino_ratio / _autocorr_penalty(returns))
 
 
-def _autocorr(returns: pl.Series, lag: int = 1) -> float | None:
-    """Calculate autocorrelation at given lag."""
-    if len(returns) <= lag:
-        return None
+def _autocorr_penalty(returns: pl.Series) -> float:
+    """QuantStats autocorrelation penalty.
 
-    returns = to_float_series(returns)
-
-    mean = returns.mean()
-    if mean is None:
-        return None
-
-    # Calculate autocorrelation
-    r1 = returns[lag:]
-    r2 = returns[:-lag]
-
-    cov = ((r1 - mean) * (r2 - mean)).sum()
-    var = ((returns - mean) ** 2).sum()
-
-    if cov is None or var is None or var == 0:
-        return None
-
-    return float(cov / var)
-
-
-def _autocorr_penalty(corr: float) -> float:
-    """Calculate autocorrelation penalty for smart ratios."""
-    # QuantStats formula: 2 * sum((1 - i/n) * rho_i)
-    # Simplified for lag-1: 2 * corr
-    return 2 * corr
+    ``sqrt(1 + 2 * sum_{k=1}^{n-1} ((n - k) / n) * |rho| ** k)``, with ``rho`` the
+    lag-1 Pearson correlation of the series with itself.
+    """
+    arr = returns.to_numpy()
+    n = len(arr)
+    if n < 3:
+        return 1.0
+    with np.errstate(invalid="ignore", divide="ignore"):
+        coef = float(np.corrcoef(arr[:-1], arr[1:])[0, 1])
+    if math.isnan(coef):
+        return 1.0
+    coef = abs(coef)
+    k = np.arange(1, n, dtype=float)
+    weights = (n - k) / n
+    # coef**k underflows harmlessly to 0 for large k
+    return float(math.sqrt(1 + 2 * float(np.sum(weights * coef**k))))
 
 
 def sqn(returns: pl.Series) -> float:
@@ -530,7 +418,7 @@ def sqn(returns: pl.Series) -> float:
     >>> sqn(returns)
     2.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 2:
         return 0.0
 
@@ -570,7 +458,7 @@ def expectancy(returns: pl.Series) -> float:
     >>> expectancy(returns)
     0.008...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -606,7 +494,7 @@ def k_ratio(returns: pl.Series) -> float:
     >>> k_ratio(returns)
     0.5...
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty() or len(returns) < 3:
         return 0.0
 

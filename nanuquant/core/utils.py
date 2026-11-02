@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 import polars as pl
 
+from nanuquant.core.validation import normalize_missing
 from nanuquant.exceptions import InvalidFrequencyError
 from nanuquant.types import ANNUALIZATION_PERIODS, FrequencyType
 
@@ -177,7 +178,9 @@ def compound_returns(returns: pl.Series) -> pl.Series:
     Returns
     -------
     pl.Series
-        Cumulative compounded returns.
+        Cumulative compounded returns, same length as ``returns``. A missing return
+        (null or NaN) is null and compounding carries on past it, as in
+        :func:`nanuquant.to_drawdown_series`.
 
     Examples
     --------
@@ -191,7 +194,7 @@ def compound_returns(returns: pl.Series) -> pl.Series:
         0.019898
     ]
     """
-    return (1 + returns).cum_prod() - 1
+    return (1 + normalize_missing(returns)).cum_prod() - 1
 
 
 def log_returns(returns: pl.Series) -> pl.Series:
@@ -224,3 +227,15 @@ def simple_returns(log_rets: pl.Series) -> pl.Series:
         Simple (arithmetic) returns.
     """
     return log_rets.exp() - 1
+
+
+def synthetic_dates(n: int) -> pl.Series:
+    """Return ``n`` consecutive daily dates from 2020-01-01, one per input position.
+
+    Used by the period tables when the caller supplies no dates. They are generated
+    before missing returns are dropped, so every return keeps its own day.
+    """
+    if n == 0:
+        return pl.Series("date", [], dtype=pl.Date)
+    start = date(2020, 1, 1)
+    return pl.date_range(start, start + timedelta(days=n - 1), eager=True).alias("date")

@@ -289,7 +289,8 @@ class TestEquityAggregation:
         result = trades_to_returns(simple_trades, aggregation="equity", initial_capital=10000)
 
         assert result.aggregation == "equity"
-        assert result.periods_per_year == 252
+        # Without prices the curve is built on calendar days, so it annualizes with 365
+        assert result.periods_per_year == 365
         # Should have returns for date range
         assert len(result.returns) >= 3
 
@@ -367,7 +368,7 @@ class TestCalendarAggregation:
         result = trades_to_returns(trades, aggregation="D", initial_capital=10000)
 
         assert result.aggregation == "D"
-        assert result.periods_per_year == 252
+        assert result.periods_per_year == 365  # calendar-day curve (no prices)
 
 
 # =============================================================================
@@ -881,3 +882,181 @@ class TestTradeResult:
         """Test that returns series is named 'returns'."""
         result = trades_to_returns(simple_trades)
         assert result.returns.name == "returns"
+
+
+class TestEquityTimeline:
+    """The equity curve follows trading days when prices are given."""
+
+    def test_curve_with_prices_skips_non_price_days(self) -> None:
+        from datetime import date
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 5)],  # Friday
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 10)],  # Wednesday
+                "exit_price": [104.0],
+                "quantity": [10.0],
+            }
+        )
+        trading_days = [date(2024, 1, d) for d in (5, 8, 9, 10)]  # no weekend rows
+        prices = pl.DataFrame({"date": trading_days, "close": [100.0, 101.0, 103.0, 104.0]})
+        result = trades_to_returns(
+            trades, prices=prices, aggregation="equity", initial_capital=10_000.0
+        )
+        assert result.dates.to_list() == trading_days
+        assert result.periods_per_year == 252
+
+    def test_curve_on_a_seven_day_price_feed_annualizes_at_365(self) -> None:
+        from datetime import date, timedelta
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 3, 31)],
+                "exit_price": [110.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(91)]  # every day
+        prices = pl.DataFrame({"date": days, "close": [100.0 + i / 9 for i in range(91)]})
+        for aggregation in ("equity", "D"):
+            result = trades_to_returns(
+                trades, prices=prices, aggregation=aggregation, initial_capital=10_000.0
+            )
+            assert result.periods_per_year == 365, aggregation
+
+    def test_most_recent_price_is_used_between_price_rows(self) -> None:
+        from datetime import date
+
+        from nanuquant.trades.equity import _build_price_lookup
+
+        book = _build_price_lookup(
+            pl.DataFrame({"date": [date(2024, 1, 2), date(2024, 1, 5)], "close": [10.0, 12.0]}),
+            has_symbol=False,
+        )
+        assert book.at_or_before(date(2024, 1, 4), None) == 10.0
+        assert book.at_or_before(date(2024, 1, 5), None) == 12.0
+        assert book.at_or_before(date(2024, 1, 1), None) is None
+
+    def test_missing_close_keeps_the_last_price_not_the_entry_price(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 5)],
+                "exit_price": [120.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, d) for d in range(1, 6)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 110.0, None, 115.0, 120.0]})
+        equity = build_equity_curve(trades, 10_000.0, prices)
+
+        assert equity["date"].to_list() == days
+        assert equity["position_value"][2] == pytest.approx(1100.0)  # 10 x the 2nd's close
+
+    def test_short_trading_day_curve_annualizes_at_252(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 1)],  # Monday
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 5)],  # Friday
+                "exit_price": [104.0],
+                "quantity": [10.0],
+            }
+        )
+        days = [date(2024, 1, d) for d in range(1, 6)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 101.0, 102.0, 103.0, 104.0]})
+        for aggregation in ("equity", "D"):
+            result = trades_to_returns(
+                trades, prices=prices, aggregation=aggregation, initial_capital=10_000.0
+            )
+            assert result.periods_per_year == 252, aggregation
+
+    def test_trade_on_a_day_without_prices_is_still_booked(self) -> None:
+        from datetime import date
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2), datetime(2024, 1, 6)],  # 6th: Saturday
+                "entry_price": [100.0, 50.0],
+                "exit_time": [datetime(2024, 1, 10), datetime(2024, 1, 8)],
+                "exit_price": [110.0, 60.0],
+                "quantity": [1.0, 10.0],
+                "direction": ["long", "long"],
+            }
+        )
+        days = [date(2024, 1, d) for d in (2, 3, 4, 5, 8, 9, 10)]
+        prices = pl.DataFrame({"date": days, "close": [100.0, 101, 102, 103, 104, 105, 110]})
+        equity = build_equity_curve(trades, 1000.0, prices)
+        assert date(2024, 1, 6) in equity["date"].to_list()
+        # Both trades closed: 10 profit on the first, 100 on the second
+        assert equity["nav"][-1] == pytest.approx(1110.0)
+
+    def test_prices_of_untraded_symbols_do_not_add_dates(self) -> None:
+        from datetime import timedelta
+
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 26)],
+                "exit_price": [110.0],
+                "quantity": [1.0],
+                "symbol": ["AAPL"],
+            }
+        )
+        days = [date(2024, 1, 1) + timedelta(days=i) for i in range(31)]
+        weekdays = [d for d in days if d.weekday() < 5]
+        prices = pl.concat(
+            [
+                pl.DataFrame(
+                    {
+                        "date": weekdays,
+                        "close": [100.0 + i for i in range(len(weekdays))],
+                        "symbol": ["AAPL"] * len(weekdays),
+                    }
+                ),
+                # A 7-day feed for a symbol that is never traded
+                pl.DataFrame({"date": days, "close": [40_000.0] * 31, "symbol": ["BTC"] * 31}),
+            ]
+        )
+        result = trades_to_returns(
+            trades, prices=prices, aggregation="equity", initial_capital=1000.0
+        )
+        assert all(d.weekday() < 5 for d in result.dates.to_list())
+        assert result.periods_per_year == 252
+
+    def test_price_row_without_a_date_is_ignored(self) -> None:
+        trades = pl.DataFrame(
+            {
+                "entry_time": [datetime(2024, 1, 2)],
+                "entry_price": [100.0],
+                "exit_time": [datetime(2024, 1, 4)],
+                "exit_price": [105.0],
+                "quantity": [1.0],
+            }
+        )
+        prices = pl.DataFrame(
+            {"date": [date(2024, 1, 2), None, date(2024, 1, 4)], "close": [100.0, 101.0, 105.0]}
+        )
+        equity = build_equity_curve(trades, 1000.0, prices)
+        assert equity["date"].to_list() == [date(2024, 1, 2), date(2024, 1, 4)]
+
+
+def test_daily_series_filled_to_every_calendar_day_annualizes_at_365() -> None:
+    trades = pl.DataFrame(
+        {
+            "entry_time": [datetime(2024, 1, 1), datetime(2024, 1, 10)],
+            "entry_price": [100.0, 100.0],
+            "exit_time": [datetime(2024, 1, 3), datetime(2024, 1, 15)],
+            "exit_price": [101.0, 99.0],
+            "quantity": [1.0, 1.0],
+        }
+    )
+    filled = trades_to_returns(trades, aggregation="D", fill_gaps=True)
+    assert filled.periods_per_year == 365
+    sparse = trades_to_returns(trades, aggregation="D", fill_gaps=False)
+    assert sparse.periods_per_year == 252

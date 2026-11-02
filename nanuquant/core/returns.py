@@ -36,7 +36,7 @@ def comp(returns: pl.Series) -> float:
     >>> comp(returns)
     0.1319
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -74,7 +74,7 @@ def cagr(
     >>> cagr(returns, periods_per_year=252)
     11.346...  # ~1134.6% annualized
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -101,31 +101,38 @@ def cagr(
     return float((1 + total_return) ** (1 / years) - 1)
 
 
-def avg_return(returns: pl.Series) -> float:
-    """Calculate average (arithmetic mean) return.
+def avg_return(returns: pl.Series, *, exclude_zeros: bool = True) -> float:
+    """Calculate the average (arithmetic mean) return.
+
+    Matches QuantStats ``avg_return``: periods with exactly zero return are treated as
+    periods without a position and excluded by default.
 
     Parameters
     ----------
     returns : pl.Series
         Period returns.
+    exclude_zeros : bool, default True
+        If True, average only the non-zero returns. If False, average every period.
 
     Returns
     -------
     float
-        Arithmetic mean of returns.
+        Mean return. 0.0 if there is nothing to average.
 
     Examples
     --------
     >>> import polars as pl
-    >>> returns = pl.Series([0.01, 0.02, -0.01, 0.03])
-    >>> avg_return(returns)
+    >>> round(avg_return(pl.Series([0.01, 0.02, 0.0, -0.01, 0.03])), 4)
     0.0125
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
     returns = to_float_series(returns)
+    if exclude_zeros:
+        returns = returns.filter(returns != 0)
+        if returns.is_empty():
+            return 0.0
     result = returns.mean()
     return float(result) if result is not None else 0.0
 
@@ -150,7 +157,7 @@ def avg_win(returns: pl.Series) -> float:
     >>> avg_win(returns)
     0.02
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -185,7 +192,7 @@ def avg_loss(returns: pl.Series) -> float:
     >>> avg_loss(returns)
     -0.015
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -219,7 +226,7 @@ def best(returns: pl.Series) -> float:
     >>> best(returns)
     0.05
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -248,7 +255,7 @@ def worst(returns: pl.Series) -> float:
     >>> worst(returns)
     -0.02
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -257,33 +264,37 @@ def worst(returns: pl.Series) -> float:
     return float(result) if result is not None else 0.0
 
 
-def win_rate(returns: pl.Series) -> float:
-    """Calculate percentage of positive returns.
+def win_rate(returns: pl.Series, *, exclude_zeros: bool = True) -> float:
+    """Calculate the fraction of periods with a positive return.
+
+    Matches QuantStats ``win_rate``: periods with exactly zero return are treated as
+    periods without a position and excluded from the denominator by default.
 
     Parameters
     ----------
     returns : pl.Series
         Period returns.
+    exclude_zeros : bool, default True
+        If True, divide by the number of non-zero periods. If False, by all periods.
 
     Returns
     -------
     float
-        Fraction of returns that are positive (0 to 1).
+        Fraction of counted periods that are positive (0 to 1). 0.0 if none are counted.
 
     Examples
     --------
     >>> import polars as pl
-    >>> returns = pl.Series([0.01, -0.02, 0.03, -0.01])
-    >>> win_rate(returns)
+    >>> win_rate(pl.Series([0.01, -0.02, 0.0, 0.03, -0.01]))
     0.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
-
     returns = to_float_series(returns)
-    n_wins = (returns > 0).sum()
-    return float(safe_divide(n_wins, len(returns), default=0.0))
+    n_wins = int((returns > 0).sum())
+    n_counted = int((returns != 0).sum()) if exclude_zeros else len(returns)
+    return float(safe_divide(n_wins, n_counted, default=0.0))
 
 
 def payoff_ratio(returns: pl.Series) -> float:
@@ -307,7 +318,7 @@ def payoff_ratio(returns: pl.Series) -> float:
     >>> payoff_ratio(returns)
     2.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -342,7 +353,7 @@ def profit_factor(returns: pl.Series) -> float:
     >>> profit_factor(returns)
     2.5
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0.0
 
@@ -381,7 +392,7 @@ def consecutive_wins(returns: pl.Series) -> int:
     >>> consecutive_wins(returns)
     3
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0
 
@@ -431,7 +442,7 @@ def consecutive_losses(returns: pl.Series) -> int:
     >>> consecutive_losses(returns)
     3
     """
-    validate_returns(returns)
+    returns = validate_returns(returns)
     if returns.is_empty():
         return 0
 

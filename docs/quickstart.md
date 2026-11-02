@@ -84,8 +84,8 @@ Calculate metrics over a rolling window:
 ```python
 # Add rolling metrics as new columns
 df_rolling = df.with_columns([
-    pl.col("returns").metrics.rolling_sharpe(window=20).alias("rolling_sharpe"),
-    pl.col("returns").metrics.rolling_volatility(window=20).alias("rolling_vol"),
+    pl.col("returns").metrics.rolling_sharpe(rolling_period=20).alias("rolling_sharpe"),
+    pl.col("returns").metrics.rolling_volatility(rolling_period=20).alias("rolling_vol"),
 ])
 
 print(df_rolling.tail())
@@ -286,9 +286,9 @@ try:
 except EmptySeriesError as e:
     print(f"Error: {e}")
 
-# Insufficient data
+# Insufficient data (rolling metrics instead return all-null output of the input's length)
 try:
-    nq.rolling_sharpe(pl.Series([0.01, 0.02]), window=100)
+    nq.probabilistic_sharpe_ratio(pl.Series([0.01, 0.02]))
 except InsufficientDataError as e:
     print(f"Error: {e}")
 ```

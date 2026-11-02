@@ -8,12 +8,11 @@ All implementations use native Polars operations for optimal performance.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-
 import polars as pl
 
-from nanuquant.core.utils import compound_returns, to_float_series
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.risk import to_drawdown_series
+from nanuquant.core.utils import compound_returns, synthetic_dates, to_float_series
+from nanuquant.core.validation import align_dates, validate_returns
 
 
 def yearly_returns(
@@ -57,22 +56,14 @@ def yearly_returns(
     │ 2022 ┆ ...      │
     └──────┴──────────┘
     """
-    validate_returns(returns, allow_empty=True)
+    if dates is None:
+        dates = synthetic_dates(len(returns))
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         empty_df = pl.DataFrame({"year": [], "return": []})
         return empty_df.cast({"year": pl.Int32, "return": pl.Float64})
 
     returns = to_float_series(returns)
-
-    # Generate dates if not provided using Polars date_range
-    if dates is None:
-        start = date(2020, 1, 1)
-        dates = pl.date_range(
-            start=start,
-            end=start + timedelta(days=len(returns) - 1),
-            interval="1d",
-            eager=True,
-        ).alias("date")
 
     df = pl.DataFrame(
         {
@@ -86,9 +77,13 @@ def yearly_returns(
 
     # Aggregate returns by year
     if compounded:
-        yearly = df.group_by("year").agg(((pl.col("returns") + 1).product() - 1).alias("return"))
+        yearly = df.group_by("year", maintain_order=True).agg(
+            ((pl.col("returns") + 1).product() - 1).alias("return")
+        )
     else:
-        yearly = df.group_by("year").agg(pl.col("returns").sum().alias("return"))
+        yearly = df.group_by("year", maintain_order=True).agg(
+            pl.col("returns").sum().alias("return")
+        )
 
     return yearly.sort("year")
 
@@ -126,6 +121,10 @@ def drawdown_details(
         - length: Number of periods in drawdown
         - recovery: Number of periods to recover (None if not yet recovered)
 
+        Positions (start/valley/end without dates) refer to the input, gaps
+        included, so they line up with the caller's rows; length and recovery
+        count observed periods only, so a gap inside an episode doesn't add one.
+
     Examples
     --------
     >>> import polars as pl
@@ -140,37 +139,27 @@ def drawdown_details(
     │ ...   ┆ ...    ┆ ... ┆ ...    ┆ ...    ┆ ...      │
     └───────┴────────┴─────┴────────┴────────┴──────────┘
     """
-    validate_returns(returns, allow_empty=True)
+    # Without dates, report positions in the input series (missing returns included),
+    # so the indices line up with the caller's data and with to_drawdown_series.
+    if dates is None:
+        dates = pl.int_range(0, len(returns), eager=True)
+    returns, aligned = align_dates(returns, dates, allow_empty=True)
+    dates = aligned if aligned is not None else dates
+    empty = pl.DataFrame(
+        {
+            "start": pl.Series([], dtype=dates.dtype),
+            "valley": pl.Series([], dtype=dates.dtype),
+            "end": pl.Series([], dtype=dates.dtype),
+            "depth": pl.Series([], dtype=pl.Float64),
+            "length": pl.Series([], dtype=pl.Int64),
+            "recovery": pl.Series([], dtype=pl.Int64),
+        }
+    )
     if returns.is_empty():
-        if dates is not None:
-            return pl.DataFrame(
-                {
-                    "start": pl.Series([], dtype=dates.dtype),
-                    "valley": pl.Series([], dtype=dates.dtype),
-                    "end": pl.Series([], dtype=dates.dtype),
-                    "depth": pl.Series([], dtype=pl.Float64),
-                    "length": pl.Series([], dtype=pl.Int64),
-                    "recovery": pl.Series([], dtype=pl.Int64),
-                }
-            )
-        return pl.DataFrame(
-            {
-                "start": pl.Series([], dtype=pl.Int64),
-                "valley": pl.Series([], dtype=pl.Int64),
-                "end": pl.Series([], dtype=pl.Int64),
-                "depth": pl.Series([], dtype=pl.Float64),
-                "length": pl.Series([], dtype=pl.Int64),
-                "recovery": pl.Series([], dtype=pl.Int64),
-            }
-        )
+        return empty
 
-    returns = to_float_series(returns)
     n = len(returns)
-
-    # Calculate cumulative wealth and drawdown series using Polars
-    cumulative = (1 + returns).cum_prod()
-    running_max = cumulative.cum_max()
-    drawdown = (cumulative - running_max) / running_max
+    drawdown = to_drawdown_series(returns)
 
     # Build a DataFrame for vectorized processing
     df = pl.DataFrame(
@@ -179,10 +168,6 @@ def drawdown_details(
             "dd": drawdown,
         }
     )
-
-    # Add date column if provided
-    if dates is not None:
-        df = df.with_columns(pl.Series("date", dates))
 
     # Identify drawdown periods using run-length encoding
     # A new drawdown period starts when we transition from dd >= 0 to dd < 0
@@ -206,31 +191,10 @@ def drawdown_details(
     dd_periods = df.filter(pl.col("in_dd"))
 
     if dd_periods.is_empty():
-        # No drawdowns found
-        if dates is not None:
-            return pl.DataFrame(
-                {
-                    "start": pl.Series([], dtype=dates.dtype),
-                    "valley": pl.Series([], dtype=dates.dtype),
-                    "end": pl.Series([], dtype=dates.dtype),
-                    "depth": pl.Series([], dtype=pl.Float64),
-                    "length": pl.Series([], dtype=pl.Int64),
-                    "recovery": pl.Series([], dtype=pl.Int64),
-                }
-            )
-        return pl.DataFrame(
-            {
-                "start": pl.Series([], dtype=pl.Int64),
-                "valley": pl.Series([], dtype=pl.Int64),
-                "end": pl.Series([], dtype=pl.Int64),
-                "depth": pl.Series([], dtype=pl.Float64),
-                "length": pl.Series([], dtype=pl.Int64),
-                "recovery": pl.Series([], dtype=pl.Int64),
-            }
-        )
+        return empty
 
     # Aggregate each drawdown period to find start, valley, end, depth
-    period_stats = dd_periods.group_by("period_id").agg(
+    period_stats = dd_periods.group_by("period_id", maintain_order=True).agg(
         [
             pl.col("idx").min().alias("first_dd_idx"),
             pl.col("idx").max().alias("last_dd_idx"),
@@ -270,32 +234,28 @@ def drawdown_details(
     )
 
     # Sort by depth (most negative first) and take top N
-    period_stats = period_stats.sort("depth").head(top_n)
+    period_stats = period_stats.sort("depth", maintain_order=True).head(top_n)
 
-    # Map indices to dates if provided
-    if dates is not None:
-        dates_list = dates.to_list()
-        result = pl.DataFrame(
-            {
-                "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
-                "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
-                "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
-                "depth": period_stats["depth"].to_list(),
-                "length": period_stats["length"].to_list(),
-                "recovery": period_stats["recovery"].to_list(),
-            }
-        )
-    else:
-        result = period_stats.select(
-            [
-                pl.col("start_idx").alias("start"),
-                pl.col("valley_idx").alias("valley"),
-                pl.col("end_idx").alias("end"),
-                pl.col("depth"),
-                pl.col("length"),
-                pl.col("recovery"),
-            ]
-        )
+    # Map indices to dates (or input positions)
+    dates_list = dates.to_list()
+    result = pl.DataFrame(
+        {
+            "start": [dates_list[int(i)] for i in period_stats["start_idx"].to_list()],
+            "valley": [dates_list[int(i)] for i in period_stats["valley_idx"].to_list()],
+            "end": [dates_list[int(i)] for i in period_stats["end_idx"].to_list()],
+            "depth": period_stats["depth"].to_list(),
+            "length": period_stats["length"].to_list(),
+            "recovery": period_stats["recovery"].to_list(),
+        },
+        schema={
+            "start": dates.dtype,
+            "valley": dates.dtype,
+            "end": dates.dtype,
+            "depth": pl.Float64,
+            "length": pl.Int64,
+            "recovery": pl.Int64,
+        },
+    )
 
     return result
 
@@ -339,7 +299,7 @@ def histogram(
     shape: (20, 2)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    returns = validate_returns(returns, allow_empty=True)
     if returns.is_empty():
         return pl.DataFrame(
             {

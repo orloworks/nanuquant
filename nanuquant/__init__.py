@@ -128,6 +128,8 @@ from nanuquant.exceptions import (
 from nanuquant.institutional import (
     # Robustness metrics
     deflated_sharpe_ratio,
+    minimum_track_record_length,
+    newey_west_se,
     probabilistic_sharpe_ratio,
 )
 from nanuquant.namespace import MetricsNamespace  # noqa: F401
@@ -249,6 +251,8 @@ __all__ = [
     "k_ratio",
     # Institutional / Robustness metrics
     "probabilistic_sharpe_ratio",
+    "minimum_track_record_length",
+    "newey_west_se",
     "deflated_sharpe_ratio",
     # Reports
     "MetricsReport",

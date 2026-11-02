@@ -10,8 +10,13 @@ from typing import Any
 
 import polars as pl
 
-from nanuquant.core.utils import to_float_series
-from nanuquant.core.validation import validate_returns
+from nanuquant.core.utils import synthetic_dates, to_float_series
+from nanuquant.core.validation import (
+    align_dates,
+    align_pair,
+    normalize_missing,
+    validate_benchmark_match,
+)
 
 
 def monthly_returns(
@@ -50,29 +55,22 @@ def monthly_returns(
     shape: (10, 2)
     ...
     """
-    validate_returns(returns, allow_empty=True)
+    if dates is None:
+        dates = synthetic_dates(len(returns))
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return pl.DataFrame()
 
     returns = to_float_series(returns)
 
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
-
-    # Create DataFrame with returns and dates
+    # Create DataFrame with returns and dates, in date order so that the grouped
+    # periods (and the pivoted year columns) come out chronologically
     df = pl.DataFrame(
         {
             "date": dates,
             "returns": returns,
         }
-    )
+    ).sort("date", maintain_order=True)
 
     # Extract year and month
     df = df.with_columns(
@@ -85,12 +83,12 @@ def monthly_returns(
     # Aggregate returns by month/year
     if compounded:
         # Compound: (1 + r1) * (1 + r2) * ... - 1
-        monthly = df.group_by(["year", "month"]).agg(
+        monthly = df.group_by(["year", "month"], maintain_order=True).agg(
             ((pl.col("returns") + 1).product() - 1).alias("monthly_return")
         )
     else:
         # Simple sum
-        monthly = df.group_by(["year", "month"]).agg(
+        monthly = df.group_by(["year", "month"], maintain_order=True).agg(
             pl.col("returns").sum().alias("monthly_return")
         )
 
@@ -151,28 +149,21 @@ def distribution(
     >>> dist.keys()
     dict_keys(['Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'])
     """
-    validate_returns(returns, allow_empty=True)
+    if dates is None:
+        dates = synthetic_dates(len(returns))
+    returns, dates = align_dates(returns, dates, allow_empty=True)
     if returns.is_empty():
         return {}
 
     returns = to_float_series(returns)
 
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
-
+    # In date order, so every period list below is chronological
     df = pl.DataFrame(
         {
             "date": dates,
             "returns": returns,
         }
-    )
+    ).sort("date", maintain_order=True)
 
     def aggregate_period(
         data: pl.DataFrame,
@@ -180,11 +171,13 @@ def distribution(
     ) -> pl.Series:
         """Aggregate returns by period."""
         if compounded:
-            agg = data.group_by(period_col).agg(
+            agg = data.group_by(period_col, maintain_order=True).agg(
                 ((pl.col("returns") + 1).product() - 1).alias("period_return")
             )
         else:
-            agg = data.group_by(period_col).agg(pl.col("returns").sum().alias("period_return"))
+            agg = data.group_by(period_col, maintain_order=True).agg(
+                pl.col("returns").sum().alias("period_return")
+            )
         return agg["period_return"]
 
     def identify_outliers_iqr(series: pl.Series) -> pl.Series:
@@ -214,12 +207,15 @@ def distribution(
     result: dict[str, dict[str, Any]] = {}
 
     # Daily - just the raw returns
-    result["Daily"] = compute_stats(returns)
+    result["Daily"] = compute_stats(df["returns"])
 
-    # Weekly - aggregate by ISO week
+    # Weekly - aggregate by ISO week, keyed by ISO year so that late-December days in
+    # week 1 of the next year are not merged with the first week of their own year
     df_weekly = df.with_columns(
         (
-            pl.col("date").dt.year().cast(pl.Utf8) + "-" + pl.col("date").dt.week().cast(pl.Utf8)
+            pl.col("date").dt.iso_year().cast(pl.Utf8)
+            + "-"
+            + pl.col("date").dt.week().cast(pl.Utf8)
         ).alias("week")
     )
     weekly_returns = aggregate_period(df_weekly, "week")
@@ -289,27 +285,20 @@ def compare(
     shape: (3, 5)
     ...
     """
-    from nanuquant.core.validation import validate_benchmark_match
-
-    validate_returns(returns, allow_empty=True)
-    validate_returns(benchmark, allow_empty=True)
     validate_benchmark_match(returns, benchmark)
+    if dates is None:
+        dates = synthetic_dates(len(returns))
+    elif len(dates) != len(returns):
+        raise ValueError(f"dates length ({len(dates)}) must match returns length ({len(returns)})")
+    keep = normalize_missing(returns).is_not_null() & normalize_missing(benchmark).is_not_null()
+    returns, benchmark = align_pair(returns, benchmark, allow_empty=True)
+    dates = dates.filter(keep)
 
     if returns.is_empty():
         return pl.DataFrame()
 
     returns = to_float_series(returns)
     benchmark = to_float_series(benchmark)
-
-    # Generate dates if not provided
-    if dates is None:
-        from datetime import date, timedelta
-
-        start = date(2020, 1, 1)
-        dates = pl.Series(
-            "date",
-            [start + timedelta(days=i) for i in range(len(returns))],
-        )
 
     return pl.DataFrame(
         {

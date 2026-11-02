@@ -143,7 +143,13 @@ def ema(prices: PriceInput, period: int, *, adjust: bool = False) -> PriceInput:
     )
 
 
-def rsi(prices: PriceInput, period: int, *, method: Literal["wilder"] = "wilder") -> PriceInput:
+def rsi(
+    prices: PriceInput,
+    period: int,
+    *,
+    method: Literal["wilder"] = "wilder",
+    seed: Literal["zero", "first_change"] = "zero",
+) -> PriceInput:
     """Relative Strength Index, 0 to 100.
 
     Parameters
@@ -153,12 +159,18 @@ def rsi(prices: PriceInput, period: int, *, method: Literal["wilder"] = "wilder"
     period : int
         Smoothing length; Wilder smoothing uses ``alpha = 1 / period``.
     method : {"wilder"}, default "wilder"
-        Gains and losses are smoothed recursively from the first observation, with the
-        first (undefined) change counted as zero. After a missing price the change is
-        taken from the last valid price and the missing row is skipped, so a gap has
-        the same effect as removing that row. There is no warm-up cut, so early
-        values are defined but unsettled; callers needing a settled value should
-        discard roughly ``3 * period`` observations.
+        Gains and losses are smoothed recursively with ``adjust=False``. After a
+        missing price the change is taken from the last valid price and the missing
+        row is skipped, so a gap has the same effect as removing that row. There is
+        no warm-up cut, so early values are defined but unsettled; callers needing a
+        settled value should discard roughly ``3 * period`` observations.
+    seed : {"zero", "first_change"}, default "zero"
+        Where the smoothing starts. ``"zero"`` starts at the first price, counting
+        its (undefined) change as zero. ``"first_change"`` starts at the second
+        price, seeded with the first real change; RSI at the first price is null.
+        This is the pandas-ta and Composer-parser convention. The two converge as
+        the seed decays, but differ for roughly ``3 * period`` observations, which
+        can be most of a short history at long periods.
 
     Returns
     -------
@@ -170,13 +182,18 @@ def rsi(prices: PriceInput, period: int, *, method: Literal["wilder"] = "wilder"
     period = _check_period(period)
     if method != "wilder":
         raise ValueError(f"unsupported RSI method {method!r}; only 'wilder' is implemented")
+    if seed not in ("zero", "first_change"):
+        raise ValueError(f"unsupported RSI seed {seed!r}; use 'zero' or 'first_change'")
     alpha = 1.0 / period
 
     def build(x: pl.Expr) -> pl.Expr:
         # The change from the last valid price, so the move across a gap is measured
-        # rather than lost; the first observation has no change and counts as zero.
+        # rather than lost. The first observation has no change: it counts as zero
+        # (seed="zero") or is skipped (seed="first_change").
         delta = x - x.forward_fill().shift(1)
         observed = x.is_not_null()
+        if seed == "first_change":
+            observed = observed & delta.is_not_null()
         gain = pl.when(observed).then(pl.when(delta > 0).then(delta).otherwise(0.0))
         loss = pl.when(observed).then(pl.when(delta < 0).then(-delta).otherwise(0.0))
         # A missing price is skipped in the smoothing, not counted as a flat day, so

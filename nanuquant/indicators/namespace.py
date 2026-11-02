@@ -34,9 +34,15 @@ class IndicatorsNamespace:
         """See :func:`nanuquant.indicators.ema`."""
         return core.ema(self._expr, period, adjust=adjust)
 
-    def rsi(self, period: int, *, method: Literal["wilder"] = "wilder") -> pl.Expr:
+    def rsi(
+        self,
+        period: int,
+        *,
+        method: Literal["wilder"] = "wilder",
+        seed: Literal["zero", "first_change"] = "zero",
+    ) -> pl.Expr:
         """See :func:`nanuquant.indicators.rsi`."""
-        return core.rsi(self._expr, period, method=method)
+        return core.rsi(self._expr, period, method=method, seed=seed)
 
     def cumulative_return(self, period: int, *, percent: bool = False) -> pl.Expr:
         """See :func:`nanuquant.indicators.cumulative_return`."""

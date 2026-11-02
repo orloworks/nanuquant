@@ -17,7 +17,7 @@ import pytest
 from nanuquant import indicators as ind
 from nanuquant.indicators import core
 from tests.conftest import load_cached_returns
-from tests.indicator_reference import compute_indicator, current_drawdown_main
+from tests.indicator_reference import compute_indicator, current_drawdown_main, rsi_first_change
 
 TIGHT = 1e-8
 PERIODS = [1, 2, 5, 10, 14, 20, 63, 200]
@@ -151,6 +151,7 @@ NAMESPACE_CASES = [
     ("sma", (20,), {}),
     ("ema", (20,), {"adjust": True}),
     ("rsi", (10,), {"method": "wilder"}),
+    ("rsi", (10,), {"seed": "first_change"}),
     ("cumulative_return", (20,), {"percent": True}),
     ("max_drawdown", (20,), {"percent": True}),
     ("current_drawdown", (20,), {"percent": True}),
@@ -257,6 +258,48 @@ def test_rsi_with_an_interior_gap_equals_rsi_with_the_row_removed() -> None:
     assert with_gap[4] is None
     observed = with_gap.drop_nulls().to_list()
     assert observed == pytest.approx(without.drop_nulls().to_list(), rel=1e-12)
+
+
+@pytest.mark.parametrize("period", PERIODS)
+def test_rsi_first_change_seed_matches_engine_main_and_pandas_ta(market_prices, period):
+    for ticker, prices in market_prices.items():
+        expected = rsi_first_change(prices, period)
+        actual = ind.rsi(pl.Series(ticker, prices.to_numpy()), period, seed="first_change")
+        _assert_matches(actual, expected, label=f"rsi({period}) {ticker}")
+
+
+@pytest.mark.parametrize("period", [2, 10, 30])
+def test_rsi_first_change_seed_across_inception_gap(inception_prices, period):
+    expected = rsi_first_change(inception_prices, period)
+    actual = ind.rsi(pl.Series("x", inception_prices.to_numpy()), period, seed="first_change")
+    _assert_matches(actual, expected, label=f"rsi({period}) inception")
+
+
+def test_rsi_seeds_differ_early_and_converge() -> None:
+    prices = pl.Series([10.0, 11.0, 12.0, 11.0, 13.0, 12.0] + [12.0 + (i % 3) for i in range(200)])
+    zero = ind.rsi(prices, 5)
+    first = ind.rsi(prices, 5, seed="first_change")
+    assert first[0] is None  # no change to seed from yet
+    # Changes [+1, +1, -1, +2, -1]; seeded at 0 from the first price vs at the first change.
+    assert zero[5] == pytest.approx(60.5920799692426, rel=1e-12)
+    assert first[5] == pytest.approx(71.72413793103448, rel=1e-12)
+    assert zero[-1] == pytest.approx(first[-1], rel=1e-9)
+
+
+def test_rsi_first_change_seed_skips_a_gap_like_the_zero_seed() -> None:
+    prices = [100.0, 101.0, 100.5, 102.0, 101.0, 103.0, 104.0, 102.5, 103.5, 105.0]
+    gappy = prices[:4] + [None] + prices[4:]
+    with_gap = ind.rsi(pl.Series(gappy), 3, seed="first_change")
+    without = ind.rsi(pl.Series(prices), 3, seed="first_change")
+    assert with_gap[4] is None
+    assert with_gap.drop_nulls().to_list() == pytest.approx(
+        without.drop_nulls().to_list(), rel=1e-12
+    )
+
+
+def test_unknown_rsi_seed_raises() -> None:
+    with pytest.raises(ValueError, match="seed"):
+        ind.rsi(pl.Series([1.0, 2.0]), 2, seed="sma")  # type: ignore[arg-type]
 
 
 def test_non_numeric_prices_raise() -> None:
